@@ -109,3 +109,7 @@ roteiro e grava as próprias falas.
 ## Publicar
 
 Commit + `git pull --rebase` + push na `main` (o GitHub Pages publica a raiz). Antes: `node --check js/*.js` e `node js/roteiro.js`.
+
+> **Temporário (05/11/2026):** o GitHub Pages deste repositório travou numa publicação e foi desligado; o mesmo endereço
+> está sendo servido por uma cópia em `problemsbloxcreate-lab.github.io/preparativos/` (pasta `preparativos/` do repo do site).
+> Até religar o Pages daqui, cada mudança precisa ser copiada para lá também (veja o LEIA-ME daquela pasta).
