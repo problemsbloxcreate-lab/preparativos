@@ -1,4 +1,4 @@
-/* PREPARATIVOS · Estúdio Problems — escuro como os outros programas; a folha do roteiro é branca, como no Google Docs */
+/* PREPARATIVOS · Estúdio Problems — escuro como os outros programas; a folha do roteiro é branca */
 :root{--bg:#111215;--panel:#1a1b20;--panel-2:#22242a;--panel-3:#2b2e35;--line:#2f323a;--text:#eceef2;--muted:#9aa0ab;--accent:#3d9bff;--prep:#ffd36b;--ok:#4fe08f;--erro:#ff7b8a;--aten:#ffb04a;--rec:#ff4d5e;
   --papel:#ffffff;--tinta:#202124;--tinta-2:#5f6368;--mesa:#2a2c31;color-scheme:dark}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%}
@@ -72,7 +72,7 @@ h3{font-size:11.5px;margin:16px 0 8px;color:var(--muted);font-weight:700;text-tr
 .sub button{border:0;background:none;padding:9px 14px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;border-bottom:2px solid transparent;margin-bottom:-1px}
 .sub button.on{color:var(--text);border-bottom-color:var(--accent)}
 .corpo{padding-top:14px}
-/* folha estilo Google Docs */
+/* folha do roteiro */
 .docs{border:1px solid var(--line);border-radius:14px;background:var(--mesa)}
 .docs-barra{border-radius:13px 13px 0 0;display:flex;align-items:center;gap:4px;padding:6px 10px;background:#edf2fa;color:var(--tinta);flex-wrap:wrap;position:sticky;top:57px;z-index:5}
 .docs-barra .bt{background:transparent;border-color:transparent;color:var(--tinta);border-radius:8px;padding:5px 9px}
@@ -175,7 +175,7 @@ select,input:not([type=checkbox]):not([type=color]),textarea{background:var(--pa
 @media (max-width:980px){.docs-area{grid-template-columns:1fr}.estrutura{position:static;max-height:none;border-right:0;border-bottom:1px solid #3a3d44}.leg2{grid-template-columns:1fr}}
 @media (max-width:720px){.pagina{padding:36px 22px;min-height:0}.mesa{padding:12px 6px}.fala{grid-template-columns:1fr auto}.fala .num{display:none}.fala .quem{grid-column:1/-1}.docs-barra{top:0}}
 
-/* ===================== MODO DOCUMENTO: roteiro aberto = tela estilo Google Docs (claro, um cabeçalho só) ===================== */
+/* ===================== MODO DOCUMENTO: roteiro aberto = editor de documento (claro, um cabeçalho só) ===================== */
 body.modo-doc{font-family:"Google Sans","Segoe UI",Roboto,Arial,sans-serif}
 body.modo-doc.claro{--bg:#f9fbfd;--panel:#fff;--panel-2:#f1f3f4;--panel-3:#e8eaed;--line:#dadce0;--text:#1f1f1f;--muted:#5f6368;--accent:#0b57d0;--ok:#188038;--aten:#b06000;--rec:#d93025;--erro:#d93025;--mesa:#f9fbfd;color-scheme:light;
   font-family:"Google Sans","Segoe UI",Roboto,Arial,sans-serif}
@@ -295,3 +295,99 @@ body.modo-doc:not(.claro) .folha-txt ::selection{background:#28487a}
 body.modo-doc:not(.claro) .fala .quem b{color:color-mix(in srgb,var(--c) 80%,#fff)}
 body.modo-doc:not(.claro) .fala,body.modo-doc:not(.claro) .pcard{box-shadow:none}
 body.modo-doc:not(.claro) .guias>.etapa-dica{background:var(--panel-2)}
+
+/* ===================== 05/11/2026 (2): páginas, réguas, pastas, personagens, nuvem × computador ===================== */
+/* cabeçalho + barra num bloco só que gruda no topo (antes cada um grudava sozinho e a barra dava um pulinho ao rolar) */
+.dh-topo{position:sticky;top:0;z-index:30;background:var(--bg)}
+.dh-topo .dh,.dh-topo .dh-barra{position:static}
+.dh{padding:4px 16px 0 12px}.dh-meio{gap:0}.dh-l1{min-height:26px;gap:8px}
+.dh .nome{padding:0 6px!important;line-height:1.3;font-size:18px;height:26px}
+.dh-menus button{padding:1px 7px;line-height:1.35}
+.guias{top:118px}
+/* onde está: neste computador × na nuvem */
+.onde{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;white-space:nowrap}
+.cartao .onde{margin-left:auto}.o-pc,.o-mudou{color:var(--aten)}.o-nuvem{color:#7fb6ff}.o-junto{color:var(--ok);margin-left:8px}
+body.modo-doc.claro .o-nuvem{color:#0b57d0}
+.dh .salvar{display:inline-flex;gap:4px;align-items:center}.dh .salvar .onde{font-size:12px}
+.secao{margin-top:22px}
+.sec-tit{display:flex;align-items:center;gap:10px;color:var(--text);font-size:16px;margin:0 0 4px;flex-wrap:wrap}
+.sec-tit small{color:var(--muted);font-weight:400;font-size:12.5px;flex-basis:100%;margin-left:42px;margin-top:-4px}
+.sec-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center}
+.sec-pc .sec-ic{background:rgba(255,176,74,.14);color:var(--aten)}.sec-nuvem .sec-ic{background:rgba(61,155,255,.15);color:#7fb6ff}
+/* bolinha com foto */
+.ava.com-foto{background-size:cover;background-position:center;color:transparent!important}
+/* folha: ação / explicação com marca-texto amarelo bem leve, sem mostrar os * */
+.folha-txt .it,.folha-txt .l.a .ac{font-style:italic;background:#fff6c2;color:#5c4b00;border-radius:3px;padding:0 2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.folha-txt .it .mk,.folha-txt .l.a .mk{display:none}
+.folha-txt .l.a{font-style:italic;color:#5c4b00;background:none}
+body.modo-doc:not(.claro) .folha-txt .it,body.modo-doc:not(.claro) .folha-txt .l.a .ac{background:rgba(253,214,99,.17);color:#f6e7a8}
+body.modo-doc:not(.claro) .folha-txt .l.a{color:#f6e7a8}
+/* títulos: capítulo grande, parte com uma linha separando */
+.folha-txt .l.h.h1{font-size:26px;line-height:1.35;margin:30px 0 10px;font-weight:700}
+.folha-txt .l.h.h2{font-size:19px;line-height:1.4;margin:20px 0 6px;padding-top:10px;border-top:1px solid rgba(128,128,128,.28);font-weight:700}
+.folha-txt .l.h:first-child{margin-top:0;border-top:0;padding-top:0}
+.folha-txt .l.h .mk{font-size:.7em;opacity:.55}
+/* quebra de página ("---") */
+.folha-txt .l.q{color:#9aa0a6;font-size:11px;text-align:center;letter-spacing:4px;border-bottom:1px dashed rgba(128,128,128,.5);line-height:1.6;min-height:0}
+.folha-txt .l.q::after{content:'quebra de página';letter-spacing:.3px;margin-left:8px;font-style:italic}
+/* páginas */
+body.modo-doc .mesa{padding:16px 20px 80px 44px;overflow-x:auto}
+.paginas{position:relative;width:816px;margin:0 auto}
+.fundo{position:absolute;left:0;top:0;width:816px;pointer-events:none}
+.fundo .pg{position:absolute;left:0;width:816px;height:1056px;background:#fff;box-shadow:0 1px 3px 1px rgba(60,64,67,.15);border:1px solid #e3e3e3}
+.fundo .pg-n{position:absolute;right:18px;bottom:12px;font-size:11px;color:#9aa0a6}
+body.modo-doc:not(.claro) .fundo .pg{background:#26272b;border-color:#33343a;box-shadow:0 1px 3px 1px rgba(0,0,0,.45)}
+.folha{position:relative;box-sizing:border-box;color:#1f1f1f}
+body.modo-doc:not(.claro) .folha{color:#e3e3e3}
+.folha-txt{min-height:200px}
+/* régua de cima: margens esquerda/direita arrastáveis */
+.r-folha{background-image:linear-gradient(90deg,rgba(218,220,224,.9) 0 var(--ml,96px),transparent var(--ml,96px) calc(100% - var(--mr,96px)),rgba(218,220,224,.9) calc(100% - var(--mr,96px))),repeating-linear-gradient(90deg,#9aa0a6 0 1px,transparent 1px 9.45px)!important}
+body.modo-doc:not(.claro) .r-folha{background-image:linear-gradient(90deg,#3c3d42 0 var(--ml,96px),transparent var(--ml,96px) calc(100% - var(--mr,96px)),#3c3d42 calc(100% - var(--mr,96px))),repeating-linear-gradient(90deg,#6f7378 0 1px,transparent 1px 9.45px)!important}
+.r-num span{position:absolute;top:2px;font-size:10px;color:#5f6368;transform:translateX(-50%)}
+.rh-mao{position:absolute;bottom:0;width:12px;height:11px;background:#4c8df6;clip-path:polygon(0 0,100% 0,50% 100%);cursor:ew-resize;touch-action:none}
+.rh-mao[data-m=ml]{left:calc(var(--ml,96px) - 6px)}.rh-mao[data-m=mr]{right:calc(var(--mr,96px) - 6px)}
+.regua{padding-left:260px}.regua .r-folha{margin-left:24px}
+body.sem-guias .regua{padding-left:0}
+/* régua do lado: margens de cima/baixo arrastáveis */
+.regua-v{position:absolute;left:-30px;top:0;width:20px;height:100%}
+.rv-pg{position:absolute;left:0;width:20px;height:1056px;background:linear-gradient(180deg,#dadce0 0 var(--mt),#fff var(--mt) calc(100% - var(--mb)),#dadce0 calc(100% - var(--mb)));border-right:1px solid #dadce0;overflow:hidden}
+.rv-pg span{position:absolute;left:0;width:20px;text-align:center;font-size:9px;color:#5f6368;transform:translateY(-50%)}
+body.modo-doc:not(.claro) .rv-pg{background:linear-gradient(180deg,#3c3d42 0 var(--mt),#2b2c30 var(--mt) calc(100% - var(--mb)),#3c3d42 calc(100% - var(--mb)));border-color:#3c4043}
+body.modo-doc:not(.claro) .rv-pg span{color:#9aa0a6}
+.rv-mao{position:absolute;left:8px;width:12px;height:12px;background:#4c8df6;clip-path:polygon(0 0,100% 50%,0 100%);cursor:ns-resize;touch-action:none}
+.rv-mao[data-m=mt]{top:calc(var(--mt) - 6px)}.rv-mao[data-m=mb]{top:calc(1056px - var(--mb) - 6px)}
+.marg-dica{position:fixed;z-index:99;background:#303030;color:#fff;font-size:12px;padding:4px 8px;border-radius:6px;pointer-events:none}
+/* confirmar mudança pelo menu */
+.antes-depois{display:grid;gap:4px}.antes-depois small{color:var(--muted)}
+.antes-depois pre{margin:0;white-space:pre-wrap;font:13px/1.5 Arial,sans-serif;background:var(--panel-2);border-radius:8px;padding:8px 10px;max-height:160px;overflow:auto}
+.antes-depois pre.depois{outline:2px solid color-mix(in srgb,var(--accent) 60%,transparent)}
+/* lado esquerdo: títulos e personagens em pastas */
+.indice .ix{display:block;width:100%;text-align:left;border:0;background:none;border-radius:6px;padding:4px 10px;color:var(--text)}
+.indice .ix:hover{background:var(--panel-3)}.indice .ix b{display:block;font-size:13.5px;font-weight:600}.indice .ix small{color:var(--muted);font-size:11.5px}
+.indice .ix2{padding-left:24px}.indice .ix2 b{font-weight:400}
+.g-pers{display:flex;align-items:center}
+.g-mini{border:0;background:none;color:var(--muted);border-radius:6px;padding:3px 5px;display:inline-grid;place-items:center}.g-mini:hover{background:var(--panel-3);color:var(--text)}
+.pfiltro{display:flex;flex-wrap:wrap;gap:4px;padding:0 8px 6px}
+.pf{font-size:11.5px;border:1px solid var(--line);background:none;border-radius:99px;padding:2px 9px;color:var(--muted)}.pf.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.pasta-tit{display:flex;align-items:center;gap:6px;width:100%;border:0;background:none;color:var(--muted);font-size:12px;font-weight:600;padding:6px 8px;text-align:left}
+.pasta-tit small{font-weight:400}.pasta-tit svg{transition:transform .15s}
+.pasta.fechada .prow{display:none}.pasta.fechada .pasta-tit svg{transform:rotate(-90deg)}
+.prow{display:flex;align-items:center}.prow .pchip{flex:1;min-width:0}.prow .g-mini{opacity:0}.prow:hover .g-mini,.prow .g-mini:focus{opacity:1}
+/* "Como escrever" */
+.como .ex mark,.como mark{background:#fff6c2;color:#5c4b00;font-style:italic;border-radius:3px;padding:0 2px}
+.como .g1{font-size:18px}.como .com{color:#188038;font-family:Consolas,monospace;font-size:12.5px}
+/* aba Personagens */
+.explica{display:flex;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:14px 0 6px;color:var(--text)}
+.explica>svg{flex:none;color:var(--prep);margin-top:2px}.explica p{margin:6px 0;color:var(--muted)}.explica ul{margin:4px 0 0;padding-left:18px;color:var(--muted)}.explica li{margin:4px 0}.explica li b{color:var(--text)}
+.pasta-g h3{display:flex;align-items:center;gap:6px;margin-top:22px}
+.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.pcard2{--c:#888;display:flex;gap:14px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:14px;padding:14px}
+.pcard2 .foto{position:relative;border:0;background:none;padding:0;border-radius:50%;flex:none}
+.pcard2 .foto .cam{position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--panel-3);color:var(--text);box-shadow:0 0 0 2px var(--panel)}
+.pcard2 .foto:disabled .cam{display:none}
+.pc-meio{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}.pc-meio b{font-size:16px}
+.pc-meio select{align-self:flex-start}
+.pc-meio .paleta{margin-left:0}
+.leg-mini{font-weight:800;text-shadow:0 1px 2px #000,0 0 4px #000;font-size:13px}
+.link{border:0;background:none;color:#7fb6ff;padding:0;align-self:flex-start;font-size:12.5px}.link:hover{text-decoration:underline}
+@media (max-width:980px){.regua{padding-left:0}.regua-v{display:none}body.modo-doc .mesa{padding-left:12px}}

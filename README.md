@@ -1,43 +1,55 @@
 # PREPARATIVOS · Estúdio Problems
 
-O que vem antes de animar ou editar: **roteiros** em partes nomeadas, **falas por personagem**, **gravação** de cada fala pelo
-navegador, **destino** (Animador, Criar Shorts ou Editar vídeos) e **legendas** com cor por personagem. As **Ideias** (as mesmas
-do Animador) também moram aqui.
+O que vem antes de animar ou editar: **roteiros** em capítulos e partes, **falas por personagem**, **gravação** de cada fala pelo
+navegador, **destino** (Animador, Criar Shorts ou Editar vídeos), **legendas** e a lista de **personagens** da equipe (foto, cor,
+pasta). As **Ideias** (as mesmas do Animador) também moram aqui.
 
 Endereço: https://estudio.problemsraiz.workers.dev/preparativos/ (só pelo login do menu; esta cópia do GitHub Pages é a origem
 que o porteiro serve e redireciona para o endereço único).
 
 ## Como escrever o roteiro (leia antes de escrever ou ler um roteiro — vale para gente e para o Claude)
 
-O roteiro é TEXTO simples, escrito na folha estilo Google Docs da aba Roteiro. O que aparece na folha é exatamente o texto
-guardado em `prep.json → roteiro`; as cores são só pintura em cima. Cada linha é uma destas:
+O roteiro é TEXTO simples, escrito na folha da aba Roteiro. O que está na folha é exatamente o texto guardado em
+`prep.json → roteiro`; cores, marca-texto e páginas são só pintura em cima. Cada linha é uma destas:
 
 ```
-## Episódio 1 parte 1                 ← PARTE: "## Nome" (ou uma linha só com "Parte 2", "Episódio 3…", "Cena 4…")
+# Episódio 1                          ← CAPÍTULO (título grande, opcional): agrupa as partes de baixo
+## Parte 1                            ← PARTE: "## Nome" (ou uma linha só com "Parte 2", "Episódio 3…", "Cena 4…")
 Problems: Oi, gente!                  ← FALA: "Nome: o que ele fala" — o nome antes dos dois-pontos (até 4 palavras)
 Clara: *rindo* Oi, Problems!          ← *itálico* dentro da fala = como falar / o que ele faz → vira "nota" (fora da legenda e do áudio)
 Clara (sussurrando): Vem cá.          ← "(nota)" logo depois do nome também é nota
 e continua aqui.                      ← linha colada embaixo de uma fala (sem linha em branco) continua a MESMA fala
 *Problems abre a porta devagar.*      ← linha inteira em itálico = AÇÃO / explicação da cena (não vira fala)
 [a câmera se aproxima]                ← colchetes = cena (não vira fala)
-// anotação para a equipe             ← comentário (não vira fala)
+// Clara: deixar esta fala mais curta ← COMENTÁRIO para a equipe (não vira fala)
+---                                   ← QUEBRA DE PÁGINA: o que vem depois começa numa página nova (só visual)
 ```
 
-- Maiúscula e minúscula no nome tanto faz: "Problems", "PROBLEMS" e "problems" são o mesmo personagem (mesma cor).
+- Maiúscula e minúscula no nome tanto faz: "Problems", "PROBLEMS" e "problems" são o mesmo personagem (mesma cor, mesma foto).
 - Linha solta que não é nada disso = narração (não vira fala). Para um narrador falar, escreva `Narrador: …`.
 - Deixe uma linha em branco entre uma fala e um texto solto, senão o texto solto vira continuação da fala.
-- Na folha: o NOME de cada personagem fica pintado na cor dele, o itálico fica cinza (os `*` aparecem clarinhos), as partes viram título
-  e aparecem na lateral ("Partes" e "Personagens"). Selecionar um trecho (ou clique direito nele) abre o menu: **É o nome do personagem**
-  (`Problems Oi` → `Problems: Oi`; nome sozinho numa linha + fala na de baixo → junta), **É ação / explicação da cena** (`*…*`),
-  **É o título de uma parte** (`## …`), **Texto normal**. Ctrl+I = itálico. Colar do Google Docs: o itálico de lá vira `*…*` e os títulos viram `## `.
-- O botão **Organizar** reescreve um texto solto neste formato. Ao editar o texto, a fala igual continua com o áudio; a fala que mudou
-  no mesmo lugar fica com o áudio e a marca "regravar".
+- Falas logo abaixo de um `# Capítulo` sem `## Parte` viram uma parte com o nome do capítulo.
+- Na folha: o NOME de cada personagem fica pintado na cor dele; a ação/explicação aparece com marca-texto amarelo bem leve e SEM os `*`
+  (eles continuam no texto); os títulos aparecem grandes e no índice do lado esquerdo; o texto pula de página como num editor de texto
+  (folha Carta 816 × 1056 px, margens de 96 px que mudam arrastando as réguas — ficam em `prep.json → pagina`).
+- Selecionar um trecho (ou clique direito nele) abre o menu: **É o nome do personagem** (`Problems Oi` → `Problems: Oi`; nome sozinho
+  numa linha + fala na de baixo → junta), **É ação / explicação da cena** (`*…*`), **É o título de um capítulo** (`# …`), **É o título de
+  uma parte** (`## …`), **Texto normal** e **Comentário para a equipe** (pede o texto e põe `// Nome: texto (sobre "trecho")` logo abaixo).
+  Toda mudança pelo menu mostra a linha antes e depois e pergunta antes de mudar. Ctrl+I = itálico. Colar de outro editor: o itálico de
+  lá vira `*…*`, título 1 vira `# ` e título 2/3 vira `## `.
+- O botão **Organizar** reescreve um texto solto neste formato como UMA edição (Ctrl+Z desfaz). Ao editar o texto, a fala igual continua
+  com o áudio; a fala que mudou no mesmo lugar fica com o áudio e a marca "regravar".
 - Quem lê o roteiro por código usa `Roteiro.classifica(texto)` (o que é cada linha) e `Roteiro.separa(texto)` (partes → falas), em `js/roteiro.js`.
 
-## Navegador (nada vai para a nuvem sem a pessoa mandar)
+## Neste computador × na nuvem
 
-IndexedDB `ep-preparativos`: loja `rasc` (rascunho do preparativo, chave = id, `{ P, base, em }`) e loja `aud` (gravação ainda não
-enviada, chave = `<id>/<falaId>`, `{ blob, duracao, em }`). Áudio em Opus/WebM a 48 kbps (Safari: MP4/AAC).
+Um roteiro novo fica **só neste computador** (IndexedDB `ep-preparativos`) até alguém mandar. Ele vai para a nuvem quando a pessoa
+clica em "Mandar para a nuvem", quando marca **Gravando** (cada um grava do próprio computador) ou **Pronto** (o programa de destino
+precisa dele), ou sozinho a cada mudança se o roteiro estiver em **Arquivo › Trabalhar junto** (`prep.junto = true`; manda 20 s depois
+da última mudança). O início mostra separado o que está "Neste computador" e "Na nuvem"; o cabeçalho do roteiro mostra onde ele está.
+
+IndexedDB: loja `rasc` (rascunho do preparativo, chave = id, `{ P, base, em }`) e loja `aud` (gravação ainda não enviada, chave =
+`<id>/<falaId>`, `{ blob, duracao, em }`). Áudio em Opus/WebM a 48 kbps (Safari: MP4/AAC).
 
 ## CONTRATO NA NUVEM (para o Animador, o Criar Shorts e o Editar vídeos)
 
@@ -48,7 +60,9 @@ das outras rotas). Chaves na nuvem da equipe:
 |---|---|
 | `preparativos/<id>/prep.json` | o preparativo inteiro (abaixo) |
 | `preparativos/<id>/aud/<falaId>-<t>.webm` | o áudio de uma fala (`.ogg`/`.m4a` também); nome novo a cada regravação |
-| `preparativos/cores.json` | `{ "<nome em minúsculas>": "#rrggbb" }` — cor da legenda de cada personagem, para a equipe toda |
+| `preparativos/personagens.json` | os personagens da equipe: `{ "<nome em minúsculas>": { nome, cor, foto, grupo, em } }` |
+| `preparativos/pers/<nome>-<t>.webp` | a foto de um personagem (WEBP, até 256 × 256, cortada no meio) |
+| `preparativos/cores.json` | (antigo) `{ "<nome em minúsculas>": "#rrggbb" }` — ainda é lido; as cores novas vão para `personagens.json` |
 
 ### `prep.json`
 
@@ -59,39 +73,47 @@ das outras rotas). Chaves na nuvem da equipe:
   "nome": "Episódio 1",
   "destino": "animador",                // "animador" | "shorts" | "editor" | null
   "status": "pronto",                    // "rascunho" | "gravando" | "pronto"
-  "roteiro": "## Episódio 1 parte 1\nPROBLEMS: Oi!\n…",   // o texto como foi escrito
+  "roteiro": "# Episódio 1\n## Parte 1\nProblems: Oi!\n…",   // o texto como foi escrito
   "partes": [
-    { "id": "p…", "nome": "Episódio 1 parte 1",
+    { "id": "p…", "nome": "Parte 1", "capitulo": "Episódio 1",  // capitulo: opcional
       "falas": [
-        { "id": "f…", "personagem": "PROBLEMS", "texto": "Oi!", "nota": "rindo",
+        { "id": "f…", "personagem": "Problems", "texto": "Oi!", "nota": "rindo",
           "audio": "preparativos/prm3k9x2ab/aud/f…-m3k.webm",   // ou null (ainda sem áudio)
           "duracao": 1.42,                                       // segundos
           "regravar": true,                                       // opcional: o texto mudou depois da gravação
           "em": "2026-11-05T18:00:00.000Z" }                      // quando o áudio chegou
       ] }
   ],
-  "legenda": { "ativa": true, "cores": { "problems": "#19f0f0" } },  // chave = nome do personagem em minúsculas
+  "legenda": { "ativa": true, "mostrarNome": false, "cores": { "problems": "#19f0f0" } },
+  "pagina": { "ml": 96, "mr": 96, "mt": 96, "mb": 96 },        // opcional: margens da folha (px)
+  "org": { "propria": true, "grupos": { "juca": "Secundários" } }, // opcional: pastas dos personagens só deste roteiro
+  "junto": false,                                              // opcional: "Trabalhar junto" (manda sozinho)
   "usadoPor": [ { "programa": "animador", "projeto": "<id da animação>", "quando": "2026-11-05T18:10:00.000Z" } ],
   "criado": 1793900000000,
   "mod": 1793901008021                   // versão (o servidor põe a cada gravação)
 }
 ```
 
-Cor de um personagem numa legenda: `prep.legenda.cores[nome.toLowerCase()]` → senão `cores.json[nome.toLowerCase()]` → senão a cor
-padrão do programa. Nome comparado sem diferenciar maiúscula e minúscula (`"Problems"` = `"PROBLEMS"`).
+**LEGENDA NO PROGRAMA DE DESTINO:** mostre só o `texto` da fala (nunca a `nota`), na cor do personagem. O **nome de quem fala só aparece
+se `legenda.mostrarNome === true`** (aí "Nome: texto"). `legenda.ativa === false` = sem legendas.
+
+Cor de um personagem: `prep.legenda.cores[nome.toLowerCase()]` → senão `personagens.json[nome.toLowerCase()].cor` → senão
+`cores.json[nome.toLowerCase()]` → senão a cor padrão do programa. Foto (opcional): `personagens.json[…].foto` (chave do WEBP).
 
 ### Rotas
 
 | pedido | o que faz | permissão |
 |---|---|---|
-| `GET /preparativos` | `{ itens: [{ id, nome, destino, status, mod, por, em, n, g, partes }] }` (n = falas, g = gravadas; `por` = código u…, nunca e-mail) | ver |
+| `GET /preparativos` | `{ itens: [{ id, nome, destino, status, mod, por, em, n, g, partes, pers }] }` (n = falas, g = gravadas, pers = até 8 nomes; `por` = código u…, nunca e-mail) | ver |
 | `GET /preparativos/arquivo?k=<chave>` | o arquivo; o `prep.json` vem com `x-mod` | ver |
-| `POST /preparativos/arquivo?k=…/prep.json&base=<mod>` | salva inteiro; `base` diferente da nuvem → 409 `conflito` (`&forcar=1` sobrescreve). `destino`/`status` só mudam com "pronto"; `usadoPor` só pela ação `usado` | roteiro (ou organizar) |
+| `POST /preparativos/arquivo?k=…/prep.json&base=<mod>` | salva inteiro; `base` diferente da nuvem → 409 `conflito` (`&forcar=1` sobrescreve). `destino`/`status` só mudam com "pronto"; `usadoPor` só pela ação `usado`. Todo personagem novo das falas entra sozinho em `personagens.json` | roteiro (ou organizar) |
 | `POST /preparativos/arquivo?k=…/aud/<falaId>-<t>.webm` | áudio de uma fala (até 8 MB) | gravar |
+| `POST /preparativos/arquivo?k=preparativos/pers/<nome>-<t>.webp` | foto de um personagem (só WEBP, até 512 KB) | organizar |
 | `POST /preparativos/acao {acao:'falas', id, falas:[{id, audio, duracao}]}` | liga os áudios às falas numa gravação só; o áudio antigo da fala é apagado | gravar |
 | `POST /preparativos/acao {acao:'marca', id, destino?, status?}` | destino e situação | pronto |
-| `POST /preparativos/acao {acao:'legenda', id, ativa, cores}` | legendas do preparativo + junta as cores em `cores.json` | organizar |
-| `POST /preparativos/acao {acao:'cores', cores}` | junta cores em `cores.json` | organizar |
+| `POST /preparativos/acao {acao:'legenda', id, ativa, mostrarNome, cores}` | legendas do preparativo + as cores vão para `personagens.json` | organizar |
+| `POST /preparativos/acao {acao:'personagens', itens:{ "<nome>": { nome?, cor?, foto?, grupo? } }}` | muda personagens da equipe (`null` tira foto/grupo; foto antiga é apagada) → `{ personagens }` | organizar |
+| `POST /preparativos/acao {acao:'cores', cores}` | (antigo) junta cores → `personagens.json` | organizar |
 | `POST /preparativos/acao {acao:'usado', id, programa, projeto}` | **o programa que usou avisa aqui** (Animador/Shorts/Editor) | ver |
 | `DELETE /preparativos/arquivo?k=preparativos/<id>/` | apaga o preparativo inteiro | quem criou ou ADM |
 
@@ -102,7 +124,7 @@ As Ideias usam a rota de sempre: `GET/PUT/POST /ideias` (`ideias/ideias.json`, `
 
 ### Permissões (`permissoes.json` do site)
 
-`preparativos.ver`, `preparativos.gravar`, `preparativos.roteiro`, `preparativos.organizar`, `preparativos.pronto`,
+Programa `preparativos` (ver) e funções `preparativos.gravar`, `preparativos.roteiro`, `preparativos.organizar`, `preparativos.pronto`,
 `preparativos.ideias`. No navegador: `window.EstudioPerm?.pode?.('preparativos.gravar') ?? true`. Quem só tem ver + gravar lê o
 roteiro e grava as próprias falas.
 

@@ -1,19 +1,22 @@
 /* ===================== roteiro.js — o texto do roteiro vira partes e falas por personagem =====================
    COMO SE ESCREVE UM ROTEIRO (vale para gente, para o editor e para o Claude que for escrever ou ler um roteiro):
 
-     ## Episódio 1 parte 1                 ← PARTE nomeada: "## Nome" (ou uma linha só com "Parte 2", "Episódio 3…", "Cena 4…")
+     # Episódio 1                          ← CAPÍTULO (título grande): agrupa as partes de baixo (opcional)
+     ## Parte 1                            ← PARTE nomeada: "## Nome" (ou uma linha só com "Parte 2", "Episódio 3…", "Cena 4…")
      Problems: Oi, gente!                  ← FALA: "Nome: o que ele fala". O nome vem antes dos dois-pontos (até 4 palavras),
                                              maiúscula ou minúscula tanto faz ("Problems" = "PROBLEMS" = o mesmo personagem)
-     Clara: *rindo* Oi, Problems!          ← *itálico* (ou um trecho em itálico colado do Google Docs) = AÇÃO / como falar:
+     Clara: *rindo* Oi, Problems!          ← *itálico* (ou um trecho em itálico colado de outro editor) = AÇÃO / como falar:
                                              vira a "nota" da fala e NÃO entra na legenda nem no texto falado
      Clara (sussurrando): Vem cá.          ← "(nota)" logo depois do nome também é nota
      e continua aqui.                      ← linha logo abaixo de uma fala (sem linha em branco no meio) continua a mesma fala
      *Problems abre a porta devagar.*      ← linha inteira em itálico = AÇÃO (o que está acontecendo): não vira fala
      [a câmera se aproxima]                ← colchetes = indicação de cena: não vira fala
      // anotação para a equipe             ← comentário: não vira fala
+     ---                                   ← quebra de página: o que vem depois começa numa página nova (só visual)
 
    Qualquer outra linha solta é narração/descrição e não vira fala (para um narrador falar, escreva "Narrador: …").
-   O editor pinta na hora: o NOME de cada personagem na cor dele, o itálico apagadinho e as partes como título.
+   O editor pinta na hora: o NOME de cada personagem na cor dele, a ação com marca-texto amarelo (sem mostrar os *) e os títulos.
+   Falas logo abaixo de um "# Capítulo" sem "## Parte" viram uma parte com o nome do capítulo. Cada parte guarda o seu capítulo.
    classifica() diz o que é cada linha (o editor usa para pintar); separa() monta as partes e falas.
    Funciona igual no navegador e no Node (para testar: node js/roteiro.js). */
 'use strict';
@@ -26,20 +29,22 @@ const Roteiro = (() => {
   const PARTE_NUM = /^(?:epis[oó]dio|parte|cena|cap[ií]tulo|ato)\s+\d/i; // "Cena 2: a casa" é parte, não fala de um tal "Cena 2"
   // fala: [espaços][nome][ (nota)]:[resto]  — o nome não tem : [ ] ( ) * nem começa com # ou /
   const FALA = /^(\s*)([^\s:\[\]()*#/][^:\[\]()*]{0,39}?)(\s*(?:\(([^)]{1,40})\))?\s*:)(.*)$/;
+  const QUEBRA = /^-{3,}$/;
   const ACAO = /^(\*[^*]+\*|_[^_]+_|\[.*\]|\(.*\))$/;
   // trechos em itálico (*…*) e (…) dentro da fala: viram nota
   const NOTAS = /\*([^*\n]+)\*|\(([^)\n]{1,120})\)/g;
 
-  // o que é cada linha: { t: 'v' vazia | 'c' comentário | 'a' ação | 'h' parte | 'f' fala | 'f2' continuação | 'n' narração, … }
+  // o que é cada linha: { t: 'v' vazia | 'c' comentário | 'q' quebra de página | 'a' ação | 'h' título (nivel 1 capítulo, 2 parte) | 'f' fala | 'f2' continuação | 'n' narração, … }
   function classifica(texto) {
     const out = []; let naFala = false;
     for (const bruta of String(texto || '').replace(/\r/g, '').split('\n')) {
       const l = bruta.trim(); let o;
       if (!l) o = { t: 'v' };
       else if (l.startsWith('//')) o = { t: 'c' };
+      else if (QUEBRA.test(l)) o = { t: 'q' };
       else if (ACAO.test(l)) o = { t: 'a' };
       else { const mp = l.match(PARTE), mf = bruta.match(FALA), ehFala = mf && mf[2].trim().split(/\s+/).length <= 4;
-        if (mp && (mp[1] || !ehFala || PARTE_NUM.test(l))) o = { t: 'h', nome: norm((mp[1] || mp[2]).replace(/:\s*$/, '')) };
+        if (mp && (mp[1] || !ehFala || PARTE_NUM.test(l))) o = { t: 'h', nivel: mp[1] ? (l.match(/^#+/)[0].length === 1 ? 1 : 2) : 2, nome: norm((mp[1] || mp[2]).replace(/:\s*$/, '')) };
         else if (ehFala) o = { t: 'f', pre: mf[1], nome: mf[2], meio: mf[3], notaNome: mf[4] || '', resto: mf[5] };
         else o = { t: naFala ? 'f2' : 'n' }; }
       naFala = o.t === 'f' || o.t === 'f2'; o.linha = bruta; out.push(o);
@@ -52,14 +57,15 @@ const Roteiro = (() => {
   // texto → partes. "anterior" = partes que já existiam: a fala igual (mesmo personagem e texto) continua com o áudio dela;
   // a fala que mudou de texto, mas está no mesmo lugar (mesma parte, mesma vez daquele personagem), fica com o áudio e a marca "regravar".
   function separa(texto, anterior = []) {
-    const partes = []; let parte = null, fala = null;
-    const novaParte = nome => { parte = { id: null, nome: norm(nome).slice(0, 80) || `Parte ${partes.length + 1}`, falas: [] }; partes.push(parte); fala = null; };
+    const partes = []; let parte = null, fala = null, cap = '';
+    const novaParte = nome => { parte = { id: null, nome: norm(nome).slice(0, 80) || `Parte ${partes.length + 1}`, ...(cap ? { capitulo: cap } : {}), falas: [] }; partes.push(parte); fala = null; };
     const fecha = () => { if (!fala) return; const { texto: t, notas } = limpa(fala._bruto); fala.texto = t; fala.nota = [...fala._notas, ...notas].filter(Boolean).join(' · ').slice(0, 160); delete fala._bruto; delete fala._notas; fala = null; };
     for (const o of classifica(texto)) {
       if (o.t === 'f2' && fala) { fala._bruto += ' ' + o.linha.trim(); continue; }
       fecha();
-      if (o.t === 'h') novaParte(o.nome);
-      else if (o.t === 'f') { if (!parte) novaParte('Parte 1'); fala = { id: null, personagem: norm(o.nome).slice(0, 40), texto: '', nota: '', audio: null, duracao: 0, _bruto: o.resto, _notas: o.notaNome ? [norm(o.notaNome)] : [] }; parte.falas.push(fala); }
+      if (o.t === 'h' && o.nivel === 1) { cap = norm(o.nome).slice(0, 80); parte = null; }
+      else if (o.t === 'h') novaParte(o.nome);
+      else if (o.t === 'f') { if (!parte) novaParte(cap || 'Parte 1'); fala = { id: null, personagem: norm(o.nome).slice(0, 40), texto: '', nota: '', audio: null, duracao: 0, _bruto: o.resto, _notas: o.notaNome ? [norm(o.notaNome)] : [] }; parte.falas.push(fala); }
     }
     fecha();
     return casa(partes.filter(p => p.falas.length || partes.length === 1), anterior);
@@ -88,7 +94,8 @@ const Roteiro = (() => {
 
   // partes → texto (o "Organizar" usa para escrever o roteiro arrumado)
   function escreve(partes) {
-    return (partes || []).map(p => [`## ${norm(p.nome) || 'Parte'}`, ...(p.falas || []).map(f => `${norm(f.personagem)}: ${f.nota ? `*${norm(f.nota)}* ` : ''}${norm(f.texto)}`)].join('\n')).join('\n\n') + '\n';
+    let cap = ''; return (partes || []).map(p => { const c = norm(p.capitulo || ''), topo = c && c !== cap ? `# ${c}\n\n` : ''; cap = c || cap;
+      return topo + [`## ${norm(p.nome) || 'Parte'}`, ...(p.falas || []).map(f => `${norm(f.personagem)}: ${f.nota ? `*${norm(f.nota)}* ` : ''}${norm(f.texto)}`)].join('\n'); }).join('\n\n') + '\n';
   }
 
   // personagens do roteiro (na ordem em que aparecem), sem repetir por maiúscula/minúscula

@@ -19,6 +19,9 @@ const IC = {
   doc: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>', atualizar: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>', organizar: '<path d="M4 6h10M4 12h16M4 18h7"/><path d="M17 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/>',
   luz: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>', pessoa: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   alerta: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>',
+  pc: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>', coment: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
+  pasta: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', mais3: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+  junto: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20a6 6 0 0 1 12 0M10 20a6 6 0 0 1 12 0"/>', camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   desfazer: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', refazer: '<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>',
   titulo: '<path d="M6 4v16M18 4v16M6 12h12"/>', baixo: '<path d="M6 9l6 6 6-6"/>', ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 1-1 1.7M12 17v.5"/>', legenda: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 14h4M13 14h4M7 10h10"/>',
 };
@@ -62,31 +65,51 @@ const Nuvem = {
   salva(P, forcar) { return this.pede(`/preparativos/arquivo?k=${encodeURIComponent(`preparativos/${P.id}/prep.json`)}&base=${+P.mod || 0}${forcar ? '&forcar=1' : ''}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(P) }); },
   acao(corpo) { return this.json('/preparativos/acao', 'POST', corpo); },
   cores() { return this.pede('/preparativos/arquivo?k=preparativos/cores.json').catch(e => { if (e.status === 404) return {}; throw e; }); },
+  personagens() { return this.pede('/preparativos/arquivo?k=preparativos/personagens.json').catch(e => { if (e.status === 404) return {}; throw e; }); },
+  _img: new Map(),
+  foto(k) { if (!this._img.has(k)) this._img.set(k, this.pede('/preparativos/arquivo?k=' + encodeURIComponent(k), { blob: true }).then(b => URL.createObjectURL(b)).catch(e => { this._img.delete(k); throw e; })); return this._img.get(k); },
   _aud: new Map(),
   async audio(k) { if (!this._aud.has(k)) this._aud.set(k, this.pede('/preparativos/arquivo?k=' + encodeURIComponent(k), { blob: true }).catch(e => { this._aud.delete(k); throw e; })); return this._aud.get(k); },
 };
 
 /* ---------- estado ---------- */
-const S = { aba: 'roteiros', lista: null, P: null, sub: 'roteiro', sujo: false, eu: null, cores: null, tocando: null, ed: null };
+const S = { aba: 'roteiros', lista: null, P: null, sub: 'roteiro', sujo: false, eu: null, cores: null, pers: null, tocando: null, ed: null };
 const coresPadrao = ['#19f0f0', '#ffb04a', '#ff6b93', '#a796ff', '#4fe08f', '#ffd36b', '#7fd1ff', '#ff8f6b'];
-const corDe = (nome, P = S.P) => { const k = Roteiro.chave(nome); return P?.legenda?.cores?.[k] || S.cores?.[k] || null; };
+// PERSONAGENS DA EQUIPE (preparativos/personagens.json: nome, cor, foto, grupo) + o cores.json antigo
+let carregandoPers = null;
+function carregaPers(novo) {
+  if (S.pers && !novo) return Promise.resolve(S.pers);
+  return carregandoPers || (carregandoPers = Promise.all([Nuvem.personagens().catch(() => ({})), Nuvem.cores().catch(() => ({}))]).then(([p, c]) => {
+    S.cores = c || {}; S.pers = p || {}; for (const [k, v] of Object.entries(S.cores)) { if (!S.pers[k]) S.pers[k] = { nome: k, cor: v }; else if (!S.pers[k].cor) S.pers[k].cor = v; }
+    return S.pers; }).finally(() => { carregandoPers = null; }));
+}
+const persDe = nome => S.pers?.[Roteiro.chave(nome)] || null;
+const corDe = (nome, P = S.P) => { const k = Roteiro.chave(nome); return P?.legenda?.cores?.[k] || S.pers?.[k]?.cor || S.cores?.[k] || null; };
 const corOuPadrao = (nome, i) => corDe(nome) || coresPadrao[i % coresPadrao.length];
+// pasta do personagem: a organização da equipe, ou a própria do roteiro aberto (se ele usa uma)
+const grupoDe = (nome, P = S.P) => { const k = Roteiro.chave(nome); return (P?.org?.propria ? P.org.grupos?.[k] : S.pers?.[k]?.grupo) || ''; };
+const GRUPOS_BASE = ['Principais', 'Secundários'];
 
 function novoPrep(nome = 'Roteiro novo', texto = '') {
-  return { v: 1, id: 'pr' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nome, destino: null, status: 'rascunho', roteiro: texto, partes: Roteiro.separa(texto), legenda: { ativa: true, cores: {} }, usadoPor: [], criado: Date.now(), mod: 0, novo: true };
+  return { v: 1, id: 'pr' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nome, destino: null, status: 'rascunho', roteiro: texto, partes: Roteiro.separa(texto), legenda: { ativa: true, mostrarNome: false, cores: {} }, usadoPor: [], criado: Date.now(), mod: 0, novo: true };
 }
-// rascunho deste navegador (guardado a cada mudança, sem gastar a nuvem)
-let tGuarda = 0;
-function marcaSujo() { S.sujo = true; pintaBarraPrep(); clearTimeout(tGuarda); tGuarda = setTimeout(() => DB.put('rasc', S.P.id, { P: S.P, base: S.base, em: Date.now() }).catch(() => { }), 600); }
+// rascunho deste navegador (guardado a cada mudança, sem gastar a nuvem). "Trabalhar junto" (P.junto) manda sozinho 20 s depois da última mudança.
+let tGuarda = 0, tJunto = 0;
+function marcaSujo() {
+  S.sujo = true; pintaBarraPrep(); clearTimeout(tGuarda); tGuarda = setTimeout(() => DB.put('rasc', S.P.id, { P: S.P, base: S.base, em: Date.now() }).catch(() => { }), 600);
+  clearTimeout(tJunto); if (S.P?.junto && S.P.mod && !S.P.novo) tJunto = setTimeout(() => { if (S.sujo && S.P?.junto) salvaPrep(null, true); }, 20000);
+}
 
 /* ======================= telas ======================= */
 const tela = () => $('#tela');
 function trocaAba(a) { S.aba = a; S.P = null; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === a)); history.replaceState(null, '', a === 'roteiros' ? './' : './?aba=' + a); pinta(); }
 async function sairDoPrep() { if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; history.replaceState(null, '', './'); pinta(); return true; }
-function pinta() { if (S.P) return pintaPrep(); modoDoc(false); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'cores') return pintaCores(); return pintaInicio(); }
-// bolinha com as iniciais do personagem, na cor dele (sem rosto de personagem)
+function pinta() { if (S.P) return pintaPrep(); modoDoc(false); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
+// bolinha com as iniciais do personagem, na cor dele; com foto, a foto (carrega sozinha quando a bolinha aparece)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
-const ava = (nome, cor, tam = '') => `<span class="ava ${tam}" style="--c:${cor}" title="${esc(nome)}">${esc(iniciais(nome))}</span>`;
+const ava = (nome, cor, tam = '') => { const f = persDe(nome)?.foto; return `<span class="ava ${tam}" style="--c:${cor}" title="${esc(nome)}"${f ? ` data-foto="${esc(f)}"` : ''}>${esc(iniciais(nome))}</span>`; };
+new MutationObserver(() => { for (const el of document.querySelectorAll('.ava[data-foto]:not([data-foto-ok])')) { el.dataset.fotoOk = '1'; Nuvem.foto(el.dataset.foto).then(u => { el.style.backgroundImage = `url("${u}")`; el.classList.add('com-foto'); }).catch(() => { }); } })
+  .observe(document.documentElement, { childList: true, subtree: true });
 const icProg = d => ({ animador: 'an', shorts: 'sh', editor: 'ed' }[d]);
 const progIc = (d, px = 18) => window.EstudioIcones && icProg(d) ? window.EstudioIcones.svg(icProg(d), px) : ic('doc', px);
 const anel = (pct, tam = 44) => { const r = 16, L = 2 * Math.PI * r; return `<svg class="anel" width="${tam}" height="${tam}" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="${r}" fill="none" stroke="currentColor" stroke-opacity=".14" stroke-width="4"/><circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--ok)" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(pct / 100 * L).toFixed(1)} ${L.toFixed(1)}" transform="rotate(-90 20 20)"/><text x="20" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">${pct}%</text></svg>`; };
@@ -95,31 +118,36 @@ const anel = (pct, tam = 44) => { const r = 16, L = 2 * Math.PI * r; return `<sv
 let filtro = 'todos';
 async function pintaInicio(novo) {
   const el = tela(); el.innerHTML = `<section class="inicio">
-    <div class="hero"><div class="hero-txt"><h1>Do roteiro à gravação</h1><p>Escreva como num documento. O Estúdio separa sozinho as falas de cada personagem, e cada pessoa grava só a parte dela.</p>
-      <ol class="passos"><li><i>${ic('doc', 16)}</i><b>Escrever</b><small>como no Google Docs</small></li><li><i>${ic('pessoa', 16)}</i><b>Separar</b><small>falas por personagem</small></li><li><i>${ic('mic', 16)}</i><b>Gravar</b><small>pelo navegador</small></li><li><i>${ic('ok', 16)}</i><b>Pronto</b><small>vai para o programa</small></li></ol></div>
+    <div class="hero"><div class="hero-txt"><h1>Do roteiro à gravação</h1><p>Escreva o roteiro, o Estúdio separa sozinho as falas de cada personagem e cada pessoa grava só a parte dela.</p>
+      <ol class="passos"><li><i>${ic('doc', 16)}</i><b>Escrever</b><small>capítulos e partes</small></li><li><i>${ic('pessoa', 16)}</i><b>Separar</b><small>falas por personagem</small></li><li><i>${ic('mic', 16)}</i><b>Gravar</b><small>pelo navegador</small></li><li><i>${ic('ok', 16)}</i><b>Pronto</b><small>vai para o programa</small></li></ol></div>
       ${pode('roteiro') ? `<button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
     <div class="filtros">${[['todos', 'Todos'], ...PREP_CONFIG.status].map(([k, n]) => `<button data-f="${k}" class="${filtro === k ? 'on' : ''}">${esc(n)}</button>`).join('')}<span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button></div>
-    <div class="locais"></div><div class="grade nuvem"><div class="vazio">Carregando…</div></div></section>`;
+    <div class="secao sec-pc"><h2 class="sec-tit"><span class="sec-ic">${ic('pc', 18)}</span>Neste computador<small>só você vê. Vai para a nuvem quando for gravar, quando ficar pronto ou quando você mandar (para trabalhar junto).</small></h2><div class="grade locais"><div class="vazio">Nada só neste computador.</div></div></div>
+    <div class="secao sec-nuvem"><h2 class="sec-tit"><span class="sec-ic">${ic('nuvem', 18)}</span>Na nuvem<small>a equipe toda vê e grava.</small></h2><div class="grade nuvem"><div class="vazio">Carregando…</div></div></div></section>`;
   $('[data-at]', el).onclick = () => { S.lista = null; pintaInicio(true); };
   $('[data-novo]', el)?.addEventListener('click', () => abrePrep(novoPrep()));
   $$('[data-f]', el).forEach(b => b.onclick = () => { filtro = b.dataset.f; pintaInicio(); });
-  try { const R = (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id).sort((a, b) => b.em - a.em); const box = $('.locais', el);
-    if (R.length) { box.innerHTML = `<h2>${ic('alerta', 14)} Só neste computador (falta mandar para a nuvem)</h2><div class="grade"></div>`; for (const r of R) { const c = cartao(r.P, true); c.onclick = () => abrePrep(r.P, r.base); $('.grade', box).appendChild(c); } } } catch { }
+  await carregaPers().catch(() => { });
+  const passa = it => filtro === 'todos' || (it.status || 'rascunho') === filtro;
+  try { const R = (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id && passa(v.P)).sort((a, b) => b.em - a.em), box = $('.grade.locais', el);
+    if (R.length) { box.innerHTML = ''; for (const r of R) { const c = cartao(r.P, r.P.novo || !r.base?.mod ? 'pc' : 'mudou'); c.onclick = () => abrePrep(r.P, r.base); box.appendChild(c); } } } catch { }
   const g = $('.grade.nuvem', el);
   try { if (!S.lista || novo) S.lista = (await Nuvem.lista()).itens || []; }
   catch (e) { g.innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
-  const L = S.lista.filter(x => filtro === 'todos' || (x.status || 'rascunho') === filtro).sort((a, b) => (b.mod || 0) - (a.mod || 0));
-  g.innerHTML = L.length ? '' : `<div class="vazio">${S.lista.length ? 'Nenhum roteiro nesta situação.' : 'Nenhum roteiro na nuvem ainda. Comece com "Novo roteiro".'}</div>`;
-  for (const it of L) { const c = cartao(it); c.onclick = async () => { c.classList.add('carregando'); try { abrePrep(await Nuvem.abre(it.id)); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); } }; g.appendChild(c); }
+  const L = S.lista.filter(passa).sort((a, b) => (b.mod || 0) - (a.mod || 0));
+  g.innerHTML = L.length ? '' : `<div class="vazio">${S.lista.length ? 'Nenhum roteiro nesta situação.' : 'Nenhum roteiro na nuvem ainda.'}</div>`;
+  for (const it of L) { const c = cartao(it, 'nuvem'); c.onclick = async () => { c.classList.add('carregando'); try { abrePrep(await Nuvem.abre(it.id)); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); } }; g.appendChild(c); }
 }
-function cartao(it, local) {
+// onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem'
+function cartao(it, onde) {
   const fs = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null;
   const n = fs ? fs.length : it.n || 0, g = fs ? fs.filter(f => f.audio).length : it.g || 0, np = Array.isArray(it.partes) ? it.partes.length : it.partes || 0;
   const pers = fs ? Roteiro.personagens(it.partes).map(p => p.nome) : it.pers || [], pct = n ? Math.round(g / n * 100) : 0, st = it.status || 'rascunho';
-  return h(`<button class="cartao ${esc(st)}"><div class="topo"><span class="st">${esc(STATUS[st] || 'Rascunho')}</span>${it.destino ? `<span class="dest">${progIc(it.destino, 16)} ${esc(DESTINOS[it.destino] || it.destino)}</span>` : ''}</div>
+  const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · mudanças só aqui`, nuvem: `${ic('nuvem', 13)} Na nuvem` };
+  return h(`<button class="cartao ${esc(st)}"><div class="topo"><span class="st">${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
     <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div>${anel(pct)}</div>
     <div class="elenco">${pers.slice(0, 6).map((p, i) => ava(p, corDe(p) || coresPadrao[i % coresPadrao.length], 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
-    <small class="mt">${local ? 'falta mandar para a nuvem' : 'mudado ' + esc(quando(it.mod))}</small></button>`);
+    <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${onde === 'nuvem' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
 }
 
 /* ---------- um preparativo ---------- */
@@ -133,11 +161,12 @@ async function abrePrep(P, base) {
   // tem rascunho deste computador mais novo que o da nuvem?
   if (!base && !P.novo) { try { const r = await DB.get('rasc', P.id); if (r?.P && (+r.base?.mod || 0) === (+P.mod || 0) && r.em > (P.mod || 0)) { const usar = await pergunta('Continuar de onde parou?', 'Este computador tem mudanças neste roteiro que ainda não foram para a nuvem.', [['Abrir o da nuvem', false], ['Continuar daqui', true, 'pri']]); if (usar) { base = r.base; P = r.P; } else await DB.del('rasc', P.id); } } catch { } }
   S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.sub = pode('roteiro') || pode('organizar') ? (S.sub || 'roteiro') : 'falas'; S.ed = null;
-  if (!S.cores) Nuvem.cores().then(c => { S.cores = c || {}; if (S.P) { S.ed?.repinta(); if (S.sub !== 'roteiro') pintaCorpo(); } }).catch(() => { S.cores = {}; });
+  if (!S.pers) carregaPers().then(() => { if (S.P) { S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } }).catch(() => { S.pers = {}; });
+  if (!S.nomeEu) window.EstudioLogin?.perfil?.().then(p => { S.nomeEu = String(p?.nome || '').split(' ')[0]; }).catch(() => { });
   history.replaceState(null, '', './?id=' + encodeURIComponent(P.id)); pintaPrep();
 }
-// MODO DOCUMENTO (pedido da dona, 05/11/2026): com um roteiro aberto a tela inteira fica no estilo do Google Docs, com UM cabeçalho só
-// (o do Preparativos some e o botão da conta /estudio-conta.js vem para o canto deste, como a foto no Docs)
+// MODO DOCUMENTO (pedido da dona, 05/11/2026): com um roteiro aberto a tela inteira vira um editor de documento, com UM cabeçalho só
+// (o do Preparativos some e o botão da conta /estudio-conta.js vem para o canto deste)
 let contaOrig = null;
 function modoDoc(on) {
   document.body.classList.toggle('modo-doc', !!on); let tema = 'escuro'; try { tema = localStorage.getItem('ep-prep-tema') || 'escuro'; } catch { }
@@ -146,7 +175,7 @@ function modoDoc(on) {
   if (on) { if (!contaOrig) contaOrig = { pai: sp.parentNode, prox: sp.nextSibling }; const alvo = $('.dh-conta'); if (alvo && sp.parentNode !== alvo) alvo.appendChild(sp); }
   else if (contaOrig && sp.parentNode !== contaOrig.pai) { contaOrig.pai.insertBefore(sp, contaOrig.prox); }
 }
-// menus do cabeçalho (Arquivo, Editar…): abre no clique; com um aberto, passar o mouse troca (como no Docs)
+// menus do cabeçalho (Arquivo, Editar…): abre no clique; com um aberto, passar o mouse troca
 function menus(nav, def) {
   let aberto = null; const fecha = () => { aberto?.caixa.remove(); aberto?.bt.classList.remove('on'); aberto = null; };
   const abre = (bt, itens) => { fecha(); const caixa = h('<div class="dh-menu" role="menu"></div>');
@@ -166,7 +195,7 @@ addEventListener('keydown', e => { if (!S.P || !(e.ctrlKey || e.metaKey) || e.ke
 
 function pintaPrep() {
   const P = S.P, el = tela(), pp = pode('pronto'), ordem = PREP_CONFIG.status.map(x => x[0]), at = ordem.indexOf(P.status || 'rascunho');
-  el.innerHTML = `<section class="prep">
+  el.innerHTML = `<section class="prep"><div class="dh-topo">
     <header class="dh">
       <button class="dh-logo" data-volta title="Voltar aos roteiros"><span data-estudio-icone="pr"></span></button>
       <div class="dh-meio">
@@ -179,7 +208,7 @@ function pintaPrep() {
       <span class="enviar"></span>
       <span class="dh-conta"></span>
     </header>
-    <div class="dh-barra"></div>
+    <div class="dh-barra"></div></div>
     <div class="dh-area">
       <aside class="guias"><div class="g-tit">Guias do roteiro</div>
         ${GUIAS.map(([k, n, i]) => `<button data-sub="${k}" class="${S.sub === k ? 'on' : ''}">${ic(i, 16)} ${n}</button>`).join('')}
@@ -192,7 +221,7 @@ function pintaPrep() {
   const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); nm.size = Math.max(8, Math.min(40, nm.value.length + 1)); marcaSujo(); };
   nm.onkeydown = e => { if (e.key === 'Enter') { nm.blur(); S.ed?.foca(); } };
   const mudaMarca = async (campo, v) => {
-    if (campo === 'status' && v === P.status) return;
+    if (campo === 'status' && v === P.status) return; const antes = P.status;
     if (campo === 'status' && v === 'pronto') { // pronto = vai para um programa: precisa do destino e avisa o que falta gravar
       if (!P.destino) { const d = await pergunta('Vai para qual programa?', 'Escolha onde este roteiro vai ser usado. Ele passa a aparecer lá como pronto.', [...PREP_CONFIG.destinos.map(([k, n]) => [n, k]), ['Cancelar', null]]); if (!d) return; P.destino = d; }
       const falta = P.partes.reduce((s, p) => s + p.falas.filter(f => !f.audio).length, 0);
@@ -201,7 +230,11 @@ function pintaPrep() {
     P[campo] = v || null; if (campo === 'status') P.status = v || 'rascunho';
     const dest = DESTINOS[P.destino] || P.destino, msg = campo !== 'status' ? (P.destino ? `Vai para o ${dest}.` : 'Sem destino.') : v === 'pronto' ? `Pronto! Já aparece para o ${dest} usar.` : v === 'gravando' ? 'Hora de gravar: cada pessoa escolhe o seu personagem e grava as falas dele.' : 'Voltou para rascunho: ainda está sendo escrito.';
     if (campo === 'status' && v === 'gravando') S.sub = 'falas';
-    if (P.novo || S.sujo) { marcaSujo(); aviso(msg + ' (vai junto quando mandar para a nuvem)', 'info', 5500); return pintaPrep(); } // vai junto quando mandar para a nuvem
+    if (P.novo || S.sujo) {
+      if (campo === 'status' && (v === 'gravando' || v === 'pronto')) { // gravar e ir para o programa precisam da nuvem
+        if (!await pergunta(v === 'pronto' ? 'Mandar para a nuvem?' : 'Mandar para a nuvem para gravar?', v === 'pronto' ? `Para o ${dest} usar, o roteiro precisa estar na nuvem.` : 'Cada pessoa grava pelo próprio computador, então o roteiro precisa estar na nuvem.', [['Agora não', false], ['Mandar', true, 'pri']])) { P.status = antes; S.sub = S.sub === 'falas' && antes !== 'gravando' ? 'roteiro' : S.sub; return pintaPrep(); }
+        await salvaPrep(null, true); if (!S.sujo) aviso(msg + ' Já está na nuvem.', 'ok', 5500); return pintaPrep(); }
+      marcaSujo(); aviso(msg + ' (vai junto quando mandar para a nuvem)', 'info', 5500); return pintaPrep(); } // vai junto quando mandar para a nuvem
     try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, destino: P.destino, status: P.status }); P.mod = r.mod || P.mod; S.base.mod = P.mod; aviso(msg, 'ok', 5500); S.lista = null; }
     catch (e) { aviso(e.message, 'erro'); }
     pintaPrep();
@@ -216,33 +249,38 @@ function pintaPrep() {
       [`${ic('mais', 15)} Novo roteiro`, '', async () => { if (await sairDoPrep()) abrePrep(novoPrep()); }, !edita],
       [`${ic('doc', 15)} Abrir roteiros`, '', () => sairDoPrep()],
       '-', [`${ic('nuvem', 15)} Mandar para a nuvem`, 'Ctrl+S', () => salvaPrep($('.prep [data-salva]')), !S.sujo],
+      [`${ic('junto', 15)} Trabalhar junto (manda sozinho para a nuvem)`, P.junto ? '✓' : '', () => { P.junto = !P.junto; marcaSujo(); aviso(P.junto ? 'Trabalhando junto: as mudanças vão sozinhas para a nuvem 20 s depois que você para de mexer.' : 'As mudanças ficam neste computador até você mandar.', 'info', 6000); }, !pode('roteiro')],
       [`${ic('enviar', 15)} Baixar como texto (.txt)`, '', baixaTexto],
       '-', [`${ic('luz', 15)} Ideias`, '', async () => { if (await sairDoPrep()) trocaAba('ideias'); }],
-      [`${ic('legenda', 15)} Cores das legendas`, '', async () => { if (await sairDoPrep()) trocaAba('cores'); }]]],
+      [`${ic('pessoa', 15)} Personagens`, '', async () => { if (await sairDoPrep()) trocaAba('personagens'); }]]],
     ['Editar', () => [[`${ic('desfazer', 15)} Desfazer`, 'Ctrl+Z', () => E()?.desfaz(), !E()], [`${ic('refazer', 15)} Refazer`, 'Ctrl+Y', () => E()?.refaz(), !E()], '-', ['Selecionar tudo', 'Ctrl+A', () => E()?.tudo(), !E()]]],
     ['Ver', () => [...GUIAS.map(([k, n, i]) => [`${ic(i, 15)} ${n}`, S.sub === k ? '✓' : '', () => irGuia(k)]), '-', ['Mostrar as guias do lado', document.body.classList.contains('sem-guias') ? '' : '✓', () => document.body.classList.toggle('sem-guias')],
       ['Tema claro', document.body.classList.contains('claro') ? '✓' : '', () => { const c = document.body.classList.toggle('claro'); try { localStorage.setItem('ep-prep-tema', c ? 'claro' : 'escuro'); } catch { } }]]],
-    ['Inserir', () => [[`${ic('titulo', 15)} Parte nova`, '', naFolha(e => e.novaLinha(`## ${Roteiro.norm(P.nome)} parte ${P.partes.length + 1}`, { espaco: true })), !edita],
+    ['Inserir', () => [[`${ic('titulo', 15)} Capítulo novo`, '', naFolha(e => e.novaLinha('# Capítulo', { espaco: true })), !edita], [`${ic('titulo', 15)} Parte nova`, '', naFolha(e => e.novaLinha(`## ${Roteiro.norm(P.nome)} parte ${P.partes.length + 1}`, { espaco: true })), !edita],
       ...Roteiro.personagens(P.partes).map(p => [`${ava(p.nome, coresDoRoteiro().get(p.chave), 'p')} Fala de ${esc(p.nome)}`, '', naFolha(e => e.novaLinha(p.nome + ': ')), !edita]),
       [`${ic('pessoa', 15)} Fala de um personagem novo…`, '', async () => { const n = (await pedeTexto('Personagem novo', 'Nome do personagem (como vai aparecer no roteiro)') || '').replace(/[:*#\[\]()]/g, '').trim().slice(0, 40); if (n) naFolha(e => e.novaLinha(n + ': '))(); }, !edita],
       '-', ['<i class="ital">I</i>&nbsp; Ação (o que está acontecendo)', '', naFolha(e => e.novaLinha('**', { recua: 1 })), !edita],
-      ['[ ] Indicação de cena', '', naFolha(e => e.novaLinha('[]', { recua: 1 })), !edita], ['// Comentário para a equipe', '', naFolha(e => e.novaLinha('// ')), !edita]]],
+      ['[ ] Indicação de cena', '', naFolha(e => e.novaLinha('[]', { recua: 1 })), !edita], [`${ic('coment', 15)} Comentário para a equipe`, '', naFolha(e => e.comentar()), !edita], ['— Quebra de página', '', naFolha(e => e.novaLinha('---')), !edita]]],
     ['Formatar', () => [['Texto normal', '', naFolha(e => e.estilo('normal')), !edita], [`${ic('pessoa', 15)} Nome do personagem (seleção)`, '', naFolha(e => e.estilo('nome')), !edita],
-      ['<i class="ital">I</i>&nbsp; Ação / explicação da cena', 'Ctrl+I', naFolha(e => e.estilo('acao')), !edita], [`${ic('titulo', 15)} Título de uma parte`, '', naFolha(e => e.estilo('parte')), !edita], ['// Comentário', '', naFolha(e => e.estilo('comentario')), !edita]]],
-    ['Ferramentas', () => [[`${ic('organizar', 15)} Organizar o roteiro`, '', naFolha(e => Organizar.roda($('[data-org]') || h('<button></button>'), e)), !pode('organizar')], [`${ic('mic', 15)} Gravar as falas`, '', () => irGuia('falas')], [`${ic('legenda', 15)} Cores das legendas`, '', () => irGuia('legendas')]]],
+      ['<i class="ital">I</i>&nbsp; Ação / explicação da cena', 'Ctrl+I', naFolha(e => e.estilo('acao')), !edita], [`${ic('titulo', 15)} Título do capítulo`, '', naFolha(e => e.estilo('capitulo')), !edita], [`${ic('titulo', 15)} Título de uma parte`, '', naFolha(e => e.estilo('parte')), !edita], ['// Comentário', '', naFolha(e => e.estilo('comentario')), !edita]]],
+    ['Ferramentas', () => [[`${ic('organizar', 15)} Organizar o roteiro`, '', naFolha(e => Organizar.roda($('[data-org]') || h('<button></button>'), e)), !pode('organizar')], [`${ic('mic', 15)} Gravar as falas`, '', () => irGuia('falas')], [`${ic('legenda', 15)} Legendas`, '', () => irGuia('legendas')], [`${ic('pessoa', 15)} Personagens da equipe`, '', async () => { if (await sairDoPrep()) trocaAba('personagens'); }]]],
     ['Ajuda', () => [[`${ic('ajuda', 15)} Como escrever o roteiro`, '', mostraComo]]],
   ]);
   pintaBarraPrep(); pintaCorpo();
 }
 function pintaBarraPrep() {
   const P = S.P, sv = $('.prep .salvar'), en = $('.prep .enviar'); if (!P || !sv) return;
-  sv.innerHTML = S.sujo ? `<span class="aqui" title="Ainda não foi para a nuvem">${ic('alerta', 15)} Guardado neste computador</span>` : P.mod ? `<span class="salvo" title="Salvo na nuvem · ${esc(quando(P.mod))}">${ic('nuvem', 16)}${ic('ok', 11)}</span>` : '';
-  en.innerHTML = S.sujo ? `<button class="bt pri pilula" data-salva>${ic('nuvem')} Mandar para a nuvem</button>` : `<span class="pilula ok">${ic('nuvem')} Na nuvem</span>`;
+  sv.innerHTML = P.novo || !P.mod ? `<span class="onde o-pc" title="Ainda não foi para a nuvem: só você vê">${ic('pc', 15)} Só neste computador</span>`
+    : S.sujo ? `<span class="onde o-mudou" title="Está na nuvem, mas as últimas mudanças estão só aqui">${ic('nuvem', 15)} Na nuvem · ${ic('pc', 14)} mudanças só aqui</span>`
+    : `<span class="onde o-nuvem" title="Salvo na nuvem · ${esc(quando(P.mod))}">${ic('nuvem', 15)} Salvo na nuvem</span>`;
+  if (P.junto) sv.insertAdjacentHTML('beforeend', `<span class="onde o-junto" title="As mudanças vão sozinhas para a nuvem">${ic('junto', 14)} trabalhando junto</span>`);
+  en.innerHTML = S.sujo ? `<button class="bt pri pilula" data-salva title="A equipe passa a ver (e gravar) este roteiro">${ic('nuvem')} Mandar para a nuvem</button>` : `<span class="pilula ok">${ic('nuvem')} Na nuvem</span>`;
   const b = $('[data-salva]', en); if (b) b.onclick = () => salvaPrep(b);
 }
-async function salvaPrep(bt) {
+async function salvaPrep(bt, quieto) {
   const P = S.P; if (!pode('roteiro') && !pode('organizar') && !pode('pronto')) return aviso('Sua conta pode gravar, mas não mudar o roteiro.', 'erro');
   if (bt) { bt.disabled = true; bt.textContent = 'Mandando…'; }
+  const enviado = P.roteiro;
   try {
     const { novo, ...corpo } = P; let r;
     try { r = await Nuvem.salva(corpo); }
@@ -255,8 +293,10 @@ async function salvaPrep(bt) {
         if (esc2 === 'abrir') { await DB.del('rasc', P.id).catch(() => { }); S.sujo = false; return abrePrep(nv); }
         if (esc2 !== 'forcar') return; r = await Nuvem.salva({ ...P, novo: undefined }, true); }
     }
-    P.mod = r.mod; delete P.novo; S.base = { mod: P.mod, roteiro: P.roteiro }; S.sujo = false; S.lista = null; await DB.del('rasc', P.id).catch(() => { });
-    aviso('Mandado para a nuvem.', 'ok'); if (S.sub === 'falas') pintaCorpo();
+    P.mod = r.mod; delete P.novo; S.base = { mod: P.mod, roteiro: enviado }; S.sujo = P.roteiro !== enviado; S.lista = null;
+    if (!S.sujo) await DB.del('rasc', P.id).catch(() => { }); else DB.put('rasc', P.id, { P, base: S.base, em: Date.now() }).catch(() => { });
+    carregaPers(true).then(() => pintaLado()).catch(() => { }); // personagens novos entraram na lista da equipe
+    if (!quieto) aviso('Mandado para a nuvem. A equipe já vê.', 'ok'); if (S.sub === 'falas') pintaCorpo();
   } catch (e) { aviso(e.message, 'erro'); }
   finally { pintaBarraPrep(); }
 }
@@ -271,58 +311,139 @@ function pintaCorpo() {
 // cor de cada personagem do roteiro aberto (na ordem em que aparecem)
 function coresDoRoteiro() { const m = new Map(); Roteiro.personagens(S.P?.partes).forEach((p, i) => m.set(p.chave, corOuPadrao(p.nome, i))); return m; }
 
-/* ---------- aba Roteiro: a folha estilo Google Docs ---------- */
+/* ---------- aba Roteiro: a folha do roteiro ---------- */
 const COMO = `<div class="como"><b>Como escrever</b>
-  <div class="ex"><span class="mk">## </span><b>Episódio 1 parte 1</b><small>título de uma parte</small></div>
-  <div class="ex"><span class="nm" style="--c:#19f0f0">Problems</span>: Oi, gente!<small>fala: Nome + dois-pontos</small></div>
-  <div class="ex"><span class="nm" style="--c:#ffb04a">Clara</span>: <i><span class="mk">*</span>rindo<span class="mk">*</span></i> Oi!<small>*itálico* = como falar (fora da legenda)</small></div>
-  <div class="ex"><i><span class="mk">*</span>Problems abre a porta.<span class="mk">*</span></i><small>linha em itálico = ação / cena</small></div>
+  <div class="ex"><span class="mk"># </span><b class="g1">Episódio 1</b><small>capítulo (agrupa as partes; opcional)</small></div>
+  <div class="ex"><span class="mk">## </span><b>Parte 1</b><small>parte (cada parte é gravada e usada separada)</small></div>
+  <div class="ex"><span class="nm" style="--c:#19f0f0">Problems</span>: Oi, gente!<small>fala: nome + dois-pontos</small></div>
+  <div class="ex"><span class="nm" style="--c:#ffb04a">Clara</span>: <mark>rindo</mark> Oi!<small>*itálico* = como falar (fica fora da legenda)</small></div>
+  <div class="ex"><mark>Problems abre a porta.</mark><small>linha toda em itálico = ação / explicação da cena</small></div>
   <div class="ex"><i>[a câmera se aproxima]</i><small>colchetes = cena</small></div>
-  <p>Dica: selecione um trecho (ou clique com o botão direito nele) para dizer se é <b>nome do personagem</b>, <b>ação</b> ou <b>título de parte</b>. Colar do Google Docs funciona: o itálico de lá vira ação.</p></div>`;
-const ESTILOS = [['normal', 'Texto normal'], ['parte', 'Título de parte'], ['acao', 'Ação / cena'], ['comentario', 'Comentário']];
-const ESTILO_DE = { v: 'normal', n: 'normal', f: 'normal', f2: 'normal', h: 'parte', a: 'acao', c: 'comentario' };
+  <div class="ex"><span class="com">// Clara: deixar esta fala mais curta</span><small>comentário para a equipe (não vira fala)</small></div>
+  <div class="ex"><span class="mk">———</span><small>"---" numa linha = começar uma página nova</small></div>
+  <p><b>Selecione um trecho</b> (ou clique com o botão direito nele) para dizer se é <b>nome do personagem</b>, <b>ação</b>, <b>título</b> ou para deixar um
+  <b>comentário para a equipe</b> (ele entra numa linha "//" logo abaixo, com o seu nome). Antes de mudar, ele mostra como vai ficar e pergunta.
+  Colar um texto de outro editor funciona: o itálico de lá vira ação. As margens mudam arrastando os marcadores das réguas.</p></div>`;
+const ESTILOS = [['normal', 'Texto normal'], ['capitulo', 'Título do capítulo'], ['parte', 'Título da parte'], ['acao', 'Ação / cena'], ['comentario', 'Comentário']];
+const ESTILO_DE = { v: 'normal', n: 'normal', f: 'normal', f2: 'normal', q: 'normal', a: 'acao', c: 'comentario' };
 let zoom = 1; try { zoom = +localStorage.getItem('ep-prep-zoom') || 1; } catch { }
+// PÁGINAS (tamanho Carta, como os editores de texto: 816 × 1056 px a 96 dpi; margens de 2,54 cm = 96 px, mudam pelas réguas)
+const PG = { W: 816, H: 1056, G: 18 };
+const margens = P => { const m = P?.pagina || {}; return { ml: m.ml ?? 96, mr: m.mr ?? 96, mt: m.mt ?? 96, mb: m.mb ?? 96 }; };
+function pagina(c) {
+  const pg = $('.paginas', c), fo = pg && $('.folha', pg), ed = fo && $('.folha-txt', fo); if (!ed) return; const M = margens(S.P);
+  fo.style.padding = `${M.mt}px ${M.mr}px ${M.mb}px ${M.ml}px`;
+  const ls = [...ed.children]; for (const d of ls) if (d.dataset.q) { d.style.marginTop = ''; delete d.dataset.q; }
+  const r = ed.offsetWidth / (PG.W - M.ml - M.mr) || 1, util = (PG.H - M.mt - M.mb) * r, passo = (PG.H + PG.G) * r; let p = 0, forca = false;
+  for (const d of ls) {
+    if (d.classList.contains('q')) { forca = true; continue; }
+    const top = d.offsetTop, alt = d.offsetHeight;
+    const pi = Math.max(p, Math.floor(top / passo)); let novo = pi;
+    if (forca && pi === p && top > p * passo + 1) novo = p + 1; // depois de "---": página nova
+    else if (top > pi * passo + util - 1 || (top + alt > pi * passo + util + 1 && top > pi * passo + 1)) novo = pi + 1; // não cabe: vai para a próxima
+    if (novo * passo > top) { d.style.marginTop = ((parseFloat(getComputedStyle(d).marginTop) || 0) + (novo * passo - top) / r) + 'px'; d.dataset.q = '1'; }
+    p = novo; forca = false;
+  }
+  const ult = ls[ls.length - 1], n = Math.max(1, ult ? Math.floor((ult.offsetTop + ult.offsetHeight - 1) / passo) + 1 : 1);
+  fo.style.minHeight = (n * (PG.H + PG.G) - PG.G) + 'px';
+  const fundo = $('.fundo', pg); if (fundo.childElementCount !== n) fundo.innerHTML = Array.from({ length: n }, (_, i) => `<div class="pg" style="top:${i * (PG.H + PG.G)}px"><span class="pg-n">${i + 1}</span></div>`).join('');
+  const rv = $('.regua-v', pg); if (rv) { rv.style.setProperty('--mt', M.mt + 'px'); rv.style.setProperty('--mb', M.mb + 'px'); if (rv.dataset.n !== String(n)) { rv.dataset.n = n; rv.innerHTML = Array.from({ length: n }, (_, i) => `<div class="rv-pg" style="top:${i * (PG.H + PG.G)}px">${Array.from({ length: 27 }, (_, k) => `<span style="top:${(k + 1) * 37.8}px">${k + 1}</span>`).join('')}</div>`).join('') + '<i class="rv-mao" data-m="mt"></i><i class="rv-mao" data-m="mb"></i>'; } }
+  regua(c);
+}
+function regua(c) {
+  const M = margens(S.P), rh = $('.prep .r-folha'), rv = $('.regua-v', c);
+  if (rh) { rh.style.setProperty('--ml', M.ml + 'px'); rh.style.setProperty('--mr', M.mr + 'px'); rh.style.zoom = zoom; }
+  if (rv) { rv.style.setProperty('--mt', M.mt + 'px'); rv.style.setProperty('--mb', M.mb + 'px'); }
+}
+// arrastar os marcadores das réguas muda as margens (guardadas no roteiro: P.pagina)
+function arrastaMargem(ev, lado, c) {
+  if (!pode('roteiro')) return; ev.preventDefault(); const P = S.P, M0 = margens(P), x0 = ev.clientX, y0 = ev.clientY, z = zoom;
+  const lim = { ml: [24, PG.W / 2 - 120], mr: [24, PG.W / 2 - 120], mt: [24, PG.H / 2 - 150], mb: [24, PG.H / 2 - 150] }[lado];
+  const dica = h(`<div class="marg-dica"></div>`); document.body.appendChild(dica);
+  const move = e => { const d = lado === 'ml' ? (e.clientX - x0) / z : lado === 'mr' ? (x0 - e.clientX) / z : lado === 'mt' ? (e.clientY - y0) / z : (y0 - e.clientY) / z;
+    const v = Math.round(Math.max(lim[0], Math.min(lim[1], M0[lado] + d))); P.pagina = { ...M0, ...(P.pagina || {}), [lado]: v };
+    dica.textContent = `${{ ml: 'Margem esquerda', mr: 'Margem direita', mt: 'Margem de cima', mb: 'Margem de baixo' }[lado]}: ${(v / 37.8).toFixed(2).replace('.', ',')} cm`; dica.style.left = e.clientX + 14 + 'px'; dica.style.top = e.clientY + 14 + 'px'; pagina(c); };
+  const fim = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', fim); dica.remove(); marcaSujo(); };
+  addEventListener('pointermove', move); addEventListener('pointerup', fim);
+}
+// um menuzinho no lugar do clique (pastas dos personagens, organização)
+function popMenu(ancora, itens) {
+  $$('.dh-menu.pop').forEach(x => x.remove()); const caixa = h('<div class="dh-menu pop" role="menu"></div>');
+  for (const it of itens) { if (it === '-') { caixa.appendChild(h('<hr>')); continue; } const [rot, marca, fn, off] = it; const b = h(`<button role="menuitem" ${off ? 'disabled' : ''}><span>${rot}</span><small>${esc(marca || '')}</small></button>`); b.onclick = () => { caixa.remove(); fn(); }; caixa.appendChild(b); }
+  const r = ancora.getBoundingClientRect(); document.body.appendChild(caixa); caixa.style.left = Math.min(innerWidth - caixa.offsetWidth - 8, r.left) + 'px'; caixa.style.top = Math.min(innerHeight - caixa.offsetHeight - 8, r.bottom + 4) + 'px';
+  setTimeout(() => addEventListener('mousedown', function fora(e) { if (!e.target.closest('.dh-menu.pop')) { caixa.remove(); removeEventListener('mousedown', fora); } }), 0);
+}
+// muda a pasta de um personagem: na organização deste roteiro (P.org) ou na da equipe (personagens.json)
+async function mudaGrupo(nome, grupo) {
+  const P = S.P, k = Roteiro.chave(nome);
+  if (P.org?.propria) { P.org.grupos = { ...(P.org.grupos || {}), [k]: grupo || undefined }; if (!grupo) delete P.org.grupos[k]; marcaSujo(); return pintaLado(); }
+  if (!pode('organizar')) return aviso('Sua conta não muda a organização da equipe. Use "Organização só deste roteiro".', 'erro');
+  try { const r = await Nuvem.acao({ acao: 'personagens', itens: { [k]: { nome, grupo: grupo || null } } }); S.pers = { ...S.pers, ...r.personagens }; aviso(grupo ? `${nome} foi para ${grupo}.` : `${nome} saiu da pasta.`, 'ok'); pintaLado(); }
+  catch (e) { aviso(e.message, 'erro'); }
+}
+async function pastaNova() { const n = (await pedeTexto('Pasta nova', 'Nome da pasta (ex.: Figurantes)') || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 30); return n || null; }
+let pintaLado = () => { };
 function pintaRoteiro(c) {
-  const P = S.P, ed = pode('roteiro'), barra = $('.prep .dh-barra'), gr = $('.prep .g-roteiro');
+  const P = S.P, ed = pode('roteiro'), barra = $('.prep .dh-barra'), gr = $('.prep .g-roteiro'), M = margens(P);
   barra.innerHTML = `<div class="db-pilula">
       ${ed ? `<button class="db" data-desf title="Desfazer (Ctrl+Z)">${ic('desfazer', 17)}</button><button class="db" data-ref title="Refazer (Ctrl+Y)">${ic('refazer', 17)}</button><span class="sep"></span>` : ''}
-      <select class="db-sel" data-zoom title="Zoom">${[.75, .9, 1, 1.25, 1.5].map(z => `<option value="${z}" ${z === zoom ? 'selected' : ''}>${Math.round(z * 100)}%</option>`).join('')}</select><span class="sep"></span>
+      <select class="db-sel" data-zoom title="Zoom">${[.5, .75, .9, 1, 1.25, 1.5].map(z => `<option value="${z}" ${z === zoom ? 'selected' : ''}>${Math.round(z * 100)}%</option>`).join('')}</select><span class="sep"></span>
       ${ed ? `<select class="db-sel largo" data-estilo title="Estilo da linha">${ESTILOS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select><span class="sep"></span>
       <div class="falade"><button class="db" data-falade title="Começa uma fala de um personagem">${ic('pessoa', 16)} Fala de… ${ic('baixo', 12)}</button><div class="lista-pers" hidden></div></div>
       <button class="db" data-acao title="Ação / explicação da cena (Ctrl+I)"><i class="ital">I</i></button>
-      <button class="db" data-parte title="Parte nova">${ic('titulo', 16)}</button><span class="sep"></span>` : ''}
-      ${pode('organizar') ? `<button class="db" data-org title="Arruma um texto solto em partes e falas">${ic('organizar', 16)} Organizar</button>` : ''}
+      <button class="db" data-coment title="Comentário para a equipe">${ic('coment', 16)}</button><span class="sep"></span>` : ''}
+      ${pode('organizar') ? `<button class="db" data-org title="Arruma um texto solto em capítulos, partes e falas">${ic('organizar', 16)} Organizar</button>` : ''}
       <span class="esp"></span>
       <button class="db" data-como title="Como escrever">${ic('ajuda', 16)}</button>
       <span class="db-modo">${ed ? `${ic('doc', 15)} Edição` : `${ic('doc', 15)} Só leitura`}</span>
     </div>
-    <div class="regua"><div class="r-folha">${Array.from({ length: 18 }, (_, i) => `<span style="left:${84 + (i + 1) * 37.8 - 3}px">${i + 1}</span>`).join('')}</div></div>`;
-  c.innerHTML = `<div class="mesa"><div class="pagina" style="zoom:${zoom}"><div class="folha"></div></div></div>`;
-  gr.innerHTML = `<div class="g-tit">Partes</div><ol class="partes"></ol><div class="g-tit">Personagens</div><div class="pers"></div>`;
+    <div class="regua"><div class="r-folha" title="Arraste os marcadores para mudar as margens"><div class="r-num">${Array.from({ length: 21 }, (_, i) => `<span style="left:${(i + 1) * 37.8}px">${i + 1}</span>`).join('')}</div><i class="rh-mao" data-m="ml"></i><i class="rh-mao" data-m="mr"></i></div></div>`;
+  c.innerHTML = `<div class="mesa"><div class="paginas" style="zoom:${zoom}"><div class="regua-v" title="Arraste os marcadores para mudar as margens"></div><div class="fundo"></div><div class="folha"></div></div></div>`;
+  gr.innerHTML = `<div class="g-tit">Títulos</div><div class="indice"></div><div class="g-tit g-pers">Personagens<span class="esp"></span><button class="g-mini" data-orgp title="Organização dos personagens">${ic('pasta', 15)}</button></div><div class="pfiltro"></div><div class="pers"></div>`;
   const cores = () => coresDoRoteiro();
-  let t = 0;
+  let t = 0, tPg = 0; const repagina = () => { cancelAnimationFrame(tPg); tPg = requestAnimationFrame(() => pagina(c)); };
   const E = S.ed = Editor.cria($('.folha', c), { texto: P.roteiro || '', somenteLer: !ed,
     cor: n => cores().get(Roteiro.chave(n)) || corOuPadrao(n, Roteiro.personagens(P.partes).length),
     aoMudar: tx => { P.roteiro = tx; marcaSujo(); clearTimeout(t); t = setTimeout(() => { const antes = [...cores().keys()].join(); P.partes = Roteiro.separa(P.roteiro, P.partes); lado(); if ([...cores().keys()].join() !== antes) E.repinta(); }, 200); },
-    aoMover: () => { const s = $('[data-estilo]', barra); const tp = E.tipoAtual(); if (s && tp) s.value = ESTILO_DE[tp] || 'normal'; } });
-  if (!P.roteiro && ed) E.el.dataset.vazio = 'Comece aqui. Ex.: "## Episódio 1 parte 1" e depois "Problems: Oi, gente!"';
-  const lado = () => {
-    const ps = Roteiro.personagens(P.partes), cs = cores(), linhas = E.linhas(); let hi = 0;
-    $('.partes', gr).innerHTML = P.partes.map(p => { while (hi < linhas.length && !(linhas[hi].t === 'h' && Roteiro.chave(linhas[hi].nome) === Roteiro.chave(p.nome))) hi++; const l = hi < linhas.length ? hi++ : -1;
-      return `<li><button data-linha="${l}"><b>${esc(p.nome)}</b><small>${p.falas.length} fala${p.falas.length === 1 ? '' : 's'}${p.falas.some(f => f.regravar) ? ' · <span class="aten">regravar</span>' : ''}</small></button></li>`; }).join('') || '<li class="dica">Os títulos das partes aparecem aqui.</li>';
-    $('.pers', gr).innerHTML = ps.map(p => `<button class="pchip" data-pers="${esc(p.nome)}" title="Nova fala de ${esc(p.nome)}">${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span><small>${p.n}</small></button>`).join('') || '<p class="dica">Escreva <b>Nome: fala</b> e o personagem aparece aqui.</p>';
+    aoMover: () => { const s = $('[data-estilo]', barra), l = E.linhas(), tp = E.tipoAtual(); if (s && tp) s.value = tp === 'h' ? (E.nivelAtual() === 1 ? 'capitulo' : 'parte') : ESTILO_DE[tp] || 'normal'; },
+    aoPintar: repagina,
+    confirma: (msg, antes, depois) => perguntaMuda(msg, antes, depois),
+    pedeTexto: (tit, rot) => pedeTexto(tit, rot, 200),
+    autor: () => S.nomeEu || '' });
+  if (!P.roteiro && ed) E.el.dataset.vazio = 'Comece aqui. Ex.: "# Episódio 1", "## Parte 1" e depois "Problems: Oi, gente!"';
+  const lado = pintaLado = () => {
+    const ps = Roteiro.personagens(P.partes), cs = cores(), linhas = E.linhas();
+    // índice: capítulos e partes (clique vai até o título)
+    const tit = []; let falas = 0, atual = null;
+    linhas.forEach((l, i) => { if (l.t === 'h') { atual = { nivel: l.nivel || 2, nome: l.nome, i, n: 0 }; tit.push(atual); } else if (l.t === 'f' && atual) atual.n++; });
+    $('.indice', gr).innerHTML = tit.map(x => `<button class="ix ix${x.nivel}" data-linha="${x.i}"><b>${esc(x.nome)}</b>${x.nivel === 2 ? `<small>${x.n} fala${x.n === 1 ? '' : 's'}</small>` : ''}</button>`).join('') || '<p class="dica">Os títulos aparecem aqui. Escreva "# Capítulo" ou "## Parte".</p>';
+    // personagens em pastas (Principais, Secundários, as que a pessoa criar); "Sem pasta" no fim
+    const fil = S.filtroPers || '', pastas = [...new Set([...GRUPOS_BASE, ...ps.map(p => grupoDe(p.nome)).filter(Boolean)])].filter(g => ps.some(p => grupoDe(p.nome) === g) || GRUPOS_BASE.includes(g));
+    $('.pfiltro', gr).innerHTML = ps.length ? ['', ...pastas.filter(g => ps.some(p => grupoDe(p.nome) === g))].map(g => `<button class="pf ${fil === g ? 'on' : ''}" data-pf="${esc(g)}">${g ? esc(g) : 'Todos'}</button>`).join('') : '';
+    let fechadas = {}; try { fechadas = JSON.parse(localStorage.getItem('ep-prep-pastas') || '{}'); } catch { }
+    const grupos = [...pastas, ''].filter(g => !fil || g === fil).map(g => [g, ps.filter(p => grupoDe(p.nome) === g)]).filter(([g, l]) => l.length);
+    $('.pers', gr).innerHTML = grupos.map(([g, l]) => `<div class="pasta ${fechadas[g || '-'] ? 'fechada' : ''}"><button class="pasta-tit" data-pasta="${esc(g || '-')}">${ic('baixo', 12)} ${g ? esc(g) : 'Sem pasta'} <small>${l.length}</small></button>
+      ${l.map(p => `<div class="prow"><button class="pchip" data-pers="${esc(p.nome)}" title="Nova fala de ${esc(p.nome)}">${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span><small>${p.n}</small></button><button class="g-mini" data-pmenu="${esc(p.nome)}" title="Mover para outra pasta">${ic('mais3', 14)}</button></div>`).join('')}</div>`).join('') || '<p class="dica">Escreva <b>Nome: fala</b> e o personagem aparece aqui.</p>';
     $$('[data-linha]', gr).forEach(b => b.onclick = () => { const l = +b.dataset.linha; if (l >= 0) E.irPara(l); });
     $$('[data-pers]', gr).forEach(b => b.onclick = () => ed && E.novaLinha(b.dataset.pers + ': '));
+    $$('[data-pf]', gr).forEach(b => b.onclick = () => { S.filtroPers = b.dataset.pf; lado(); });
+    $$('[data-pasta]', gr).forEach(b => b.onclick = () => { const k = b.dataset.pasta; fechadas[k] = !fechadas[k]; try { localStorage.setItem('ep-prep-pastas', JSON.stringify(fechadas)); } catch { } b.parentElement.classList.toggle('fechada', !!fechadas[k]); });
+    $$('[data-pmenu]', gr).forEach(b => b.onclick = () => { const n = b.dataset.pmenu, g0 = grupoDe(n);
+      popMenu(b, [...[...new Set([...GRUPOS_BASE, ...pastas])].map(g => [`${ic('pasta', 14)} ${esc(g)}`, g === g0 ? '✓' : '', () => mudaGrupo(n, g)]), [`${ic('mais', 14)} Pasta nova…`, '', async () => { const g = await pastaNova(); if (g) mudaGrupo(n, g); }], '-', ['Sem pasta', !g0 ? '✓' : '', () => mudaGrupo(n, '')]]); });
     const lp = $('.lista-pers', barra); if (lp) lp.innerHTML = ps.map(p => `<button data-np="${esc(p.nome)}">${ava(p.nome, cs.get(p.chave), 'p')} ${esc(p.nome)}</button>`).join('') + `<button data-np="">${ic('mais', 14)} Personagem novo…</button>`;
   };
   lado();
+  $('[data-orgp]', gr).onclick = e => popMenu(e.currentTarget, [
+    ['Organização da equipe', P.org?.propria ? '' : '✓', () => { if (P.org?.propria) { P.org = { ...P.org, propria: false }; marcaSujo(); lado(); aviso('Usando as pastas da equipe (aba Personagens).', 'ok'); } }],
+    ['Organização só deste roteiro', P.org?.propria ? '✓' : '', () => { if (!P.org?.propria) { const gs = {}; for (const p of Roteiro.personagens(P.partes)) { const g = S.pers?.[p.chave]?.grupo; if (g) gs[p.chave] = g; } P.org = { propria: true, grupos: { ...gs, ...(P.org?.grupos || {}) } }; marcaSujo(); lado(); aviso('Agora as pastas deste roteiro são só dele.', 'ok'); } }],
+    '-', [`${ic('pessoa', 14)} Abrir a aba Personagens`, '', async () => { if (await sairDoPrep()) trocaAba('personagens'); }]]);
   const sem = e => e.preventDefault(); // os botões da barra não tiram o foco da folha
-  $$('.db, .db-sel', barra).forEach(b => { if (b.tagName === 'BUTTON') b.addEventListener('mousedown', sem); });
+  $$('.db', barra).forEach(b => b.addEventListener('mousedown', sem));
   $('[data-desf]', barra)?.addEventListener('click', () => E.desfaz()); $('[data-ref]', barra)?.addEventListener('click', () => E.refaz());
-  $('[data-zoom]', barra).onchange = e => { zoom = +e.target.value; $('.pagina', c).style.zoom = zoom; try { localStorage.setItem('ep-prep-zoom', zoom); } catch { } };
+  $('[data-zoom]', barra).onchange = e => { zoom = +e.target.value; $('.paginas', c).style.zoom = zoom; try { localStorage.setItem('ep-prep-zoom', zoom); } catch { } pagina(c); };
   $('[data-estilo]', barra)?.addEventListener('change', e => { E.estilo(e.target.value); E.foca(); });
-  $('[data-parte]', barra)?.addEventListener('click', () => E.novaLinha(`## ${Roteiro.norm(P.nome)} parte ${P.partes.length + 1}`, { espaco: true }));
   $('[data-acao]', barra)?.addEventListener('click', () => E.italico());
+  $('[data-coment]', barra)?.addEventListener('click', () => E.comentar());
   const fd = $('[data-falade]', barra), lp = $('.lista-pers', barra);
   lp?.addEventListener('mousedown', sem);
   fd?.addEventListener('click', () => { lp.hidden = !lp.hidden; });
@@ -332,10 +453,20 @@ function pintaRoteiro(c) {
   addEventListener('mousedown', e => { if (lp && !lp.hidden && !e.target.closest('.falade')) lp.hidden = true; });
   $('[data-org]', barra)?.addEventListener('click', e => Organizar.roda(e.currentTarget, E));
   $('[data-como]', barra).onclick = mostraComo;
+  $$('.rh-mao', barra).forEach(m => m.onpointerdown = e => arrastaMargem(e, m.dataset.m, c));
+  $('.regua-v', c).addEventListener('pointerdown', e => { const m = e.target.closest('.rv-mao'); if (m) arrastaMargem(e, m.dataset.m, c); });
+  new ResizeObserver(repagina).observe($('.mesa', c));
+  repagina(); regua(c);
   if (ed && !P.roteiro) setTimeout(() => E.foca(), 50);
 }
-function pedeTexto(titulo, rotulo) {
-  return new Promise(ok => { const m = h(`<div class="modal"><div class="caixa"><b>${esc(titulo)}</b><label>${esc(rotulo)}<input maxlength="40"></label><div class="bts"><button class="bt" data-c>Cancelar</button><button class="bt pri" data-s>OK</button></div></div></div>`);
+// pergunta antes de mudar pelo menu da seleção, mostrando a linha antes e depois
+function perguntaMuda(msg, antes, depois) {
+  return new Promise(ok => { const m = h(`<div class="modal"><div class="caixa larga"><b>${esc(msg)}</b><div class="antes-depois"><small>Antes</small><pre>${esc(antes)}</pre><small>Depois</small><pre class="depois">${esc(depois)}</pre></div><div class="bts"><button class="bt" data-n>Cancelar</button><button class="bt pri" data-s>Mudar</button></div></div></div>`);
+    const fim = v => { m.remove(); ok(v); }; $('[data-n]', m).onclick = () => fim(false); $('[data-s]', m).onclick = () => fim(true); m.onkeydown = e => { if (e.key === 'Escape') fim(false); if (e.key === 'Enter') fim(true); };
+    document.body.appendChild(m); $('[data-s]', m).focus(); });
+}
+function pedeTexto(titulo, rotulo, max = 40) {
+  return new Promise(ok => { const m = h(`<div class="modal"><div class="caixa"><b>${esc(titulo)}</b><label>${esc(rotulo)}<input maxlength="${max}"></label><div class="bts"><button class="bt" data-c>Cancelar</button><button class="bt pri" data-s>OK</button></div></div></div>`);
     const i = $('input', m), fim = v => { m.remove(); ok(v); }; $('[data-c]', m).onclick = () => fim(null); $('[data-s]', m).onclick = () => fim(i.value.trim()); i.onkeydown = e => { if (e.key === 'Enter') fim(i.value.trim()); if (e.key === 'Escape') fim(null); };
     document.body.appendChild(m); i.focus(); });
 }
@@ -343,10 +474,10 @@ function pedeTexto(titulo, rotulo) {
 /* ---------- Organizar: a nuvem arruma o texto em partes e falas ---------- */
 const Organizar = {
   SIS: `Você arruma roteiros de vídeos de animação em português do Brasil. Receba o texto e devolva SÓ um JSON:
-{"partes":[{"nome":"Episódio 1 parte 1","falas":[{"personagem":"Nome","texto":"o que ele fala","nota":"como falar ou o que ele faz (opcional, curta)"}]}]}
+{"partes":[{"capitulo":"Episódio 1 (opcional)","nome":"Parte 1","falas":[{"personagem":"Nome","texto":"o que ele fala","nota":"como falar ou o que ele faz (opcional, curta)"}]}]}
 Regras: não invente falas nem mude o sentido; corrija só erros óbvios de digitação; nome do personagem escrito igual em todas as falas;
 narração, ações e indicações de cena não viram fala (a não ser que exista um NARRADOR falando); trechos em itálico (*assim*) ou entre parênteses
-dentro de uma fala são a nota (como falar), não o texto falado; separe em partes nomeadas seguindo o que o texto indica (episódio, parte, cena);
+dentro de uma fala são a nota (como falar), não o texto falado; separe em partes nomeadas seguindo o que o texto indica (parte, cena), e use "capitulo" quando o texto agrupar partes (episódio, capítulo);
 se o texto não indicar partes, use uma parte com o nome do roteiro.`,
   async roda(bt, E) {
     const P = S.P, txt = E.texto.trim(); if (!txt) return aviso('Escreva ou cole o roteiro primeiro.', 'info');
@@ -356,9 +487,9 @@ se o texto não indicar partes, use uma parte com o nome do roteiro.`,
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error?.message || 'A nuvem não conseguiu organizar agora.'); }
       const saida = /event-stream/.test(r.headers.get('content-type') || '') ? await this.le(r) : ((await r.json()).content || []).map(x => x.text || '').join('');
       const m = saida.match(/\{[\s\S]*\}/); if (!m) throw new Error('Não deu para organizar este texto. Tente de novo.');
-      const j = JSON.parse(m[0]); const partes = (j.partes || []).filter(p => p?.falas?.length).map(p => ({ nome: String(p.nome || P.nome).slice(0, 80), falas: p.falas.filter(f => f?.personagem && f?.texto).map(f => ({ personagem: String(f.personagem).slice(0, 40), texto: String(f.texto), nota: f.nota ? String(f.nota).slice(0, 80) : '' })) }));
+      const j = JSON.parse(m[0]); const partes = (j.partes || []).filter(p => p?.falas?.length).map(p => ({ nome: String(p.nome || P.nome).slice(0, 80), ...(p.capitulo ? { capitulo: String(p.capitulo).slice(0, 80) } : {}), falas: p.falas.filter(f => f?.personagem && f?.texto).map(f => ({ personagem: String(f.personagem).slice(0, 40), texto: String(f.texto), nota: f.nota ? String(f.nota).slice(0, 80) : '' })) }));
       if (!partes.length) throw new Error('Não achei falas neste texto.');
-      E.poe(Roteiro.escreve(partes)); P.roteiro = E.texto; P.partes = Roteiro.separa(P.roteiro, P.partes); marcaSujo(); pintaRoteiro($('.prep .corpo'));
+      E.trocaTudo(Roteiro.escreve(partes));
       aviso('Roteiro organizado em ' + partes.length + ' parte' + (partes.length === 1 ? '' : 's') + '. Ctrl+Z desfaz.', 'ok');
     } catch (e) { aviso(e.message, 'erro'); }
     finally { if (bt.isConnected) { bt.disabled = false; bt.innerHTML = rot; } }
@@ -459,57 +590,78 @@ const Falas = {
   },
 };
 
-/* ---------- aba Legendas ---------- */
+/* ---------- aba Legendas (do roteiro aberto) ---------- */
 const PALETA = ['#19f0f0', '#ffb04a', '#ff6b93', '#a796ff', '#4fe08f', '#ffd36b', '#7fd1ff', '#ff8f6b', '#ffffff', '#c9ff6b'];
 function pintaLegendas(c) {
-  const P = S.P, ps = Roteiro.personagens(P.partes), ed = pode('organizar'); P.legenda = P.legenda || { ativa: true, cores: {} };
+  const P = S.P, ps = Roteiro.personagens(P.partes), ed = pode('organizar'); P.legenda = P.legenda || { ativa: true, mostrarNome: false, cores: {} };
   const cs = coresDoRoteiro(), escolha = Object.fromEntries(ps.map(p => [p.chave, cs.get(p.chave)]));
   const exemplo = k => P.partes.flatMap(x => x.falas).find(f => Roteiro.chave(f.personagem) === k)?.texto || 'Exemplo de legenda';
   let foco = ps[0]?.chave;
   c.innerHTML = `<div class="leg2">
     <div class="esq">
-      <label class="chave"><input type="checkbox" ${P.legenda.ativa ? 'checked' : ''} ${ed ? '' : 'disabled'}><span class="trilho"><i></i></span> Legendas ligadas neste roteiro</label>
-      <p class="dica">A cor vale pelo nome do personagem, sem diferenciar maiúscula e minúscula ("Problems" = "PROBLEMS"). As cores ficam salvas e voltam nos próximos roteiros.</p>
+      <label class="chave"><input type="checkbox" data-liga ${P.legenda.ativa ? 'checked' : ''} ${ed ? '' : 'disabled'}><span class="trilho"><i></i></span> Legendas ligadas neste roteiro</label>
+      <label class="chave"><input type="checkbox" data-nome ${P.legenda.mostrarNome ? 'checked' : ''} ${ed ? '' : 'disabled'}><span class="trilho"><i></i></span> Mostrar o nome de quem fala na legenda</label>
+      <p class="dica">Normalmente a legenda mostra só o que é falado, na cor de quem fala (o nome não aparece). A cor vale pelo nome do personagem, sem diferenciar maiúscula e minúscula; mudar aqui muda para a equipe toda (aba Personagens).</p>
       <div class="lista">${ps.map(p => `<div class="lin" data-k="${esc(p.chave)}">${ava(p.nome, escolha[p.chave], 'p')}<b>${esc(p.nome)}</b>
-        <div class="paleta">${PALETA.map(x => `<button class="cor ${x === escolha[p.chave] ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<input type="color" value="${escolha[p.chave]}" ${ed ? '' : 'disabled'} title="Outra cor"></div>
-        ${S.cores?.[p.chave] ? '<small class="dica">cor salva</small>' : ''}</div>`).join('') || '<div class="vazio">Sem personagens ainda.</div>'}</div>
+        <div class="paleta">${PALETA.map(x => `<button class="cor ${x === escolha[p.chave] ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<input type="color" value="${escolha[p.chave]}" ${ed ? '' : 'disabled'} title="Outra cor"></div></div>`).join('') || '<div class="vazio">Sem personagens ainda. Escreva falas no roteiro (Nome: fala).</div>'}</div>
       ${ed && ps.length ? `<button class="bt pri" data-salva>${ic('ok', 15)} Salvar as cores</button>` : ''}
     </div>
     <div class="dir"><div class="tela-video"><div class="ceu"></div><div class="chao"></div><div class="leg-previa"></div></div><small class="dica">Prévia da legenda. Clique num personagem para ver a cor dele.</small></div></div>`;
-  const liga = $('.chave input', c), previa = () => { const pv = $('.leg-previa', c); pv.hidden = !liga.checked; if (foco) { pv.style.color = escolha[foco]; pv.textContent = exemplo(foco); } };
+  const liga = $('[data-liga]', c), nome = $('[data-nome]', c), previa = () => { const pv = $('.leg-previa', c); pv.hidden = !liga.checked; if (!foco) return; const p = ps.find(x => x.chave === foco);
+    pv.style.color = escolha[foco]; pv.textContent = (nome.checked ? `${p?.nome || ''}: ` : '') + exemplo(foco); };
   $$('.lin', c).forEach(l => { const k = l.dataset.k, troca = v => { escolha[k] = v; $$('.cor', l).forEach(b => b.classList.toggle('on', b.dataset.cor === v)); $('.ava', l).style.setProperty('--c', v); $('input[type=color]', l).value = v; foco = k; previa(); };
     l.onclick = e => { if (!e.target.closest('button,input')) { foco = k; previa(); } };
     $$('.cor', l).forEach(b => b.onclick = () => troca(b.dataset.cor)); $('input[type=color]', l).oninput = e => troca(e.target.value); });
-  const salva = async () => { P.legenda = { ativa: liga.checked, cores: { ...escolha } };
-    if (P.novo || S.sujo) { S.cores = { ...(S.cores || {}), ...P.legenda.cores }; marcaSujo(); return aviso('Vai junto quando mandar para a nuvem.', 'info'); }
-    try { const r = await Nuvem.acao({ acao: 'legenda', id: P.id, ...P.legenda }); P.mod = r.mod || P.mod; S.base.mod = P.mod; S.cores = r.cores || { ...(S.cores || {}), ...P.legenda.cores }; aviso('Cores salvas.', 'ok'); pintaLegendas(c); } catch (e) { aviso(e.message, 'erro'); } };
-  liga.onchange = () => { previa(); salva(); }; $('[data-salva]', c)?.addEventListener('click', salva);
+  const salva = async () => { P.legenda = { ativa: liga.checked, mostrarNome: nome.checked, cores: { ...escolha } };
+    for (const [k, v] of Object.entries(escolha)) if (S.pers) S.pers[k] = { ...(S.pers[k] || { nome: k }), cor: v };
+    if (P.novo || S.sujo) { marcaSujo(); return aviso('Guardado aqui. Vai para a nuvem junto com o roteiro.', 'info'); }
+    try { const r = await Nuvem.acao({ acao: 'legenda', id: P.id, ...P.legenda }); P.mod = r.mod || P.mod; S.base.mod = P.mod; S.cores = r.cores || S.cores; aviso('Legendas salvas.', 'ok'); pintaBarraPrep(); } catch (e) { aviso(e.message, 'erro'); } };
+  liga.onchange = () => { previa(); salva(); }; nome.onchange = () => { previa(); salva(); }; $('[data-salva]', c)?.addEventListener('click', salva);
   previa();
 }
 
-/* ---------- aba Cores das legendas (todas as que a equipe já usou) ---------- */
-async function pintaCores() {
-  const el = tela(); el.innerHTML = `<section class="inicio"><div class="cab"><h1>Cores das legendas</h1></div>
-    <p class="dica">Cada personagem tem uma cor, pelo nome (sem diferenciar maiúscula e minúscula). Os roteiros novos já começam com estas cores.</p>
-    <div class="leg2"><div class="esq"><div class="lista"><div class="vazio">Carregando…</div></div></div>
-    <div class="dir"><div class="tela-video"><div class="ceu"></div><div class="chao"></div><div class="leg-previa">Exemplo de legenda</div></div><small class="dica">Prévia: clique num personagem.</small></div></div></section>`;
-  try { S.cores = await Nuvem.cores() || {}; } catch (e) { $('.lista', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
-  const ed = pode('organizar'), lista = $('.lista', el), pv = $('.leg-previa', el);
-  const mostra = (nome, cor) => { pv.style.color = cor; pv.textContent = `${nome[0]?.toUpperCase() || ''}${nome.slice(1)}: exemplo de legenda`; };
-  const manda = async cores => { try { const r = await Nuvem.acao({ acao: 'cores', cores }); S.cores = r.cores || { ...S.cores, ...cores }; aviso('Cor salva.', 'ok'); pintaL(); } catch (e) { aviso(e.message, 'erro'); } };
-  const linha = (k, cor, nova) => `<div class="lin ${nova ? 'nova' : ''}" data-k="${esc(k)}">${nova ? `<span class="ava p todos">${ic('mais', 12)}</span><input class="txt" placeholder="Nome do personagem" maxlength="40">` : `${ava(k, cor, 'p')}<b>${esc(k)}</b>`}
-    <div class="paleta">${PALETA.map(x => `<button class="cor ${x === cor ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<input type="color" value="${esc(cor)}" ${ed ? '' : 'disabled'} title="Outra cor"></div></div>`;
+/* ---------- aba PERSONAGENS (a lista da equipe: preparativos/personagens.json) ---------- */
+// foto: recorta no meio, diminui para 256 px e vira WEBP (leve na nuvem)
+async function paraWebp(arq, lado = 256) {
+  const bmp = await createImageBitmap(arq), q = Math.min(bmp.width, bmp.height), cv = document.createElement('canvas'); cv.width = cv.height = Math.min(lado, q);
+  cv.getContext('2d').drawImage(bmp, (bmp.width - q) / 2, (bmp.height - q) / 2, q, q, 0, 0, cv.width, cv.height);
+  const b = await new Promise(ok => cv.toBlob(ok, 'image/webp', .82)); if (!b || b.type !== 'image/webp') throw new Error('Este navegador não consegue gerar WEBP. Use o Chrome ou o Edge.'); return b;
+}
+const slug = s => Roteiro.chave(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'p';
+async function pintaPersonagens() {
+  const el = tela(); el.innerHTML = `<section class="inicio pers-aba"><div class="cab"><h1>Personagens</h1></div>
+    <div class="explica">${ic('pessoa', 20)}<div><b>Todos os personagens dos roteiros ficam aqui, para a equipe toda.</b>
+      <p>Quando alguém escreve <b>Nome: fala</b> num roteiro e manda para a nuvem, o personagem entra nesta lista sozinho. Aqui você escolhe:</p>
+      <ul><li><b>Foto</b> (opcional): uma imagem simples de perfil. Ela é cortada no meio, diminuída e convertida para WEBP, para ficar leve na nuvem. Aparece na bolinha do personagem nos roteiros e nas falas.</li>
+      <li><b>Cor da legenda</b>: a cor das falas dele nas legendas (maiúscula ou minúscula no nome tanto faz).</li>
+      <li><b>Pasta</b>: Principais, Secundários ou uma pasta sua. No roteiro, o lado esquerdo mostra os personagens nessas pastas e dá para ver só uma delas. Cada roteiro pode usar uma organização só dele (botão de pasta ao lado de "Personagens").</li></ul></div></div>
+    <div class="pers-grade"><div class="vazio">Carregando…</div></div>
+    <input type="file" accept="image/*" data-arq hidden></section>`;
+  try { await carregaPers(true); if (!S.lista) S.lista = (await Nuvem.lista().catch(() => ({ itens: [] }))).itens || []; } catch (e) { $('.pers-grade', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
+  // os da equipe + os que aparecem nos roteiros e ainda não entraram na lista (ex.: roteiro só neste computador)
+  const todos = { ...S.pers }; for (const it of S.lista) for (const n of it.pers || []) { const k = Roteiro.chave(n); if (!todos[k]) todos[k] = { nome: n, _fora: 1 }; }
+  try { for (const [, v] of await DB.todos('rasc')) for (const p of Roteiro.personagens(v?.P?.partes)) if (!todos[p.chave]) todos[p.chave] = { nome: p.nome, _fora: 1 }; } catch { }
+  const ed = pode('organizar'), arq = $('[data-arq]', el); let alvo = null;
+  const manda = async (k, mudas, msg) => { try { const r = await Nuvem.acao({ acao: 'personagens', itens: { [k]: { nome: todos[k]?.nome || k, ...mudas } } }); S.pers = r.personagens || S.pers; Object.assign(todos, S.pers); if (msg) aviso(msg, 'ok'); pintaL(); } catch (e) { aviso(e.message, 'erro'); } };
+  arq.onchange = async () => { const f = arq.files[0]; arq.value = ''; if (!f || !alvo) return; const k = alvo;
+    try { aviso('Preparando a foto…', 'info', 1500); const b = await paraWebp(f), chaveF = `preparativos/pers/${slug(k)}-${Date.now().toString(36)}.webp`;
+      await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(chaveF), { method: 'POST', headers: { 'content-type': 'image/webp' }, body: b });
+      await manda(k, { foto: chaveF }, `Foto salva (${Math.max(1, Math.round(b.size / 1024))} KB).`); } catch (e) { aviso(e.message, 'erro'); } };
   const pintaL = () => {
-    const E = Object.entries(S.cores).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
-    lista.innerHTML = (E.map(([k, c]) => linha(k, c)).join('') || '<div class="vazio">Nenhuma cor salva ainda. As cores escolhidas na aba Legendas de um roteiro aparecem aqui.</div>') + (ed ? linha('', PALETA[E.length % PALETA.length], true) : '');
-    $$('.lin', lista).forEach(l => { const k = l.dataset.k, nova = l.classList.contains('nova'), nomeDe = () => nova ? Roteiro.chave($('.txt', l).value) : k;
-      const usa = cor => { $$('.cor', l).forEach(b => b.classList.toggle('on', b.dataset.cor === cor)); $('input[type=color]', l).value = cor; mostra(nomeDe() || 'personagem', cor);
-        if (!nova) manda({ [k]: cor }); else l.dataset.cor = cor; };
-      l.onclick = e => { if (!e.target.closest('button,input')) mostra(k, S.cores[k]); };
-      $$('.cor', l).forEach(b => b.onclick = () => usa(b.dataset.cor)); $('input[type=color]', l).onchange = e => usa(e.target.value);
-      if (nova) { const i = $('.txt', l); i.onkeydown = e => { if (e.key !== 'Enter') return; const n = nomeDe(); if (!n) return aviso('Escreva o nome do personagem.', 'info'); manda({ [n]: l.dataset.cor || $('input[type=color]', l).value }); };
-        i.placeholder = 'Nome do personagem (escolha a cor e aperte Enter)'; } });
-    const [k0, c0] = E[0] || ['problems', '#19f0f0']; mostra(k0, c0);
+    const E = Object.entries(todos).sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')), pastas = [...new Set([...GRUPOS_BASE, ...E.map(([, v]) => v.grupo).filter(Boolean)])];
+    const grupos = [...pastas, ''].map(g => [g, E.filter(([, v]) => (v.grupo || '') === g)]).filter(([g, l]) => l.length || GRUPOS_BASE.includes(g));
+    $('.pers-grade', el).innerHTML = E.length ? grupos.map(([g, l]) => `<div class="pasta-g"><h3>${ic('pasta', 14)} ${g ? esc(g) : 'Sem pasta'} <small>${l.length}</small></h3><div class="pcards">${l.map(([k, v], i) => { const cor = v.cor || coresPadrao[i % coresPadrao.length];
+      return `<div class="pcard2" data-k="${esc(k)}" style="--c:${cor}"><button class="foto" ${ed ? '' : 'disabled'} title="${v.foto ? 'Trocar a foto' : 'Pôr uma foto'}">${ava(v.nome, cor, 'g')}<span class="cam">${ic('camera', 14)}</span></button>
+        <div class="pc-meio"><b>${esc(v.nome)}</b>${v._fora ? '<small class="dica">ainda não está na nuvem</small>' : ''}
+          <select data-grupo ${ed ? '' : 'disabled'}>${['', ...pastas].map(x => `<option value="${esc(x)}" ${x === (v.grupo || '') ? 'selected' : ''}>${x ? esc(x) : 'Sem pasta'}</option>`).join('')}<option value="+">+ Pasta nova…</option></select>
+          <div class="paleta">${PALETA.map(x => `<button class="cor ${x === cor ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'}></button>`).join('')}<input type="color" value="${cor}" ${ed ? '' : 'disabled'} title="Outra cor"></div>
+          <span class="leg-mini" style="color:${cor}">Exemplo de legenda</span>
+          ${v.foto && ed ? `<button class="link" data-tira>Tirar a foto</button>` : ''}</div></div>`; }).join('') || '<p class="dica">Ninguém nesta pasta.</p>'}</div></div>`).join('') : '<div class="vazio">Nenhum personagem ainda. Eles aparecem aqui quando um roteiro com falas (Nome: fala) vai para a nuvem.</div>';
+    $$('.pcard2', el).forEach(cd => { const k = cd.dataset.k;
+      $('.foto', cd).onclick = () => { alvo = k; arq.click(); };
+      $('[data-tira]', cd)?.addEventListener('click', async () => { if (await pergunta('Tirar a foto?', `${todos[k].nome} volta a aparecer com as iniciais.`, [['Cancelar', false], ['Tirar', true, 'perigo']])) manda(k, { foto: null }, 'Foto tirada.'); });
+      $('[data-grupo]', cd).onchange = async e => { let g = e.target.value; if (g === '+') { g = await pastaNova(); if (!g) return pintaL(); } manda(k, { grupo: g || null }, g ? `${todos[k].nome} foi para ${g}.` : `${todos[k].nome} saiu da pasta.`); };
+      const cor = v => manda(k, { cor: v }); $$('.cor', cd).forEach(b => b.onclick = () => cor(b.dataset.cor)); $('input[type=color]', cd).onchange = e => cor(e.target.value); });
   };
   pintaL();
 }
@@ -569,7 +721,7 @@ Metade shorts e metade longos; formatos variados (mistério, conversa com o púb
     if (!this.S?.analise) return aviso('Ainda não há análise dos canais. Use "Atualizar análise" e espere alguns minutos.', 'info');
     const I0 = this.S.ideias || { lista: [] }, rot = bt.innerHTML; bt.disabled = true; bt.innerHTML = '<span class="gira"></span> Pensando…';
     try {
-      const elenco = [...new Set([...Object.keys(S.cores || await Nuvem.cores().catch(() => ({})) || {}), ...(S.lista || []).flatMap(x => x.pers || [])].map(n => Roteiro.norm(n)).filter(Boolean))].slice(0, 30);
+      const elenco = [...new Set([...Object.values(await carregaPers().catch(() => ({}))).map(v => v.nome), ...(S.lista || []).flatMap(x => x.pers || [])].map(n => Roteiro.norm(n)).filter(Boolean))].slice(0, 30);
       const pedido = `ANÁLISE (${quando(this.S.analise.em)}):\n${this.resumo()}\n\nNOSSO ELENCO: ${elenco.join(', ') || '(use personagens genéricos do canal Problems)'}\n\n`
         + (I0.lista?.length ? `IDEIAS QUE JÁ EXISTEM (não repita):\n${I0.lista.map(x => `- [${x.formato}] ${x.titulo}`).join('\n')}\n\n` : '')
         + (I0.escolhidas?.length ? `IDEIAS QUE A EQUIPE JÁ ESCOLHEU (aprenda o gosto, sem repetir):\n${I0.escolhidas.slice(-15).map(x => `- [${x.formato}] ${x.titulo}`).join('\n')}\n\n` : '') + 'Escreva 8 ideias.';
@@ -617,7 +769,7 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
   if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));
   try { await window.EstudioPerm?.pronto; } catch { }
   const q = new URLSearchParams(location.search), id = q.get('id'), aba = q.get('aba');
-  if (aba === 'ideias' || aba === 'cores') return trocaAba(aba);
+  if (aba === 'ideias') return trocaAba(aba); if (aba === 'personagens' || aba === 'cores') return trocaAba('personagens');
   if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { try { return abrePrep(await Nuvem.abre(id)); } catch { const r = await DB.get('rasc', id).catch(() => null); if (r?.P) return abrePrep(r.P, r.base); } }
   pintaInicio();
 })();

@@ -1,9 +1,10 @@
-/* ===================== editor.js — a folha do roteiro, no estilo do Google Docs =====================
+/* ===================== editor.js — a folha do roteiro =====================
    Uma folha branca editável (contenteditable). O TEXTO é a fonte de verdade (o mesmo formato de js/roteiro.js);
    a cada mudança a linha é pintada de novo pelo Roteiro.classifica: parte = título, nome do personagem na cor dele,
-   *itálico* apagadinho (ação / como falar), [cena] e // comentários em cinza. O que aparece na folha é EXATAMENTE o texto
-   (os * continuam lá, só ficam clarinhos), então separar depois é só ler o texto.
-   Colar do Google Docs: o itálico de lá vira *itálico* e os títulos viram "## ".
+   *itálico* com marca-texto amarelo (ação / como falar; os * continuam no texto, só não aparecem), [cena] e // comentários.
+   O que está na folha é EXATAMENTE o texto, então separar depois é só ler o texto.
+   Colar de outro editor: o itálico de lá vira *itálico*, título 1 vira "# " e título 2/3 vira "## ".
+   Mudanças pelo menu da seleção perguntam antes (o.confirma); o.aoPintar avisa depois de pintar (as páginas são montadas no app.js).
    Desfazer/refazer próprios (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z), Ctrl+I = itálico (ação). */
 'use strict';
 const Editor = (() => {
@@ -13,12 +14,13 @@ const Editor = (() => {
   function linhaHtml(o, cor) {
     const L = o.linha;
     if (o.t === 'v') return L ? `<div class="l v">${esc(L)}</div>` : '<div class="l v"><br></div>';
-    if (o.t === 'h') { const m = L.match(/^(\s*#{1,6}\s*)(.*)$/); return `<div class="l h">${m ? `<span class="mk">${esc(m[1])}</span>${esc(m[2])}` : esc(L)}</div>`; }
+    if (o.t === 'h') { const m = L.match(/^(\s*#{1,6}\s*)(.*)$/); return `<div class="l h h${o.nivel || 2}">${m ? `<span class="mk">${esc(m[1])}</span>${esc(m[2])}` : esc(L)}</div>`; }
     if (o.t === 'f') return `<div class="l f" style="--c:${cor(o.nome)}">${esc(o.pre)}<span class="nm">${esc(o.nome)}</span><span class="dp">${inline(o.meio)}</span>${inline(o.resto)}</div>`;
     if (o.t === 'f2') return `<div class="l f2">${inline(L)}</div>`;
+    if (o.t === 'a') { const m = L.match(/^(\s*)\*(.+)\*(\s*)$/); if (m) return `<div class="l a">${esc(m[1])}<span class="ac"><span class="mk">*</span>${esc(m[2])}<span class="mk">*</span></span>${esc(m[3])}</div>`; }
     return `<div class="l ${o.t}">${esc(L)}</div>`;
   }
-  // Google Docs → texto: itálico vira *…*, títulos viram "## ", cada bloco uma linha
+  // texto colado de outro editor → roteiro: itálico vira *…*, títulos viram "## ", cada bloco uma linha
   function deHtml(html) {
     const doc = new DOMParser().parseFromString(html, 'text/html'); let out = '';
     const BLOCO = /^(P|DIV|LI|H[1-6]|TR|BLOCKQUOTE|PRE)$/;
@@ -28,7 +30,7 @@ const Editor = (() => {
       if (n.tagName === 'BR') { out += '\n'; return; }
       const st = n.getAttribute('style') || '', ehIt = !it && (/^(I|EM)$/.test(n.tagName) || /font-style:\s*italic/i.test(st)) && n.textContent.trim();
       const bloco = BLOCO.test(n.tagName); if (bloco && out && !out.endsWith('\n')) out += '\n';
-      if (/^H[1-3]$/.test(n.tagName) && n.textContent.trim()) out += '## ';
+      if (/^H[1-3]$/.test(n.tagName) && n.textContent.trim()) out += n.tagName === 'H1' ? '# ' : '## ';
       if (ehIt) out += '*'; for (const c of n.childNodes) anda(c, it || ehIt); if (ehIt) { out = out.replace(/(\s*)$/, '*$1'); }
       if (bloco && !out.endsWith('\n')) out += '\n';
     };
@@ -66,7 +68,7 @@ const Editor = (() => {
       const fs = [...ed.childNodes];
       if (fs.length !== html.length || fs.some(n => n.nodeType !== 1)) { ed.innerHTML = html.join(''); [...ed.children].forEach((d, i) => { d._h = html[i]; }); }
       else html.forEach((h, i) => { const d = fs[i]; if (d._h !== h || d.textContent.replace(/ /g, ' ') !== info[i].linha) { const tp = document.createElement('template'); tp.innerHTML = h; const n = tp.content.firstElementChild; n._h = h; d.replaceWith(n); } });
-      [...ed.children].forEach((d, i) => { d.dataset.i = i; });
+      [...ed.children].forEach((d, i) => { d.dataset.i = i; }); o.aoPintar?.();
     }
     const avisa = () => { o.aoMudar?.(texto); o.aoMover?.(); };
     function guardaHist(c, junta) { clearTimeout(tHist); if (junta && hi === hist.length - 1 && hist[hi]._aberto) { hist[hi] = { t: texto, c, _aberto: true }; } else { hist = hist.slice(0, hi + 1); hist.push({ t: texto, c, _aberto: !!junta }); if (hist.length > 300) hist.shift(); hi = hist.length - 1; } tHist = setTimeout(() => { if (hist[hi]) hist[hi]._aberto = false; }, 800); }
@@ -101,8 +103,10 @@ const Editor = (() => {
     const menu = document.createElement('div'); menu.className = 'sel-menu'; menu.hidden = true; menu.setAttribute('role', 'menu');
     menu.innerHTML = `<button data-m="nome" role="menuitem">${svg('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')} É o nome do personagem</button>
       <button data-m="acao" role="menuitem">${svg('<path d="M10 4h8M6 20h8M14 4l-4 16"/>')} É ação / explicação da cena</button>
+      <button data-m="capitulo" role="menuitem">${svg('<path d="M5 4v16M15 4v16M5 12h10M19 8v12"/>')} É o título de um capítulo</button>
       <button data-m="parte" role="menuitem">${svg('<path d="M6 4v16M18 4v16M6 12h12"/>')} É o título de uma parte</button>
-      <button data-m="normal" role="menuitem">${svg('<path d="M5 12h14"/>')} Texto normal</button>`;
+      <button data-m="normal" role="menuitem">${svg('<path d="M5 12h14"/>')} Texto normal</button>
+      <hr><button data-m="comentar" role="menuitem">${svg('<path d="M4 5h16v11H9l-5 4z"/>')} Comentário para a equipe</button>`;
     document.body.appendChild(menu);
     let selMenu = null;
     const esconde = () => { menu.hidden = true; selMenu = null; };
@@ -111,19 +115,33 @@ const Editor = (() => {
       menu.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - (embaixo ? 0 : w / 2))) + 'px';
       menu.style.top = (embaixo ? Math.min(innerHeight - h - 8, y) : (y - h - 10 < 8 ? y + 28 : y - h - 10)) + 'px'; }
     menu.addEventListener('mousedown', e => e.preventDefault()); // não perde a seleção
-    menu.addEventListener('click', e => { const b = e.target.closest('[data-m]'); const c = selMenu; esconde(); if (!b || !c) return; FAZ[b.dataset.m](c); });
+    menu.addEventListener('click', e => { const b = e.target.closest('[data-m]'); const c = selMenu; esconde(); if (!b || !c) return; FAZ[b.dataset.m](c, true); });
+    // mudança pelo menu (botão direito / seleção) pergunta antes, mostrando como a linha fica (pedido da dona)
+    async function aplica(a, b, s, msg, perguntar) {
+      if (perguntar && o.confirma) { const [i, f] = linhaDe(a), [i2, f2] = linhaDe(Math.max(a, b)); const antes = texto.slice(i, f2), depois = (texto.slice(i, a) + s + texto.slice(b, f2)).replace(/^\n+/, '');
+        if (!await o.confirma(msg, antes, depois)) return; }
+      troca(a, b, s);
+    }
     const FAZ = {
-      nome(c) { // "Problems Oi gente" com "Problems" selecionado → "Problems: Oi gente"; nome sozinho na linha + fala na linha de baixo → junta
+      nome(c, q) { // "Problems Oi gente" com "Problems" selecionado → "Problems: Oi gente"; nome sozinho na linha + fala na linha de baixo → junta
         const [ini, fim] = linhaDe(c.a), b = Math.min(c.b, fim), nome = texto.slice(c.a, b).replace(/[*:#\[\]()]/g, '').trim().slice(0, 40); if (!nome) return;
         let resto = (texto.slice(ini, c.a) + ' ' + texto.slice(b, fim)).replace(/^[\s*]*$/, '').trim().replace(/^[:\-–—]\s*/, ''), ate = fim;
         if (!resto && fim < texto.length) { const [i2, f2] = linhaDe(fim + 1); const l2 = texto.slice(i2, f2).trim(); if (l2 && Roteiro.classifica(l2)[0].t !== 'h' && Roteiro.classifica(l2)[0].t !== 'f') { resto = l2; ate = f2; } }
-        troca(ini, ate, `${nome}: ${resto}`); },
-      acao(c) { const [ini, fim] = linhaDe(c.a), l = texto.slice(ini, fim); if (texto.slice(c.a, c.b).trim() === l.trim() && c.b <= fim) { const t = l.trim().replace(/^[*_]+|[*_]+$/g, ''); return troca(ini, fim, `*${t}*`); } italico(); },
-      parte(c) { const [ini, fim] = linhaDe(c.a), t = (texto.slice(c.a, Math.min(c.b, fim)).trim() || texto.slice(ini, fim).trim()).replace(/^#+\s*/, '').replace(/[*:]/g, '').trim(); if (!t) return;
-        const antes = texto.slice(0, ini); troca(ini, fim, (antes && !/\n\s*\n$/.test(antes) ? '\n' : '') + '## ' + t); },
-      normal(c) { const sel = texto.slice(c.a, c.b); const [ini, fim] = linhaDe(c.a);
-        if (/^\s*#{1,6}\s*/.test(texto.slice(ini, fim)) && c.b <= fim) return troca(ini, fim, texto.slice(ini, fim).replace(/^\s*#{1,6}\s*/, ''));
-        troca(c.a, c.b, sel.replace(/\*/g, '')); },
+        aplica(ini, ate, `${nome}: ${resto}`, `Marcar "${nome}" como nome de personagem?`, q); },
+      acao(c, q) { const [ini, fim] = linhaDe(c.a), l = texto.slice(ini, fim), sel = texto.slice(c.a, c.b);
+        if (sel.trim() === l.trim() && c.b <= fim) { const t = l.trim().replace(/^[*_]+|[*_]+$/g, ''); return aplica(ini, fim, `*${t}*`, 'Marcar esta linha como ação / explicação da cena?', q); }
+        if (/^\*[^*]+\*$/.test(sel)) return aplica(c.a, c.b, sel.slice(1, -1), 'Tirar a marcação de ação deste trecho?', q);
+        aplica(c.a, c.b, sel.replace(/^(\s*)(.*?)(\s*)$/s, '$1*$2*$3'), 'Marcar este trecho como ação / como falar?', q); },
+      titulo(c, q, nivel) { const [ini, fim] = linhaDe(c.a), t = (texto.slice(c.a, Math.min(c.b, fim)).trim() || texto.slice(ini, fim).trim()).replace(/^#+\s*/, '').replace(/[*:]/g, '').trim(); if (!t) return;
+        const antes = texto.slice(0, ini); aplica(ini, fim, (antes && !/\n\s*\n$/.test(antes) ? '\n' : '') + (nivel === 1 ? '# ' : '## ') + t, `Transformar "${t}" em título de ${nivel === 1 ? 'capítulo' : 'parte'}?`, q); },
+      parte(c, q) { FAZ.titulo(c, q, 2); }, capitulo(c, q) { FAZ.titulo(c, q, 1); },
+      normal(c, q) { const sel = texto.slice(c.a, c.b); const [ini, fim] = linhaDe(c.a);
+        if (/^\s*#{1,6}\s*/.test(texto.slice(ini, fim)) && c.b <= fim) return aplica(ini, fim, texto.slice(ini, fim).replace(/^\s*#{1,6}\s*/, ''), 'Voltar este título para texto normal?', q);
+        aplica(c.a, c.b, sel.replace(/\*/g, ''), 'Voltar este trecho para texto normal?', q); },
+      async comentar(c) { // comentário da equipe: uma linha "// Nome: texto (sobre "trecho")" logo abaixo da linha
+        const trecho = texto.slice(c.a, c.b).replace(/\s+/g, ' ').trim().slice(0, 50), t = await o.pedeTexto?.('Comentário para a equipe', trecho ? `Sobre "${trecho}"` : 'Comentário'); if (!t) return;
+        const [, fim] = linhaDe(c.b), quem = (o.autor?.() || '').replace(/[:\n]/g, '').trim(), linha = `\n// ${quem ? quem + ': ' : ''}${t.replace(/\n/g, ' ')}${trecho ? ` (sobre "${trecho}")` : ''}`;
+        troca(fim, fim, linha); },
     };
     ed.addEventListener('mouseup', () => setTimeout(() => { const s = getSelection(); if (!s.rangeCount || s.isCollapsed) return esconde(); const r = s.getRangeAt(0).getBoundingClientRect(); mostraMenu(r.left + r.width / 2, r.top); }, 0));
     ed.addEventListener('keyup', e => { if (!e.shiftKey) return; const s = getSelection(); if (!s.rangeCount || s.isCollapsed) return esconde(); const r = s.getRangeAt(0).getBoundingClientRect(); mostraMenu(r.left + r.width / 2, r.top); });
@@ -147,11 +165,15 @@ const Editor = (() => {
       estilo(t) { ed.focus(); let c = cursor(); if (!c) return; if (c.a === c.b) { const [i, f] = linhaDe(c.a); if (i === f) return; c = { a: i, b: f }; }
         if (t === 'comentario') { const [i, f] = linhaDe(c.a); return troca(i, f, '// ' + texto.slice(i, f).replace(/^\s*\/\/\s*/, '')); }
         if (t === 'normal') { const [i, f] = linhaDe(c.a); const l = texto.slice(i, f); if (/^\s*(\/\/|#)/.test(l) || /^\s*\*.*\*\s*$/.test(l)) return troca(i, f, l.replace(/^\s*(\/\/|#{1,6})\s*/, '').replace(/^\s*\*(.*)\*\s*$/, '$1')); }
-        FAZ[t]?.(c); },
+        FAZ[t]?.(c, false); },
       tipoAtual() { const c = cursor(); if (!c) return null; return info[texto.slice(0, c.a).split('\n').length - 1]?.t || null; },
       tudo() { ed.focus(); poeCursor(0, texto.length); },
       irPara(linha) { const d = ed.querySelector(`[data-i="${linha}"]`); if (!d) return; d.scrollIntoView({ block: 'center', behavior: 'smooth' }); ed.focus(); let p = 0; const ls = texto.split('\n'); for (let i = 0; i < linha; i++) p += ls[i].length + 1; poeCursor(p + ls[linha].length); },
       linhas: () => info,
+      nivelAtual() { const c = cursor(); if (!c) return 0; return info[texto.slice(0, c.a).split('\n').length - 1]?.nivel || 0; },
+      comentar() { ed.focus(); const c = cursor() || { a: texto.length, b: texto.length }; FAZ.comentar(c); },
+      // troca o texto inteiro como UMA edição (Ctrl+Z volta ao que era; usado pelo Organizar)
+      trocaTudo(t) { ed.focus(); troca(0, texto.length, String(t || '').replace(/\r/g, '')); poeCursor(0); },
       repinta: () => { const c = document.activeElement === ed ? cursor() : null; ed.innerHTML = ''; pinta(); if (c) poeCursor(c.a, c.b); },
     };
   }

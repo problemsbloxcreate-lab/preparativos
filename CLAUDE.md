@@ -8,6 +8,10 @@
 - Conferir antes do push: `for f in js/*.js; do node --check "$f"; done; node js/roteiro.js`.
 - FORMATO DO ROTEIRO (para escrever ou ler um roteiro): README.md › "Como escrever o roteiro". Resumo: `## Parte`, `Nome: fala`,
   `*itálico*` = ação / como falar (vira nota, fora da legenda), linha inteira em itálico ou `[…]` = cena, `//` = comentário. O parser é
-  `js/roteiro.js` (classifica/separa); a folha estilo Google Docs é `js/editor.js` (o texto é a fonte de verdade; a pintura nunca muda o texto).
-- Roteiro aberto = "modo documento" (body.modo-doc): tela estilo Google Docs, ESCURA por padrão (Ver › Tema claro = classe .claro, localStorage `ep-prep-tema`); o cabeçalho do programa some e o `[data-estudio-conta]` é movido para `.dh-conta` (modoDoc() devolve ao sair).
+  `js/roteiro.js` (classifica/separa); a folha é `js/editor.js` (o texto é a fonte de verdade; a pintura nunca muda o texto).
+- Roteiro aberto = "modo documento" (body.modo-doc): tela de editor de documento, ESCURA por padrão (Ver › Tema claro = classe .claro, localStorage `ep-prep-tema`); o cabeçalho do programa some e o `[data-estudio-conta]` é movido para `.dh-conta` (modoDoc() devolve ao sair).
 - BOLINHA DO PERSONAGEM: sempre `ava()` do app.js. Ela é um <span>: NUNCA escreva regra genérica tipo `.lista button span{flex:1}` — use `>span` ou uma classe. A `.ava` tem tamanho blindado com !important no fim do css/app.css.
+- PÁGINAS: o texto é UMA folha editável; `pagina()` do app.js empurra (margin-top) a linha que não cabe para a próxima página e desenha as folhas atrás (.fundo). Margens em `P.pagina`, arrastando as réguas.
+- PERSONAGENS da equipe: `preparativos/personagens.json` (nome, cor, foto WEBP, grupo). O servidor cadastra sozinho quem aparece num roteiro salvo. Pastas: Principais/Secundários/da pessoa; o roteiro pode ter as próprias (`P.org`).
+- Legenda no programa de destino: só o texto; o nome de quem fala só com `legenda.mostrarNome`.
+- Nada de mencionar outros produtos (ex.: editores de texto conhecidos) nas telas.
