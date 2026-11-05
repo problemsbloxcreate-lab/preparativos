@@ -41,7 +41,7 @@ const pode = c => { try { return window.EstudioPerm?.pode?.('preparativos.' + c)
 /* ---------- banco deste navegador: rascunhos e áudios que ainda não foram para a nuvem ---------- */
 const DB = {
   _db: null,
-  abre() { return this._db || (this._db = new Promise((ok, no) => { const r = indexedDB.open('ep-preparativos', 1); r.onupgradeneeded = () => { r.result.createObjectStore('rasc'); r.result.createObjectStore('aud'); }; r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); },
+  abre() { return this._db || (this._db = new Promise((ok, no) => { const r = indexedDB.open('ep-preparativos', 2); r.onupgradeneeded = () => { for (const l of ['rasc', 'aud', 'th']) if (!r.result.objectStoreNames.contains(l)) r.result.createObjectStore(l); }; r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); },
   async op(loja, modo, f) { const db = await this.abre(); return new Promise((ok, no) => { const tx = db.transaction(loja, modo), st = tx.objectStore(loja), r = f(st); tx.oncomplete = () => ok(r?.result); tx.onerror = () => no(tx.error); }); },
   get(l, k) { return this.op(l, 'readonly', s => s.get(k)); }, put(l, k, v) { return this.op(l, 'readwrite', s => s.put(v, k)); }, del(l, k) { return this.op(l, 'readwrite', s => s.delete(k)); },
   async todos(l) { const db = await this.abre(); return new Promise((ok, no) => { const out = [], tx = db.transaction(l, 'readonly'), c = tx.objectStore(l).openCursor(); c.onsuccess = () => { const x = c.result; if (x) { out.push([x.key, x.value]); x.continue(); } }; tx.oncomplete = () => ok(out); tx.onerror = () => no(tx.error); }); },
@@ -601,12 +601,43 @@ const Falas = {
    personagem da equipe com o MESMO nome. A lista do Ateliê sai do GET /personagens (só a lista: nome vem da metadata do personagem.json,
    sem abrir cada personagem — poupa a nuvem) e fica 10 min guardada nesta aba. */
 async function atelie(novo) {
-  try { const g = JSON.parse(sessionStorage.getItem('ep-prep-atelie') || 'null'); if (!novo && g && Date.now() - g.t < 600e3) return g.l; } catch { }
-  const j = await Nuvem.pede('/personagens'), l = [];
-  for (const x of j.itens || []) { const m = String(x.k || '').match(/^personagens\/([a-z0-9][a-z0-9-]{1,40})\/personagem\.json$/); if (m) l.push({ id: m[1], nome: x.nome || m[1].replace(/-/g, ' ').replace(/^./, c => c.toUpperCase()) }); }
+  try { const g = JSON.parse(sessionStorage.getItem('ep-prep-atelie') || 'null'); if (!novo && g && Date.now() - g.t < 600e3 && g.pastas) { g.l.pastas = g.pastas; return g.l; } } catch { }
+  const [j, pa] = await Promise.all([Nuvem.pede('/personagens'), Nuvem.pede('/personagens/arquivo?k=personagens/pastas.json').catch(() => null)]), l = [], de = pa?.de || {};
+  for (const x of j.itens || []) { const m = String(x.k || '').match(/^personagens\/([a-z0-9][a-z0-9-]{1,40})\/personagem\.json$/); if (m) l.push({ id: m[1], nome: x.nome || m[1].replace(/-/g, ' ').replace(/^./, c => c.toUpperCase()), mod: +x.mod || 0, pasta: de[m[1]] || 'Personagens' }); }
+  l.pastas = [...new Set([...(Array.isArray(pa?.pastas) ? pa.pastas : []), ...l.map(x => x.pasta)])];
   l.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  try { sessionStorage.setItem('ep-prep-atelie', JSON.stringify({ t: Date.now(), l })); } catch { }
+  try { sessionStorage.setItem('ep-prep-atelie', JSON.stringify({ t: Date.now(), l, pastas: l.pastas })); } catch { }
   return l;
+}
+
+const thPedidos = new Map(); let thFila = Promise.resolve(), thAtivos = 0; const thEspera = [];
+async function thumbDe(x) {
+  try { const g = await DB.get('th', x.id); if (g && g.mod === x.mod) return g.thumb || null; } catch { }
+  if (thPedidos.has(x.id)) return thPedidos.get(x.id);
+  const pr = (async () => { if (thAtivos >= 4) await new Promise(r => thEspera.push(r)); thAtivos++; // no máximo 4 de uma vez
+    try { const d = await Nuvem.pede('/personagens/arquivo?k=' + encodeURIComponent(`personagens/${x.id}/personagem.json`)); const th = typeof d?.thumb === 'string' && d.thumb.startsWith('data:image/') ? d.thumb : null;
+      DB.put('th', x.id, { mod: x.mod, thumb: th }).catch(() => { }); return th; }
+    catch { return null; } finally { thAtivos--; thEspera.shift()?.(); thPedidos.delete(x.id); } })();
+  thPedidos.set(x.id, pr); return pr;
+}
+// janela do Ateliê: pastas, miniaturas e nomes (as miniaturas carregam quando aparecem na tela)
+function escolheNoAtelie(L, atual, titulo) {
+  return new Promise(ok => {
+    const pastas = (L.pastas || [...new Set(L.map(x => x.pasta))]).filter(p => L.some(x => x.pasta === p));
+    const m = h(`<div class="modal"><div class="caixa atelie-pop"><div class="ap-cab"><b>${esc(titulo)}</b><span class="esp"></span><input class="ap-busca" placeholder="Procurar pelo nome" aria-label="Procurar"><button class="bt ic" data-x title="Fechar">${ic('voltar', 15)}</button></div>
+      <div class="ap-esp"><button class="ap-op ${atual === undefined ? 'on' : ''}" data-v="">${ic('atualizar', 15)} Automático (mesmo nome)</button><button class="ap-op ${atual === null ? 'on' : ''}" data-v="-">${ic('lixo', 15)} Nenhum</button></div>
+      <div class="ap-corpo">${pastas.map(p => `<div class="ap-pasta" data-p="${esc(p)}"><button class="pasta-tit" data-tp>${ic('baixo', 12)} ${ic('pasta', 14)} ${esc(p)} <small>${L.filter(x => x.pasta === p).length}</small></button>
+        <div class="ap-grade">${L.filter(x => x.pasta === p).map(x => `<button class="ap-card ${atual?.id === x.id ? 'on' : ''}" data-v="${esc(x.id)}" data-n="${esc(Roteiro.chave(x.nome))}"><span class="ap-th" data-th="${esc(x.id)}">${esc(iniciais(x.nome))}</span><span class="ap-nome">${esc(x.nome)}</span></button>`).join('')}</div></div>`).join('')}</div></div></div>`);
+    const fim = v => { io.disconnect(); m.remove(); ok(v); };
+    const io = new IntersectionObserver(es => { for (const e of es) { if (!e.isIntersecting) continue; const el = e.target; io.unobserve(el); const x = L.find(y => y.id === el.dataset.th);
+      if (x) thumbDe(x).then(t => { if (t) { el.style.backgroundImage = `url("${t}")`; el.classList.add('com-th'); } }); } }, { root: null, rootMargin: '200px' });
+    $$('[data-th]', m).forEach(el => io.observe(el));
+    m.onclick = e => { if (e.target === m || e.target.closest('[data-x]')) return fim(false); const t = e.target.closest('[data-tp]'); if (t) return t.parentElement.classList.toggle('fechada');
+      const b = e.target.closest('[data-v]'); if (!b) return; const v = b.dataset.v; fim(v === '' ? undefined : v === '-' ? null : L.find(x => x.id === v)); };
+    const busca = $('.ap-busca', m); busca.oninput = () => { const q = Roteiro.chave(busca.value); $$('.ap-card', m).forEach(c => { c.hidden = q && !c.dataset.n.includes(q); }); $$('.ap-pasta', m).forEach(p => { p.hidden = !$$('.ap-card', p).some(c => !c.hidden); }); };
+    m.onkeydown = e => { if (e.key === 'Escape') fim(false); };
+    document.body.appendChild(m); busca.focus(); $('.ap-card.on', m)?.scrollIntoView({ block: 'center' });
+  });
 }
 async function pintaElenco(c) {
   const P = S.P, ps = Roteiro.personagens(P.partes), ed = pode('roteiro') || pode('organizar'), cs = coresDoRoteiro();
@@ -620,14 +651,20 @@ async function pintaElenco(c) {
   const pinta = () => { const M = mapa();
     $('.el-lista', c).innerHTML = ps.length ? ps.map(p => { const v = M[p.chave], auto = porNome.get(p.chave), sel = v === null ? '-' : v?.id || '';
       const quem = v === null ? 'sem personagem na cena' : v?.id ? `vai ser <b>${esc(v.nome || v.id)}</b>` : auto ? `automático: <b>${esc(auto.nome)}</b> (mesmo nome)` : '<span class="aten">automático: nenhum personagem do Ateliê com este nome</span>';
+      const alvo = v?.id ? L.find(x => x.id === v.id) : v === null ? null : auto;
       return `<div class="el-lin">${ava(p.nome, cs.get(p.chave), 'p')}<b>${esc(p.nome)}</b><small>${p.n} fala${p.n === 1 ? '' : 's'}</small><span class="el-seta">${ic('voltar', 14)}</span>
+        <button class="el-esc" data-esc="${esc(p.chave)}" ${ed ? '' : 'disabled'} title="Escolher no Ateliê"><span class="ap-th p" ${alvo ? `data-th="${esc(alvo.id)}"` : ''}>${alvo ? esc(iniciais(alvo.nome)) : '—'}</span>${ic('pasta', 14)} Escolher no Ateliê</button>
         <select data-k="${esc(p.chave)}" ${ed ? '' : 'disabled'}><option value="" ${sel === '' ? 'selected' : ''}>Automático (mesmo nome)</option><option value="-" ${sel === '-' ? 'selected' : ''}>Nenhum</option>
         <optgroup label="Personagens do Ateliê">${L.map(x => `<option value="${esc(x.id)}" ${sel === x.id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</optgroup>
         ${v?.id && !L.some(x => x.id === v.id) ? `<option value="${esc(v.id)}" selected>${esc(v.nome || v.id)} (não está mais no Ateliê)</option>` : ''}</select>
         <small class="el-quem">${quem}</small></div>`; }).join('') : '<div class="vazio">Ainda não há falas no roteiro.</div>';
     $$('select[data-k]', c).forEach(sl => sl.onchange = () => { const k = sl.dataset.k, v = sl.value, pers = { ...mapa() };
       if (v === '') delete pers[k]; else if (v === '-') pers[k] = null; else { const x = L.find(y => y.id === v); pers[k] = { id: v, nome: x?.nome || v }; }
-      P.animador = { ...(P.animador || {}), pers }; marcaSujo(); pinta(); }); };
+      P.animador = { ...(P.animador || {}), pers }; marcaSujo(); pinta(); });
+    $$('[data-esc]', c).forEach(b => b.onclick = async () => { const k = b.dataset.esc, p = ps.find(x => x.chave === k), r = await escolheNoAtelie(L, mapa()[k], `Quem faz ${p?.nome || k} no Animador?`); if (r === false) return;
+      const pers = { ...mapa() }; if (r === undefined) delete pers[k]; else if (r === null) pers[k] = null; else pers[k] = { id: r.id, nome: r.nome };
+      P.animador = { ...(P.animador || {}), pers }; marcaSujo(); pinta(); });
+    $$('.el-esc [data-th]', c).forEach(el => { const x = L.find(y => y.id === el.dataset.th); if (x) thumbDe(x).then(t => { if (t) { el.style.backgroundImage = `url("${t}")`; el.classList.add('com-th'); } }); }); };
   pinta();
 }
 
