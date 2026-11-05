@@ -39,10 +39,14 @@ function pergunta(titulo, msg, botoes) {
 const pode = c => { try { return window.EstudioPerm?.pode?.('preparativos.' + c) ?? true; } catch { return true; } };
 
 /* ---------- banco deste navegador: rascunhos e áudios que ainda não foram para a nuvem ---------- */
+let avisouBanco = 0;
+function avisoBanco() { if (Date.now() - avisouBanco < 60e3) return; avisouBanco = Date.now(); aviso('Outra aba do Preparativos está segurando o que fica guardado neste computador (rascunhos e gravações). Feche ou recarregue as outras abas do Preparativos.', 'erro', 9000); }
 const DB = {
   _db: null,
   // abre SEM pedir versão (pedir uma versão nova trava enquanto outra aba do Preparativos estiver aberta); cada aba fecha quando outra precisar
-  abre() { return this._db || (this._db = new Promise((ok, no) => { const r = indexedDB.open('ep-preparativos'); r.onupgradeneeded = () => { for (const l of ['rasc', 'aud']) if (!r.result.objectStoreNames.contains(l)) r.result.createObjectStore(l); };
+  // e não fica esperando para sempre: se outra aba segura o banco, em 4 s avisa e segue (o resto do programa funciona)
+  abre() { return this._db || (this._db = new Promise((ok, no) => { const t = setTimeout(() => { this._db = null; avisoBanco(); no(new Error('O banco deste navegador está ocupado por outra aba do Preparativos.')); }, 4000);
+    const r = indexedDB.open('ep-preparativos'); const ok0 = ok; ok = v => { clearTimeout(t); ok0(v); }; r.onupgradeneeded = () => { for (const l of ['rasc', 'aud']) if (!r.result.objectStoreNames.contains(l)) r.result.createObjectStore(l); };
     r.onsuccess = () => { const db = r.result; db.onversionchange = () => { db.close(); this._db = null; }; ok(db); }; r.onerror = () => { this._db = null; no(r.error); }; r.onblocked = () => { this._db = null; no(new Error('banco ocupado')); }; })); },
   async op(loja, modo, f) { const db = await this.abre(); return new Promise((ok, no) => { const tx = db.transaction(loja, modo), st = tx.objectStore(loja), r = f(st); tx.oncomplete = () => ok(r?.result); tx.onerror = () => no(tx.error); }); },
   get(l, k) { return this.op(l, 'readonly', s => s.get(k)); }, put(l, k, v) { return this.op(l, 'readwrite', s => s.put(v, k)); }, del(l, k) { return this.op(l, 'readwrite', s => s.delete(k)); },
