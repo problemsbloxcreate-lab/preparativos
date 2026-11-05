@@ -896,7 +896,7 @@ function pintaLegendas(c) {
         <div class="paleta">${PALETA.map(x => `<button class="cor ${x === escolha[p.chave] ? 'on' : ''}" style="--c:${x}" data-cor-p="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<label class="cor-outra" title="Outra cor"><input type="color" value="${escolha[p.chave]}" ${ed ? '' : 'disabled'}><span>${ic('mais', 12)}</span></label></div></div>`).join('') || '<div class="vazio">Sem personagens ainda.</div>'}</div></div>
     </div>
     <div class="lg-prev"><div class="lg-barra"><b>Prévia</b><span class="esp"></span><button class="bt" data-img>${ic('camera', 14)} Imagem de fundo</button><button class="bt" data-sem-img hidden>${ic('lixo', 14)} Tirar</button><button class="bt" data-centra title="Voltar a legenda para o lugar padrão">${ic('atualizar', 14)} Posição padrão</button></div>
-      <div class="lg-moldura"><div class="quadro" style="aspect-ratio:${Q.w} / ${Q.h}"><img class="q-img" alt="" hidden><div class="q-leg" tabindex="0"><span class="q-txt"></span><i class="q-alca e"></i><i class="q-alca d"></i></div></div></div>
+      <div class="lg-moldura"><div class="quadro" style="aspect-ratio:${Q.w} / ${Q.h};--ar:${Q.w / Q.h}"><img class="q-img" alt="" hidden><div class="q-leg" tabindex="0"><span class="q-txt"></span><i class="q-alca e"></i><i class="q-alca d"></i></div></div></div>
       <small class="dica">Arraste a legenda para mudar o lugar; puxe as bordas dela para mudar a largura; rodinha do mouse em cima da legenda = tamanho da letra. Com imagem de fundo: arraste o fundo para mover e use a rodinha para dar zoom. A imagem fica só neste computador.</small>
       <input type="file" accept="image/*" data-arq-img hidden></div></div>`;
   const qd = $('.quadro', c), leg = $('.q-leg', c), txt = $('.q-txt', c), im = $('.q-img', c);
@@ -918,7 +918,7 @@ function pintaLegendas(c) {
   $$('[data-cor]', c).forEach(i => i.oninput = () => { poe(i.dataset.cor, i.value); aplica(); guarda(); });
   $('[data-fonte]', c).onchange = e => { E.fonte = e.target.value; aplica(); guarda(); };
   $('[data-alinhar]', c).onchange = e => { E.alinhar = e.target.value; aplica(); guarda(); };
-  const muda = (w, h) => { Q.w = Math.round(w); Q.h = Math.round(h); qd.style.aspectRatio = `${Q.w} / ${Q.h}`; aplica(); guarda(); };
+  const muda = (w, h) => { Q.w = Math.round(w); Q.h = Math.round(h); qd.style.aspectRatio = `${Q.w} / ${Q.h}`; qd.style.setProperty('--ar', Q.w / Q.h); aplica(); guarda(); };
   $('[data-quadro]', c).onchange = e => { const v = e.target.value, wh = $('.lg-wh', c); wh.hidden = v !== 'outro'; if (v !== 'outro') { const [w, h] = v.split('x').map(Number); muda(w, h); $('[data-w]', c).value = w; $('[data-h]', c).value = h; } };
   $('[data-w]', c).onchange = $('[data-h]', c).onchange = () => muda(Math.max(160, Math.min(7680, +$('[data-w]', c).value || 1080)), Math.max(160, Math.min(7680, +$('[data-h]', c).value || 1920)));
   // cores dos personagens (clicar no nome = ver a cor dele na prévia)

@@ -861,3 +861,4 @@ body.modo-doc .corpo.corpo-falas,body.modo-doc .corpo.corpo-legendas,body.modo-d
 .q-alca{position:absolute;top:50%;width:10px;height:26px;margin-top:-13px;background:#3d9bff;border:2px solid #fff;cursor:ew-resize;opacity:0}
 .q-leg:hover .q-alca,.q-leg.mexendo .q-alca{opacity:1}.q-alca.e{left:-14px}.q-alca.d{right:-14px}
 @media (max-width:1100px){.leg3{grid-template-columns:1fr}.lg-prev{position:static}}
+.quadro{height:auto!important;width:min(100%,calc(min(68vh,760px) * var(--ar,.5625)))}
