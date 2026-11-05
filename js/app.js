@@ -27,6 +27,7 @@ const IC = {
   mover: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
   celular: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>', filme: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M3 15h18M8 5v4M16 5v4M8 15v4M16 15v4"/>',
   grafico: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  relogio: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   desfazer: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', refazer: '<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>',
   titulo: '<path d="M6 4v16M18 4v16M6 12h12"/>', baixo: '<path d="M6 9l6 6 6-6"/>', ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 1-1 1.7M12 17v.5"/>', legenda: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 14h4M13 14h4M7 10h10"/>',
 };
@@ -118,11 +119,62 @@ function marcaSujo() {
   clearTimeout(tJunto); if (S.P?.junto && S.P.mod && !S.P.novo) tJunto = setTimeout(() => { if (S.sujo && S.P?.junto) salvaPrep(null, true); }, 20000);
 }
 
+/* ---------- QUEM: quem criou, quem editou e quem está AO VIVO (igual no Animador e no Ateliê) ----------
+   No prep.json: autor = { id: 'u…' (código tirado do e-mail, nunca o e-mail), nome, foto (pequena), em } e edicoes = [ … ] (as últimas 12).
+   Ao vivo: Firebase Realtime Database (o mesmo do Animador, não gasta a Cloudflare): aovivo/prep/<id>/<uid> = { i, n, f, t },
+   some sozinho quando a aba fecha (onDisconnect). O início escuta aovivo/prep só enquanto está na tela. */
+const Quem = {
+  _eu: null,
+  async eu() {
+    if (this._eu) return this._eu; const p = await window.EstudioLogin?.perfil?.().catch(() => ({})) || {}, email = p.email || window.EstudioLogin?.email || '';
+    return (this._eu = { id: await this.idDe(email), nome: p.nome || String(email).split('@')[0] || 'Alguém', foto: await this.miniFoto(p.foto) });
+  },
+  async idDe(email) { email = String(email || '').trim().toLowerCase(); if (!email) return 'anon';
+    try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('estudio-problems:' + email)); return 'u' + [...new Uint8Array(b)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join(''); } catch { return 'anon'; } },
+  async miniFoto(f) { if (!f) return null; if (/^https:\/\//.test(f) && f.length < 1000) return f;
+    try { const im = new Image(); im.src = f; await im.decode(); const T = 64, c = document.createElement('canvas'); c.width = c.height = T; const k = Math.max(T / im.naturalWidth, T / im.naturalHeight), w = im.naturalWidth * k, hh = im.naturalHeight * k;
+      c.getContext('2d').drawImage(im, (T - w) / 2, (T - hh) / 2, w, hh); return c.toDataURL('image/jpeg', .82); } catch { return null; } },
+  // ao mandar para a nuvem: quem criou fica; quem editou entra (ou sobe) na lista
+  async marca(P) { const eu = await this.eu(); if (eu.id === 'anon') return; const agora = Date.now();
+    if (!P.autor) P.autor = { ...eu, em: agora }; P.edicoes = [...(P.edicoes || []).filter(x => x.id !== eu.id), { ...eu, em: agora }].slice(-12); },
+  // foto de uma pessoa pelo código (porteiro /pessoa, guardada nesta aba)
+  _p: new Map(),
+  pessoa(u) { if (!/^u[0-9a-f]{16}$/.test(u || '')) return Promise.resolve(null);
+    if (!this._p.has(u)) this._p.set(u, (async () => { try { const g = JSON.parse(sessionStorage.getItem('ep-pessoa-' + u) || 'null'); if (g && Date.now() - g.t < 3600e3) return g.p; } catch { }
+      try { const r = await fetch('/pessoa?u=' + encodeURIComponent(u), { credentials: 'same-origin' }); if (!r.ok) return null; const p = await r.json(); try { sessionStorage.setItem('ep-pessoa-' + u, JSON.stringify({ t: Date.now(), p })); } catch { } return p; } catch { return null; } })());
+    return this._p.get(u); },
+};
+// bolinha de PESSOA (foto da conta; sem foto, as iniciais). data-u = carrega a foto pelo código; data-f = foto já conhecida
+const pava = (x, cls = '') => x ? `<span class="pava ${cls}" title="${esc(x.nome || x.n || '')}" ${x.foto || x.f ? `style="background-image:url('${esc(x.foto || x.f)}')"` : `data-u="${esc(x.id || x.i || '')}"`}>${esc(iniciais(x.nome || x.n || '?'))}</span>` : '';
+new MutationObserver(() => { for (const el of document.querySelectorAll('.pava[data-u]:not([data-u-ok])')) { el.dataset.uOk = '1'; Quem.pessoa(el.dataset.u).then(p => { if (p?.foto) { el.style.backgroundImage = `url("${p.foto}")`; el.classList.add('com-foto'); } }); } })
+  .observe(document.documentElement, { childList: true, subtree: true });
+const AoVivo = {
+  db: null, eu: null, ouvindo: null, sala: null,
+  async abre() { if (this.db) return this.db; await window.EstudioLogin?.pronto;
+    if (!window.firebase?.database) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+    this.db = firebase.app().database('https://estudio-problems-login-default-rtdb.firebaseio.com'); return this.db; },
+  // entra no roteiro aberto: aparece para quem estiver nele ou no início
+  async entra(id, aoMudar) { this.sai(); try { const db = await this.abre(), u = firebase.auth().currentUser; if (!u) return; const eu = await Quem.eu();
+      const ref = db.ref(`aovivo/prep/${id}/${u.uid}`); await ref.onDisconnect().remove(); await ref.set({ i: eu.id, n: eu.nome, f: eu.foto || null, t: firebase.database.ServerValue.TIMESTAMP });
+      this.eu = ref; this.sala = db.ref(`aovivo/prep/${id}`); this.sala.on('value', s => aoMudar?.(Object.entries(s.val() || {}).map(([k, v]) => ({ ...v, eu: k === u.uid })))); } catch { } },
+  sai() { try { this.eu?.onDisconnect().cancel(); this.eu?.remove(); this.sala?.off(); } catch { } this.eu = this.sala = null; },
+  // o início escuta quem está em cada roteiro (só enquanto ele está na tela)
+  async ouveTudo(aoMudar) { this.paraTudo(); try { const db = await this.abre(); this.ouvindo = db.ref('aovivo/prep'); this.ouvindo.on('value', s => aoMudar?.(s.val() || {})); } catch { } },
+  paraTudo() { try { this.ouvindo?.off(); } catch { } this.ouvindo = null; },
+};
+addEventListener('pagehide', () => AoVivo.sai());
+// quem criou / editou: o resumo do cabeçalho e dos cartões
+function quemHtml(autor, edicoes, curto) {
+  const ed = (edicoes || []).filter(x => x && (x.id || x.i) !== (autor?.id || autor?.i)).slice(-4).reverse();
+  if (!autor && !ed.length) return '';
+  return `<span class="quem-l">${autor ? `${pava(autor, 'p')}<span>${curto ? '' : 'Criado por '}<b>${esc(autor.nome || autor.n)}</b></span>` : ''}${ed.length ? `<span class="quem-ed" title="Editado por ${esc(ed.map(x => x.nome || x.n).join(', '))}">${curto ? '' : '<span>editado por</span>'}${ed.map(x => pava(x, 'p')).join('')}</span>` : ''}</span>`;
+}
+
 /* ======================= telas ======================= */
 const tela = () => $('#tela');
 function trocaAba(a) { S.aba = a; S.P = null; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === a)); history.replaceState(null, '', a === 'roteiros' ? './' : './?aba=' + a); pinta(); }
-async function sairDoPrep() { if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; history.replaceState(null, '', './'); pinta(); return true; }
-function pinta() { if (S.P) return pintaPrep(); modoDoc(false); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
+async function sairDoPrep() { if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; AoVivo.sai(); AoVivo.atual = null; history.replaceState(null, '', './'); pinta(); return true; }
+function pinta() { if (S.P) return pintaPrep(); modoDoc(false); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
 // bolinha com as iniciais do personagem, na cor dele; com foto, a foto (carrega sozinha quando a bolinha aparece)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
 const ava = (nome, cor, tam = '') => { const f = persDe(nome)?.foto; return `<span class="ava ${tam}" style="--c:${cor}" title="${esc(nome)}"${f ? ` data-foto="${esc(f)}"` : ''}>${esc(iniciais(nome))}</span>`; };
@@ -166,6 +218,9 @@ async function pintaInicio(novo) {
     for (const x of L) { const c = cartao(x.it, x.onde); c.onclick = async () => { c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } }; g.appendChild(c); }
   }
   $('[data-n="tudo"]', el).textContent = G.pc.length + G.nuvem.length + G.uso.length || '';
+  // AO VIVO: quem está com cada roteiro aberto agora (some sozinho quando a pessoa fecha)
+  AoVivo.ouveTudo(m => { if (!el.isConnected || S.P) return AoVivo.paraTudo(); $$('[data-vivo]', el).forEach(d => { const g = Object.values(m[d.dataset.vivo] || {});
+    d.innerHTML = g.length ? `<span class="vivo-tag" title="Ao vivo agora: ${esc(g.map(x => x.n).join(', '))}"><i></i> ao vivo</span>${g.slice(0, 4).map(x => pava(x, 'p vivo')).join('')}` : ''; d.parentElement.classList.toggle('tem-vivo', !!g.length); }); });
 }
 // onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem' | 'uso' (um programa já usou)
 function cartao(it, onde) {
@@ -174,9 +229,11 @@ function cartao(it, onde) {
   const pers = fs ? Roteiro.personagens(it.partes).map(p => p.nome) : it.pers || [], pct = n ? Math.round(g / n * 100) : 0, st = it.status || 'rascunho';
   const uso = onde === 'uso' ? (it.uso || []) : [];
   const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · mudanças só aqui`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('play', 13)} Em uso` };
-  return h(`<button class="cartao ${esc(st)}"><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
+  const autor = it.autor || (it.quem?.a ? { id: it.quem.a.i, nome: it.quem.a.n } : null), eds = it.edicoes || (it.quem?.e || []).map(x => ({ id: x.i, nome: x.n }));
+  return h(`<button class="cartao ${esc(st)}" data-id="${esc(it.id || '')}"><div class="vivo-c" data-vivo="${esc(it.id || '')}"></div><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
     <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div>${anel(pct)}</div>
     <div class="elenco">${pers.slice(0, 6).map(p => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
+    ${quemHtml(autor, eds, true) ? `<div class="quem-c">${quemHtml(autor, eds, true)}</div>` : ''}
     ${uso.length ? `<div class="usos">${uso.map(u => `<span class="uso">${progIc(u, 16)} usado no ${esc(DESTINOS[u] || u)}</span>`).join('')}</div>` : ''}
     <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
 }
@@ -236,6 +293,7 @@ function pintaPrep() {
         <nav class="dh-menus"></nav>
       </div>
       <span class="esp"></span>
+      <div class="quem-doc"><div class="aovivo-doc"></div><button class="g-mini" data-hist title="Quem criou e quem editou">${ic('relogio', 18)}</button></div>
       <div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 20)}</button>`).join('')}</div>
       <div class="etapas" role="group" aria-label="Situação">${PREP_CONFIG.status.map(([v, n], i) => `<button data-status="${v}" class="${i < at ? 'feito' : i === at ? 'on' : ''}" ${pp ? '' : 'disabled'} title="${esc(ETAPA_TIT[v])}"><i>${i < at ? ic('ok', 12) : i + 1}</i><span>${esc(n)}</span></button>`).join('')}</div>
       <span class="enviar"></span>
@@ -249,7 +307,16 @@ function pintaPrep() {
         <div class="g-roteiro"></div></aside>
       <div class="corpo"></div>
     </div></section>`;
-  modoDoc(true); window.EstudioIcones?.aplicar?.();
+  modoDoc(true); window.EstudioIcones?.aplicar?.(); AoVivo.paraTudo();
+  // ao vivo: entra uma vez por roteiro (só quando ele está na nuvem: rascunho só deste computador ninguém mais vê)
+  const pintaVivo = l => { const box = $('.prep .aovivo-doc'); if (!box) return; const g = (l || AoVivo.ultimos || []); AoVivo.ultimos = g; const outros = g.filter(x => !x.eu);
+    box.innerHTML = g.length > 1 || outros.length ? g.slice(0, 5).map(x => pava(x, 'vivo' + (x.eu ? ' eu' : ''))).join('') + (g.length > 5 ? `<span class="mais">+${g.length - 5}</span>` : '') : ''; box.title = g.length ? 'Ao vivo agora: ' + g.map(x => x.n + (x.eu ? ' (você)' : '')).join(', ') : ''; };
+  if (P.mod && !P.novo && AoVivo.atual !== P.id) { AoVivo.atual = P.id; AoVivo.ultimos = []; AoVivo.entra(P.id, pintaVivo); } else pintaVivo();
+  $('[data-hist]', el).onclick = e => { const b = e.currentTarget; $$('.hist-pop').forEach(x => x.remove()); const eds = (P.edicoes || []).slice().reverse();
+    const pop = h(`<div class="dh-menu pop hist-pop"><div class="hp-tit">Quem criou</div>${P.autor ? `<div class="hp-l">${pava(P.autor)}<div><b>${esc(P.autor.nome)}</b><small>${esc(quando(P.autor.em))}</small></div></div>` : '<p class="dica" style="padding:0 14px">Ainda não foi para a nuvem.</p>'}
+      ${eds.length ? `<hr><div class="hp-tit">Quem editou</div>${eds.map(x => `<div class="hp-l">${pava(x)}<div><b>${esc(x.nome)}</b><small>${esc(quando(x.em))}</small></div></div>`).join('')}` : ''}</div>`);
+    document.body.appendChild(pop); const r = b.getBoundingClientRect(); pop.style.left = Math.max(8, r.right - pop.offsetWidth) + 'px'; pop.style.top = r.bottom + 6 + 'px';
+    setTimeout(() => addEventListener('mousedown', function f(ev) { if (!ev.target.closest('.hist-pop')) { pop.remove(); removeEventListener('mousedown', f); } }), 0); };
   $('[data-volta]', el).onclick = sairDoPrep;
   const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); nm.size = Math.max(8, Math.min(40, nm.value.length + 1)); marcaSujo(); };
   nm.onkeydown = e => { if (e.key === 'Enter') { nm.blur(); S.ed?.foca(); } };
@@ -315,7 +382,7 @@ async function salvaPrep(bt, quieto) {
   if (bt) { bt.disabled = true; bt.innerHTML = giro('Mandando'); }
   const enviado = P.roteiro;
   try {
-    const { novo, ...corpo } = P; let r;
+    await Quem.marca(P); const { novo, ...corpo } = P; let r;
     try { r = await Nuvem.salva(corpo); }
     catch (e) {
       if (e.status !== 409 || e.tipo !== 'conflito') throw e;

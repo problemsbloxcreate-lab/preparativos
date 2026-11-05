@@ -499,3 +499,18 @@ body.arrastando-pers .pasta-g.fechada .pcards{display:grid}
 .can-l div{flex:1;min-width:0}.can-l b{display:block}.can-l small{color:var(--muted);font-size:12px}
 .can-add{display:flex;gap:8px}.can-add input{flex:1}
 @media (max-width:720px){.canal-l{grid-template-columns:1fr}}
+/* quem criou / editou / está ao vivo */
+.pava{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;flex:0 0 auto;background:#3a3d45 center/cover no-repeat;color:#e3e3e3;font-size:11px;font-weight:700;box-shadow:0 0 0 2px var(--panel)}
+.pava.p{width:22px;height:22px;font-size:9px}.pava[style*="background-image"],.pava.com-foto{color:transparent}
+.pava.vivo{box-shadow:0 0 0 2px var(--bg),0 0 0 4px #34c759}
+.quem-doc{display:flex;align-items:center;gap:6px}.aovivo-doc{display:flex;align-items:center}.aovivo-doc .pava{margin-left:-6px;width:32px;height:32px}.aovivo-doc .pava:first-child{margin-left:0}
+.aovivo-doc .mais{margin-left:6px;color:var(--muted);font-size:12px}
+.quem-c{display:flex}.quem-l{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);flex-wrap:wrap}.quem-l b{color:var(--text);font-weight:600}
+.quem-ed{display:inline-flex;align-items:center;gap:4px;margin-left:6px}.quem-ed .pava{margin-left:-6px}.quem-ed .pava:first-of-type{margin-left:0}
+.vivo-c{position:absolute;top:-10px;right:12px;display:flex;align-items:center;gap:2px}.vivo-c:empty{display:none}
+.vivo-tag{display:inline-flex;align-items:center;gap:5px;background:#123d22;color:#7ee2a0;font-size:11px;font-weight:600;border-radius:99px;padding:2px 8px;margin-right:4px}
+.vivo-tag i{width:7px;height:7px;border-radius:50%;background:#34c759;animation:pulsoVivo 1.6s ease-in-out infinite}@keyframes pulsoVivo{50%{opacity:.35}}
+.cartao{overflow:visible}.cartao.tem-vivo{border-color:#2e7d4a}
+.hist-pop{min-width:260px;padding:8px 0}.hp-tit{font-size:11.5px;font-weight:600;color:#9aa0a6;padding:4px 14px;text-transform:uppercase;letter-spacing:.5px}
+.hp-l{display:flex;align-items:center;gap:10px;padding:6px 14px}.hp-l b{display:block;font-size:13.5px}.hp-l small{color:#9aa0a6;font-size:11.5px}
+body.modo-doc.claro .hist-pop .hp-l b{color:#1f1f1f}
