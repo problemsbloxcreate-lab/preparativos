@@ -175,7 +175,7 @@ const tela = () => $('#tela');
 function trocaAba(a, semHist) { S.aba = a; S.P = null; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === a)); const alvo = a === 'roteiros' ? '' : '?aba=' + a;
   if (location.search !== alvo) history[semHist ? 'replaceState' : 'pushState'](null, '', './' + alvo); pinta(); }
 async function sairDoPrep(semHist) { if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; AoVivo.sai(); AoVivo.atual = null; if (!semHist) history.pushState(null, '', S.aba && S.aba !== 'roteiros' ? './?aba=' + S.aba : './'); pinta(); return true; }
-function pinta() { if (S.P) return pintaPrep(); modoDoc(false); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
+function pinta() { Mic.paraTeste(); if (S.P) return pintaPrep(); modoDoc(false); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
 // bolinha com as iniciais do personagem, na cor dele; com foto, a foto (carrega sozinha quando a bolinha aparece)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
 const ava = (nome, cor, tam = '') => { const f = persDe(nome)?.foto; return `<span class="ava ${tam}" style="--c:${cor}" title="${esc(nome)}"${f ? ` data-foto="${esc(f)}"` : ''}>${esc(iniciais(nome))}</span>`; };
@@ -411,7 +411,7 @@ async function salvaPrep(bt, quieto) {
   finally { pintaBarraPrep(); }
 }
 function pintaCorpo() {
-  const c = $('.prep .corpo'); if (!c) return; if (S.sub !== 'roteiro') S.ed = null;
+  const c = $('.prep .corpo'); if (!c) return; if (S.sub !== 'roteiro') S.ed = null; if (S.sub !== 'falas') Mic.paraTeste();
   const barra = $('.prep .dh-barra'), gr = $('.prep .g-roteiro'); if (gr) gr.innerHTML = '';
   c.className = 'corpo corpo-' + S.sub;
   if (S.sub !== 'roteiro' && barra) barra.innerHTML = `<div class="db-pilula"><span class="db-tit">${ic({ falas: 'mic', legendas: 'legenda', elenco: 'pessoa' }[S.sub] || 'doc', 16)} ${{ falas: 'Falas e gravação', legendas: 'Legendas', elenco: 'Elenco no Animador' }[S.sub] || ''}</span><span class="esp"></span><button class="bt" data-volta-rot>${ic('doc', 15)} Voltar ao roteiro</button></div>`;
@@ -621,6 +621,62 @@ se o texto não indicar partes, use uma parte com o nome do roteiro.`,
 };
 
 /* ---------- aba Falas e gravação ---------- */
+/* ---------- MICROFONE: permissão, escolher o microfone, ouvir a própria voz, filtros e volume (guardados NESTE computador) ---------- */
+const Mic = {
+  cfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('ep-prep-mic') || '{}') || {}; } catch { } return { dev: '', monitor: false, ruido: true, eco: true, agc: true, vol: 1, ...c }; },
+  salva(c) { try { localStorage.setItem('ep-prep-mic', JSON.stringify(c)); } catch { } },
+  async permissao() { try { const p = await navigator.permissions.query({ name: 'microphone' }); return p.state; } catch { }
+    try { const d = await navigator.mediaDevices.enumerateDevices(); return d.some(x => x.kind === 'audioinput' && x.label) ? 'granted' : 'prompt'; } catch { return 'prompt'; } },
+  // abre o microfone já com as configurações: filtros do navegador + volume (ganho) + ouvir-se; grava do "dest" (o som já tratado)
+  async abre() { const c = this.cfg(), base = { echoCancellation: c.eco, noiseSuppression: c.ruido, autoGainControl: c.agc };
+    let st; try { st = await navigator.mediaDevices.getUserMedia({ audio: c.dev ? { ...base, deviceId: { exact: c.dev } } : base }); } catch (e) { if (!c.dev) throw e; st = await navigator.mediaDevices.getUserMedia({ audio: base }); }
+    const ac = new AudioContext(), src = ac.createMediaStreamSource(st), g = ac.createGain(), an = ac.createAnalyser(), dest = ac.createMediaStreamDestination(); g.gain.value = c.vol; an.fftSize = 2048;
+    src.connect(g); g.connect(an); g.connect(dest); let mon = null; if (c.monitor) { mon = ac.createGain(); mon.gain.value = 1; g.connect(mon); mon.connect(ac.destination); }
+    return { st, ac, an, g, dest, mon, fecha() { try { st.getTracks().forEach(t => t.stop()); } catch { } try { ac.close(); } catch { } } }; },
+  nivel(an, buf) { an.getByteTimeDomainData(buf); let s = 0, pico = 0; for (const v of buf) { const x = (v - 128) / 128; s += x * x; pico = Math.max(pico, Math.abs(x)); } return { rms: Math.sqrt(s / buf.length), pico }; },
+  teste: null,
+  // o painel do topo da aba Falas
+  async pinta(box) {
+    if (!box) return; this.paraTeste(); const perm = await this.permissao();
+    if (perm === 'denied') { box.className = 'mic-painel bloq'; box.innerHTML = `<div class="mp-cab">${ic('mic', 18)}<b>O microfone está bloqueado para este site</b></div>
+      <ol class="mp-passos"><li>Clique no <b>cadeado</b> (ou no ícone de ajustes) à esquerda do endereço, lá em cima no navegador.</li><li>Em <b>Microfone</b>, escolha <b>Permitir</b>.</li><li>Clique em <b>Tentar de novo</b> (ou recarregue a página).</li></ol>
+      <button class="bt" data-de-novo>${ic('atualizar', 15)} Tentar de novo</button>`; $('[data-de-novo]', box).onclick = () => this.pinta(box); return; }
+    if (perm !== 'granted') { box.className = 'mic-painel pede'; box.innerHTML = `<div class="mp-cab">${ic('mic', 18)}<b>Para gravar, o site precisa usar o seu microfone</b></div>
+      <p>Clique em <b>Permitir o microfone</b> e, na janelinha que o navegador abrir, escolha <b>Permitir</b>. Depois aparecem as configurações (qual microfone, volume, filtros).</p>
+      <button class="bt pri" data-permitir>${ic('mic', 15)} Permitir o microfone</button>`;
+      $('[data-permitir]', box).onclick = async () => { try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); } catch { } this.pinta(box); }; return; }
+    const c = this.cfg(); let devs = []; try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput'); } catch { }
+    const chave = (k, rot, dica) => `<label class="mp-ch" title="${esc(dica)}"><input type="checkbox" data-c="${k}" ${c[k] ? 'checked' : ''}><span class="trilho"><i></i></span>${rot}</label>`;
+    box.className = 'mic-painel ok'; box.innerHTML = `<div class="mp-cab">${ic('mic', 18)}<b>Microfone</b><span class="mp-ok">${ic('ok', 13)} permitido</span><span class="esp"></span><button class="bt" data-teste>${ic('play', 14)} Testar</button></div>
+      <div class="mp-grade">
+        <label class="mp-campo"><small>Qual microfone</small><select data-dev><option value="">Padrão do computador</option>${devs.map(d => `<option value="${esc(d.deviceId)}" ${d.deviceId === c.dev ? 'selected' : ''}>${esc(d.label || 'Microfone')}</option>`).join('')}</select></label>
+        <label class="mp-campo"><small>Volume do microfone <b data-vv>${Math.round(c.vol * 100)}%</b></small><input type="range" min="0" max="2" step="0.05" value="${c.vol}" data-vol></label>
+        <div class="mp-campo"><small>Teste (fale alguma coisa)</small><div class="mp-medidor"><i></i><span class="mp-pico"></span></div></div>
+      </div>
+      <div class="mp-chaves">${chave('ruido', 'Redução de ruído', 'Tira chiado e barulho de fundo')}${chave('eco', 'Cancelar eco', 'Tira o eco do som que sai das caixas')}${chave('agc', 'Volume automático', 'O navegador ajusta o volume sozinho')}${chave('monitor', 'Ouvir a minha voz', 'Você escuta o microfone enquanto testa e grava (use fone de ouvido para não dar microfonia)')}</div>`;
+    const muda = (k, v) => { const n = { ...this.cfg(), [k]: v }; this.salva(n); if (this.teste) { this.paraTeste(); this.testa(box); } };
+    $('[data-dev]', box).onchange = e => muda('dev', e.target.value);
+    $('[data-vol]', box).oninput = e => { $('[data-vv]', box).textContent = Math.round(e.target.value * 100) + '%'; const n = { ...this.cfg(), vol: +e.target.value }; this.salva(n); if (this.teste) this.teste.m.g.gain.value = +e.target.value; };
+    $$('[data-c]', box).forEach(i => i.onchange = () => { if (i.dataset.c === 'monitor' && i.checked) aviso('Use fone de ouvido: sem fone, o som da caixa volta para o microfone (microfonia).', 'info', 6000); muda(i.dataset.c, i.checked); });
+    $('[data-teste]', box).onclick = () => this.teste ? this.paraTeste(box) : this.testa(box);
+  },
+  async testa(box) { try { const m = await this.abre(), buf = new Uint8Array(m.an.fftSize), med = $('.mp-medidor i', box), pk = $('.mp-pico', box); let raf;
+      const anda = () => { const { rms, pico } = this.nivel(m.an, buf); med.style.width = Math.min(100, rms * 280) + '%'; pk.style.left = Math.min(100, pico * 100) + '%'; pk.classList.toggle('alto', pico > .95); raf = requestAnimationFrame(anda); }; anda();
+      this.teste = { m, para: () => cancelAnimationFrame(raf) }; const b = $('[data-teste]', box); if (b) b.innerHTML = `${ic('parar', 14)} Parar o teste`; }
+    catch (e) { aviso('Não consegui abrir o microfone: ' + (e.message || e), 'erro'); } },
+  paraTeste(box) { if (this.teste) { this.teste.para(); this.teste.m.fecha(); this.teste = null; } const b = box && $('[data-teste]', box); if (b) b.innerHTML = `${ic('play', 14)} Testar`; },
+};
+// ONDA DO ÁUDIO: as barrinhas de uma gravação (guardadas na memória desta aba por chave)
+const Onda = {
+  cache: new Map(),
+  async picos(chave, blob, n = 140) { if (this.cache.has(chave)) return this.cache.get(chave);
+    const ac = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 2, 44100); const ab = await ac.decodeAudioData(await blob.arrayBuffer()), d = ab.getChannelData(0), passo = Math.max(1, Math.floor(d.length / n)), out = [];
+    for (let i = 0; i < n; i++) { let m = 0; for (let j = i * passo; j < Math.min(d.length, (i + 1) * passo); j++) m = Math.max(m, Math.abs(d[j])); out.push(m); }
+    const max = Math.max(.05, ...out), r = out.map(x => x / max); this.cache.set(chave, r); return r; },
+  desenha(cv, picos, cor, feito = 0) { const W = cv.width = cv.clientWidth * devicePixelRatio || 600, H = cv.height = cv.clientHeight * devicePixelRatio || 60, g = cv.getContext('2d'), n = picos.length, bw = W / n;
+    g.clearRect(0, 0, W, H); picos.forEach((p, i) => { const h = Math.max(2 * devicePixelRatio, p * (H - 4)); g.fillStyle = i / n < feito ? cor : 'rgba(150,155,170,.55)'; g.fillRect(i * bw + bw * .15, (H - h) / 2, bw * .7, h); }); },
+};
+
 const Falas = {
   quem: null, rec: null,
   async pinta(c) {
@@ -631,6 +687,7 @@ const Falas = {
     const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.map(f => ({ f, n: ++num })).filter(({ f }) => !this.quem || Roteiro.chave(f.personagem) === this.quem) })).filter(p => p.falas.length);
     const total = P.partes.reduce((s, p) => s + p.falas.length, 0), feitas = P.partes.reduce((s, p) => s + p.falas.filter(f => f.audio).length, 0);
     c.innerHTML = `<div class="falas">
+      ${pode('gravar') ? '<div class="mic-painel"></div>' : ''}
       <h3>Quem vai gravar?</h3>
       <div class="elenco-g">
         <button class="pcard ${!this.quem ? 'on' : ''}" data-grava=""><span class="ava g todos">${ic('pessoa', 20)}</span><b>Todos</b><small>${feitas} de ${total} gravadas</small><div class="barra"><i style="width:${total ? feitas / total * 100 : 0}%"></i></div></button>
@@ -646,6 +703,12 @@ const Falas = {
       $('[data-ouvir]', el)?.addEventListener('click', e => this.ouve(f, e.currentTarget));
       $('[data-tirar]', el)?.addEventListener('click', async () => { await DB.del('aud', P.id + '/' + f.id); this.pinta(c); }); });
     this.pintaEnvio(locais);
+    Mic.pinta($('.mic-painel', c));
+    // a onda das gravações deste computador (e das da nuvem que já foram ouvidas nesta aba)
+    for (const el of $$('.fala', c)) { const f = this.acha(el.dataset.f), l = locais.get(el.dataset.f), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f'; if (!f) continue;
+      const k = l ? `l:${P.id}/${f.id}:${l.em}` : f.audio ? 'n:' + f.audio : null; if (!k) continue;
+      if (l) Onda.picos(k, l.blob).then(pk => { const bx = $('.onda-box', el); bx.hidden = false; Onda.desenha($('.onda', el), pk, cor); }).catch(() => { });
+      else if (Onda.cache.has(k)) { const bx = $('.onda-box', el); bx.hidden = false; Onda.desenha($('.onda', el), Onda.cache.get(k), cor); } }
   },
   acha(id) { for (const p of S.P.partes) for (const f of p.falas) if (f.id === id) return f; return null; },
   async locais() { const m = new Map(); try { for (const [k, v] of await DB.todos('aud')) if (String(k).startsWith(S.P.id + '/')) m.set(String(k).slice(S.P.id.length + 1), v); } catch { } return m; },
@@ -654,35 +717,41 @@ const Falas = {
     const st = local ? `<span class="st aqui">${ic('alerta', 12)} gravada aqui · falta enviar · ${tempo(local.duracao)}</span>` : f.audio ? `<span class="st nuvem">${f.regravar ? `<span class="aten">${ic('alerta', 12)} o texto mudou, regravar</span>` : `${ic('ok', 12)} na nuvem`} · ${tempo(f.duracao)}</span>` : '<span class="st sem">sem áudio</span>';
     return `<div class="fala ${local ? 'local' : f.audio ? 'tem' : ''}" data-f="${esc(f.id)}" style="--c:${cor}"><span class="num">${n}</span>
       <div class="quem">${ava(f.personagem, cor, 'p')}<b>${esc(f.personagem)}</b></div>
-      <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}<div class="nivel" hidden><i></i></div></div>
+      <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}<div class="onda-box" hidden><canvas class="onda"></canvas><i class="onda-pos"></i></div></div>
       <div class="bts">${local || f.audio ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
       ${gravar ? `<button class="redondo gravar ${local || f.audio ? 'de-novo' : ''}" data-gravar title="${local || f.audio ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
       ${local ? `<button class="redondo" data-tirar title="Jogar fora esta gravação">${ic('lixo', 15)}</button>` : ''}</div></div>`;
   },
   async grava(f, el) {
     if (this.rec) { const parar = this.rec.f === f; this.rec.parar(); if (parar) return; }
-    let st; try { st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
-    catch { return aviso('Não consegui usar o microfone. Libere o microfone para este site no navegador.', 'erro'); }
+    Mic.paraTeste($('.mic-painel', this.c));
+    let m; try { m = await Mic.abre(); } catch { Mic.pinta($('.mic-painel', this.c)); return aviso('Não consegui usar o microfone. Veja o quadro "Microfone" lá em cima.', 'erro'); }
     const tipo = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
-    const mr = new MediaRecorder(st, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: PREP_CONFIG.audioBits }), pedacos = [], t0 = performance.now();
+    const mr = new MediaRecorder(m.dest.stream, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: PREP_CONFIG.audioBits }), pedacos = [], t0 = performance.now();
     const bt = $('[data-gravar]', el); bt.classList.add('gravando'); bt.innerHTML = ic('parar', 16); bt.title = 'Parar';
     el.classList.add('gravando'); const st0 = $('.st', el); if (st0) st0.innerHTML = '<span class="rec">● gravando <b class="cron">0:00</b></span>';
-    // medidor do volume do microfone
-    let ac, an, raf; const nv = $('.nivel', el), barra = $('i', nv); nv.hidden = false;
-    try { ac = new AudioContext(); an = ac.createAnalyser(); an.fftSize = 512; ac.createMediaStreamSource(st).connect(an); const d = new Uint8Array(an.fftSize);
-      const mede = () => { an.getByteTimeDomainData(d); let s = 0; for (const v of d) s += (v - 128) ** 2; barra.style.width = Math.min(100, Math.sqrt(s / d.length) * 3.2) + '%'; raf = requestAnimationFrame(mede); }; mede(); } catch { }
-    const cron = setInterval(() => { const s = (performance.now() - t0) / 1000; const cr = $('.cron', el); if (cr) cr.textContent = tempo(s); if (s > PREP_CONFIG.audioMaxSeg) this.rec?.parar(); }, 200);
+    // ONDA AO VIVO: as barrinhas vão entrando pela direita enquanto a pessoa fala
+    const bx = $('.onda-box', el), cv = $('.onda', el), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#ff4d5e'; bx.hidden = false; bx.classList.add('ao-vivo');
+    const buf = new Uint8Array(m.an.fftSize), hist = []; let raf, ult = 0;
+    const anda = t => { if (t - ult > 45) { ult = t; const { rms } = Mic.nivel(m.an, buf); hist.push(Math.min(1, rms * 3.2)); if (hist.length > 140) hist.shift(); Onda.desenha(cv, [...Array(140 - hist.length).fill(0), ...hist], cor, 1); } raf = requestAnimationFrame(anda); }; raf = requestAnimationFrame(anda);
+    const cron = setInterval(() => { const sg = (performance.now() - t0) / 1000; const cr = $('.cron', el); if (cr) cr.textContent = tempo(sg); if (sg > PREP_CONFIG.audioMaxSeg) this.rec?.parar(); }, 200);
     mr.ondataavailable = e => e.data.size && pedacos.push(e.data);
-    mr.onstop = async () => { clearInterval(cron); cancelAnimationFrame(raf); try { ac?.close(); } catch { } st.getTracks().forEach(t => t.stop()); this.rec = null; const dur = (performance.now() - t0) / 1000;
+    mr.onstop = async () => { clearInterval(cron); cancelAnimationFrame(raf); m.fecha(); this.rec = null; const dur = (performance.now() - t0) / 1000;
       if (dur < 0.4) { aviso('Gravação curta demais.', 'info'); return this.pinta(this.c); }
       const blob = new Blob(pedacos, { type: mr.mimeType || tipo || 'audio/webm' });
-      await DB.put('aud', S.P.id + '/' + f.id, { blob, duracao: Math.round(dur * 100) / 100, em: Date.now() }); this.pinta(this.c); };
+      try { await DB.put('aud', S.P.id + '/' + f.id, { blob, duracao: Math.round(dur * 100) / 100, em: Date.now() }); } catch (e) { aviso('Não consegui guardar a gravação neste computador: ' + (e.message || e), 'erro'); }
+      this.pinta(this.c); };
     mr.start(250); this.rec = { f, parar: () => { try { mr.stop(); } catch { } } };
   },
   async ouve(f, bt) {
-    if (S.tocando) { S.tocando.pause(); const era = S.tocando._f === f.id; S.tocando = null; $$('.tocando').forEach(x => x.classList.remove('tocando')); if (era) return; }
-    try { const l = await DB.get('aud', S.P.id + '/' + f.id); const blob = l?.blob || await Nuvem.audio(f.audio);
-      const a = new Audio(URL.createObjectURL(blob)); a._f = f.id; S.tocando = a; bt.classList.add('tocando'); bt.innerHTML = ic('parar', 16); a.onended = () => { bt.classList.remove('tocando'); bt.innerHTML = ic('play', 16); S.tocando = null; URL.revokeObjectURL(a.src); }; await a.play(); }
+    if (S.tocando) { S.tocando.pause(); const era = S.tocando._f === f.id; S.tocando._fim?.(); S.tocando = null; $$('.tocando').forEach(x => x.classList.remove('tocando')); if (era) return; }
+    const el = bt.closest('.fala'), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f';
+    try { const l = await DB.get('aud', S.P.id + '/' + f.id), blob = l?.blob || await Nuvem.audio(f.audio), k = l ? `l:${S.P.id}/${f.id}:${l.em}` : 'n:' + f.audio;
+      const pk = await Onda.picos(k, blob).catch(() => null), bx = $('.onda-box', el), cv = $('.onda', el); if (pk) { bx.hidden = false; Onda.desenha(cv, pk, cor); }
+      const a = new Audio(URL.createObjectURL(blob)); a._f = f.id; S.tocando = a; bt.classList.add('tocando'); bt.innerHTML = ic('parar', 16);
+      let raf; const anda = () => { if (pk && a.duration) Onda.desenha(cv, pk, cor, a.currentTime / a.duration); raf = requestAnimationFrame(anda); };
+      a._fim = () => { cancelAnimationFrame(raf); bt.classList.remove('tocando'); bt.innerHTML = ic('play', 16); if (pk) Onda.desenha(cv, pk, cor); };
+      a.onended = () => { a._fim(); S.tocando = null; URL.revokeObjectURL(a.src); }; await a.play(); anda(); }
     catch (e) { aviso('Não consegui tocar: ' + (e.message || e), 'erro'); }
   },
   pintaEnvio(locais) {
