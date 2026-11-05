@@ -514,3 +514,16 @@ body.arrastando-pers .pasta-g.fechada .pcards{display:grid}
 .hist-pop{min-width:260px;padding:8px 0}.hp-tit{font-size:11.5px;font-weight:600;color:#9aa0a6;padding:4px 14px;text-transform:uppercase;letter-spacing:.5px}
 .hp-l{display:flex;align-items:center;gap:10px;padding:6px 14px}.hp-l b{display:block;font-size:13.5px}.hp-l small{color:#9aa0a6;font-size:11.5px}
 body.modo-doc.claro .hist-pop .hp-l b{color:#1f1f1f}
+/* MENUS E JANELAS SEGUEM O TEMA (escuro no escuro, claro no claro) — regra da dona; antes os menus eram sempre brancos */
+.dh-menu,.sel-menu,.lista-pers{background:var(--panel-2);color:var(--text);box-shadow:0 8px 28px rgba(0,0,0,.45);border:1px solid var(--line)}
+.dh-menu button,.sel-menu button,.lista-pers button{color:var(--text)}
+.dh-menu button:hover:not(:disabled),.lista-pers button:hover{background:var(--panel-3)}
+.sel-menu button:hover{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--text)}
+.dh-menu button small{color:var(--muted)}.dh-menu button:disabled{color:var(--muted);opacity:.55}.dh-menu hr,.sel-menu hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+.hist-pop .hp-l b{color:var(--text)}.hp-tit,.hp-l small{color:var(--muted)}
+.como .ex{background:var(--panel-2);color:var(--text)}.como .ex small{color:var(--muted)}
+body.modo-doc.claro .dh-menu,body.modo-doc.claro .sel-menu,body.modo-doc.claro .lista-pers{box-shadow:0 2px 6px rgba(60,64,67,.15),0 1px 2px rgba(60,64,67,.3)}
+/* janela de renomear / tirar da lista */
+.conf-corpo p{margin:6px 0;color:var(--muted)}.conf-corpo p b{color:var(--text)}
+.lista-r{margin:4px 0 8px;padding:0 0 0 4px;list-style:none;max-height:180px;overflow:auto}.lista-r li{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:13px}.lista-r small{color:var(--muted)}
+.aten-box{display:flex;gap:6px;align-items:flex-start;background:color-mix(in srgb,var(--aten) 12%,transparent);border-radius:8px;padding:8px 10px;color:var(--text)!important}

@@ -814,8 +814,73 @@ async function paraWebp(arq, lado = 256) {
   const b = await new Promise(ok => cv.toBlob(ok, 'image/webp', .82)); if (!b || b.type !== 'image/webp') throw new Error('Este navegador não consegue gerar WEBP. Use o Chrome ou o Edge.'); return b;
 }
 const slug = s => Roteiro.chave(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'p';
+
+/* ---------- RENOMEAR / APAGAR um personagem ----------
+   Muda na lista da equipe (mantém cor, foto, pasta e padrão do Animador) e nos roteiros que AINDA NÃO FORAM USADOS por um programa
+   (os deste computador e os da nuvem). Os já usados não mudam (o programa já pegou o nome antigo). Os áudios continuam ligados às falas
+   (só o nome do personagem muda em cada fala; o texto e o áudio ficam). */
+function renomeiaNoPrep(P, velho, novo) {
+  const kv = Roteiro.chave(velho), kn = Roteiro.chave(novo), info = Roteiro.classifica(P.roteiro || ''); let n = 0;
+  P.roteiro = String(P.roteiro || '').replace(/\r/g, '').split('\n').map((l, i) => { const o = info[i]; if (o?.t === 'f' && Roteiro.chave(o.nome) === kv) { n++; return o.pre + novo + o.meio + o.resto; } return l; }).join('\n');
+  for (const pt of P.partes || []) for (const f of pt.falas || []) if (Roteiro.chave(f.personagem) === kv) f.personagem = novo;
+  const mv = o => { if (o && kv in o && kv !== kn) { if (!(kn in o)) o[kn] = o[kv]; delete o[kv]; } };
+  mv(P.legenda?.cores); mv(P.animador?.pers); mv(P.org?.grupos);
+  return n;
+}
+const temPers = (P, k) => Roteiro.personagens(P?.partes).some(p => p.chave === k);
+// o que muda e o que não muda: roteiros deste computador e da nuvem, separados em "vai mudar" e "já usado (não muda)"
+async function ondeEsta(k) {
+  const muda = [], usados = []; let lista = S.lista; try { if (!lista) lista = S.lista = (await Nuvem.lista()).itens || []; } catch { lista = []; }
+  const locais = new Map(); try { for (const [, v] of await DB.todos('rasc')) if (v?.P?.id && temPers(v.P, k)) locais.set(v.P.id, v); } catch { }
+  for (const [, v] of locais) (v.P.usadoPor?.length ? usados : muda).push({ id: v.P.id, nome: v.P.nome, local: v });
+  for (const it of lista) { if (locais.has(it.id)) continue; const nomes = (it.pers || []).map(Roteiro.chave); if (!nomes.includes(k) && nomes.length < 8) continue; // a lista guarda até 8 nomes
+    (it.uso?.length ? usados : muda).push({ id: it.id, nome: it.nome, nuvem: true, talvez: !nomes.includes(k), uso: it.uso }); }
+  return { muda, usados };
+}
+async function renomeiaPersonagem(k, todos, aoFim) {
+  const v = todos[k]; if (!pode('organizar')) return aviso('Sua conta não muda os personagens da equipe.', 'erro');
+  let novo = ((await pedeTexto(`Renomear ${v.nome}`, 'Nome novo do personagem', 40)) || '').replace(/[:*#\[\]()<>]/g, '').replace(/\s+/g, ' ').trim(); if (!novo || novo === v.nome) return;
+  const kn = Roteiro.chave(novo); if (kn !== k && todos[kn] && !todos[kn]._fora) return aviso(`Já existe um personagem chamado ${todos[kn].nome}.`, 'erro');
+  const espera = h(`<div class="modal"><div class="caixa">${giroBloco('Procurando onde o nome aparece')}</div></div>`); document.body.appendChild(espera);
+  const { muda, usados } = await ondeEsta(k); espera.remove();
+  const lis = l => l.map(x => `<li>${x.nuvem ? ic('nuvem', 13) : ic('pc', 13)} ${esc(x.nome || 'Sem nome')}${x.uso?.length ? ` <small>(usado no ${esc(x.uso.map(u => DESTINOS[u] || u).join(', '))})</small>` : ''}</li>`).join('');
+  const ok = await confirmaHtml(`Renomear "${v.nome}" para "${novo}"?`, `<p>A cor, a foto, a pasta e o padrão no Animador vão junto.</p>
+    ${muda.length ? `<p><b>Muda também nestes roteiros</b> (ainda não foram usados por um programa; os áudios gravados continuam):</p><ul class="lista-r">${lis(muda)}</ul>` : '<p>Nenhum roteiro não usado tem este personagem.</p>'}
+    ${usados.length ? `<p class="aten-box">${ic('alerta', 15)} <b>Não muda nestes</b>, porque já estão sendo usados num programa (ele já pegou o nome "${esc(v.nome)}"):</p><ul class="lista-r">${lis(usados)}</ul>` : ''}`, 'Renomear');
+  if (!ok) return;
+  const { _fora, em, ...dados } = v;
+  try { await Nuvem.acao({ acao: 'personagens', itens: { [kn]: { ...dados, nome: novo, ...(dados.atelie === undefined ? {} : { atelie: dados.atelie }) }, ...(kn !== k ? { [k]: { apagar: true } } : {}) } }); }
+  catch (e) { return aviso(e.message, 'erro'); }
+  let feitos = 0, falhas = 0;
+  for (const x of muda) { try {
+      if (x.local) { const r = x.local; renomeiaNoPrep(r.P, v.nome, novo); await DB.put('rasc', r.P.id, { ...r, em: Date.now() }); feitos++; continue; }
+      const P = await Nuvem.abre(x.id); if (P.usadoPor?.length) continue; if (!temPers(P, k)) continue; renomeiaNoPrep(P, v.nome, novo); await Nuvem.salva(P); feitos++;
+    } catch { falhas++; } }
+  S.lista = null; await carregaPers(true).catch(() => { });
+  aviso(`${v.nome} agora é ${novo}.${feitos ? ` Mudou em ${feitos} roteiro${feitos === 1 ? '' : 's'}.` : ''}${falhas ? ` ${falhas} não deu para mudar agora (tente de novo).` : ''}`, falhas ? 'erro' : 'ok', 7000);
+  aoFim?.();
+}
+async function apagaPersonagem(k, todos, aoFim) {
+  const v = todos[k]; if (!pode('organizar')) return aviso('Sua conta não muda os personagens da equipe.', 'erro');
+  const espera = h(`<div class="modal"><div class="caixa">${giroBloco('Procurando onde o nome aparece')}</div></div>`); document.body.appendChild(espera);
+  const { muda, usados } = await ondeEsta(k); espera.remove();
+  const lis = l => l.map(x => `<li>${x.nuvem ? ic('nuvem', 13) : ic('pc', 13)} ${esc(x.nome || 'Sem nome')}</li>`).join('');
+  const ok = await confirmaHtml(`Tirar "${v.nome}" da lista de personagens?`, `<p>Saem a cor, a foto, a pasta e o padrão no Animador. As falas dos roteiros não são apagadas.</p>
+    ${muda.length ? `<p>Ele ainda aparece nestes roteiros. Se um deles for mandado para a nuvem de novo, <b>ele volta para a lista</b> (com cor e foto padrão):</p><ul class="lista-r">${lis(muda)}</ul>` : ''}
+    ${usados.length ? `<p class="aten-box">${ic('alerta', 15)} Estes já estão sendo usados num programa e <b>não mudam</b>:</p><ul class="lista-r">${lis(usados)}</ul>` : ''}`, 'Tirar da lista', true);
+  if (!ok) return;
+  if (v._fora) { delete todos[k]; aviso(`${v.nome} saiu da lista.`, 'ok'); return aoFim?.(); }
+  try { await Nuvem.acao({ acao: 'personagens', itens: { [k]: { apagar: true } } }); delete todos[k]; await carregaPers(true).catch(() => { }); aviso(`${v.nome} saiu da lista.`, 'ok'); aoFim?.(); } catch (e) { aviso(e.message, 'erro'); }
+}
+// janela de confirmação com texto formatado (listas)
+function confirmaHtml(titulo, html, rotOk, perigo) {
+  return new Promise(ok => { const m = h(`<div class="modal"><div class="caixa larga"><b>${esc(titulo)}</b><div class="conf-corpo">${html}</div><div class="bts"><button class="bt" data-n>Cancelar</button><button class="bt ${perigo ? 'perigo' : 'pri'}" data-s>${esc(rotOk)}</button></div></div></div>`);
+    const fim = v => { m.remove(); ok(v); }; $('[data-n]', m).onclick = () => fim(false); $('[data-s]', m).onclick = () => fim(true); m.onkeydown = e => { if (e.key === 'Escape') fim(false); };
+    document.body.appendChild(m); $('[data-s]', m).focus(); });
+}
+
 async function pintaPersonagens() {
-  const el = tela(); el.innerHTML = `<section class="inicio pers-aba"><div class="cab"><h1>Personagens</h1><span class="esp"></span>${pode('organizar') ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button>` : ''}</div>
+  const el = tela(); el.innerHTML = `<section class="inicio pers-aba"><div class="cab"><h1>Personagens</h1><span class="esp"></span>${pode('organizar') ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button><button class="bt pri" data-novop>${ic('mais', 15)} Personagem novo</button>` : ''}</div>
     <p class="dica">Arraste um personagem para a pasta que quiser. Clique no nome da pasta para fechar ou abrir; botão direito na pasta ou no personagem para mais opções (renomear, apagar a pasta, foto…).</p>
     <div class="pers-grade">${giroBloco()}</div>
     <input type="file" accept="image/*" data-arq hidden></section>`;
@@ -830,6 +895,11 @@ async function pintaPersonagens() {
     try { aviso('Preparando a foto…', 'info', 1500); const b = await paraWebp(f), chaveF = `preparativos/pers/${slug(k)}-${Date.now().toString(36)}.webp`;
       await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(chaveF), { method: 'POST', headers: { 'content-type': 'image/webp' }, body: b });
       await manda(k, { foto: chaveF }, `Foto salva (${Math.max(1, Math.round(b.size / 1024))} KB).`); } catch (e) { aviso(e.message, 'erro'); } };
+  // PERSONAGEM NOVO: entra na lista da equipe já (antes de aparecer num roteiro), opcionalmente numa pasta
+  const novoPers = async grupo => { const n = ((await pedeTexto('Personagem novo', 'Nome do personagem (como vai aparecer no roteiro)', 40)) || '').replace(/[:*#\[\]()<>]/g, '').replace(/\s+/g, ' ').trim(); if (!n) return;
+    const k = Roteiro.chave(n); if (todos[k] && !todos[k]._fora) return aviso(`${todos[k].nome} já está na lista.`, 'info');
+    todos[k] = { nome: n, ...(grupo ? { grupo } : {}) }; manda(k, { nome: n, ...(grupo ? { grupo } : {}) }, `${n} entrou na lista${grupo ? ' em ' + grupo : ''}. Escolha a foto, a cor e o personagem do Ateliê dele.`); };
+  $('[data-novop]', el)?.addEventListener('click', () => novoPers(null));
   $('[data-pnova]', el)?.addEventListener('click', async () => { const g = await pastaNova(); if (!g) return; novas.add(g); pintaL(); aviso(`Pasta "${g}" criada. Arraste personagens para ela.`, 'info'); });
   const pintaL = () => {
     const E = Object.entries(todos).sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')), pastas = [...new Set([...GRUPOS_BASE, ...E.map(([, v]) => v.grupo).filter(Boolean), ...novas])];
@@ -848,7 +918,7 @@ async function pintaPersonagens() {
     const membros = g => Object.entries(todos).filter(([, v]) => (v.grupo || '') === g).map(([k]) => k);
     $$('.pasta-g', el).forEach(pg => { $('.pasta-g-tit', pg).oncontextmenu = e => { e.preventDefault(); const g = pg.dataset.pasta, base = !g || GRUPOS_BASE.includes(g), ms = membros(g);
       popMenu(e, [[`${ic('baixo', 14)} ${fechadas[g || '-'] ? 'Abrir a pasta' : 'Fechar a pasta'}`, '', () => $('[data-abre]', pg).click()],
-        [`${ic('pasta', 14)} Pasta nova…`, '', () => $('[data-pnova]', el)?.click(), !ed], '-',
+        [`${ic('mais', 14)} Personagem novo nesta pasta…`, '', () => novoPers(g || null), !ed], [`${ic('pasta', 14)} Pasta nova…`, '', () => $('[data-pnova]', el)?.click(), !ed], '-',
         [`${ic('lapis', 14)} Renomear…`, base ? 'fixa' : '', async () => { const nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 30)) || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (!nn || nn === g) return;
           novas.delete(g); novas.add(nn); if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: nn }])), `Pasta renomeada para ${nn}.`); }, base || !ed],
         [`${ic('lixo', 14)} Apagar a pasta`, base ? 'fixa' : '', async () => { if (!await pergunta(`Apagar a pasta "${g}"?`, ms.length ? `${ms.length === 1 ? 'O personagem dela vai' : `Os ${ms.length} personagens dela vão`} para "Sem pasta". Nenhum personagem é apagado.` : 'A pasta está vazia.', [['Cancelar', false], ['Apagar a pasta', true, 'perigo']])) return;
@@ -860,7 +930,9 @@ async function pintaPersonagens() {
         [`${icAt(14)} Padrão no Animador…`, '', () => $('[data-pad]', cd).click(), !ed], '-',
         ...ps2.map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, (v.grupo || '') === g ? '✓' : '', () => manda(k, { grupo: g }, `${v.nome} foi para ${g}.`), !ed || (v.grupo || '') === g]),
         [`${ic('pasta', 14)} Tirar da pasta`, !v.grupo ? '✓' : '', () => manda(k, { grupo: null }, `${v.nome} saiu da pasta.`), !ed || !v.grupo],
-        [`${ic('mais', 14)} Pasta nova com ${esc(v.nome)}…`, '', async () => { const g = await pastaNova(); if (g) { novas.add(g); manda(k, { grupo: g }, `${v.nome} foi para ${g}.`); } }, !ed]]); }; });
+        [`${ic('mais', 14)} Pasta nova com ${esc(v.nome)}…`, '', async () => { const g = await pastaNova(); if (g) { novas.add(g); manda(k, { grupo: g }, `${v.nome} foi para ${g}.`); } }, !ed], '-',
+        [`${ic('lapis', 14)} Renomear…`, '', () => renomeiaPersonagem(k, todos, () => pintaPersonagens()), !ed],
+        [`${ic('lixo', 14)} Tirar da lista…`, '', () => apagaPersonagem(k, todos, () => pintaPersonagens()), !ed]]); }; });
     // abrir/fechar pastas
     $$('[data-abre]', el).forEach(b => b.onclick = () => { const k = b.dataset.abre; fechadas[k] = !fechadas[k]; try { localStorage.setItem('ep-prep-pastas-aba', JSON.stringify(fechadas)); } catch { } b.parentElement.classList.toggle('fechada', !!fechadas[k]); });
     // ARRASTAR para outra pasta (solta no título ou na área da pasta)

@@ -15,3 +15,5 @@
 - PERSONAGENS da equipe: `preparativos/personagens.json` (nome, cor, foto WEBP, grupo). O servidor cadastra sozinho quem aparece num roteiro salvo. Pastas: Principais/Secundários/da pessoa; o roteiro pode ter as próprias (`P.org`).
 - Legenda no programa de destino: só o texto; o nome de quem fala só com `legenda.mostrarNome`.
 - Nada de mencionar outros produtos (ex.: editores de texto conhecidos) nas telas.
+- TEMA (regra da dona): menus (botão direito, Arquivo…), janelas e popups SEGUEM O TEMA (escuro no modo escuro, claro no claro), a não ser que ela peça o contrário. Use as variáveis (--panel, --panel-2, --text, --muted, --line), nunca branco fixo.
+- PERSONAGENS: renomear (botão direito) muda a lista da equipe e os roteiros AINDA NÃO USADOS (deste computador e da nuvem; `renomeiaNoPrep` troca só o nome nas falas, o áudio fica); os já usados por um programa não mudam (a janela lista eles). "Tirar da lista" = `acao personagens { k: { apagar: true } }`.
