@@ -623,3 +623,118 @@ body:not(.modo-doc) .aviso.ok{box-shadow:inset 3px 0 0 var(--verde),0 10px 30px 
 body:not(.modo-doc) .cartao,body:not(.modo-doc) .pcard2,body:not(.modo-doc) .painel-sec,body:not(.modo-doc) .pad{animation:sobe .35s ease-out both}
 @media (prefers-reduced-motion:reduce){body:not(.modo-doc) .cartao,body:not(.modo-doc) .pcard2,body:not(.modo-doc) .painel-sec,body:not(.modo-doc) .pad{animation:none}}
 @media (max-width:720px){.cab-txt h1{font-size:24px}.cab-ic{width:44px;height:44px}}
+
+/* ===================== PEGADA WINDOWS 8 / METRO (05/11/2026, pedido da dona) — vale para Roteiros, Ideias e Personagens =====================
+   Blocos chapados de cor sólida, cantos retos, sem degradê e sem sombra, títulos grandes e finos em minúsculas.
+   Cores do Metro: azul #1ba1e2, ciano #00aba9, verde #60a917, laranja #fa6800, magenta #d80073, roxo #a200ff, vermelho #e51400, amarelo #f0a30a.
+   O roteiro aberto (modo documento) continua no estilo do editor. */
+body:not(.modo-doc){--m-azul:#1ba1e2;--m-ciano:#00aba9;--m-verde:#60a917;--m-laranja:#fa6800;--m-magenta:#d80073;--m-roxo:#a200ff;--m-verm:#e51400;--m-amarelo:#f0a30a;--m-cinza:#3d3d3d;
+  --bg:#1b1b1b;--panel:#262626;--panel-2:#2f2f2f;--panel-3:#3a3a3a;--line:#3a3a3a;--text:#ffffff;--muted:#b4b4b4;--accent:var(--m-azul);
+  font-family:'Segoe UI','Segoe UI Web','Selawik','Open Sans',system-ui,sans-serif;background:#1b1b1b!important}
+body:not(.modo-doc) *{border-radius:0!important}
+body:not(.modo-doc) .ava,body:not(.modo-doc) .pava,body:not(.modo-doc) .anel,body:not(.modo-doc) .w10 i::before,body:not(.modo-doc) .cor,body:not(.modo-doc) .trilho,body:not(.modo-doc) .trilho i{border-radius:50%!important}
+body:not(.modo-doc) .trilho{border-radius:99px!important}
+/* topo: barra chapada, abas como texto grande com bloco de cor na aba aberta */
+body:not(.modo-doc) .top{background:#111!important;backdrop-filter:none;border-bottom:0;padding:8px 24px}
+body:not(.modo-doc) .logo b{font-weight:600;font-size:17px}
+body:not(.modo-doc) .abas{background:none!important;border:0!important;padding:0;gap:2px}
+body:not(.modo-doc) .abas button{padding:8px 18px;font-size:15px;font-weight:400;color:#cfcfcf;background:none}
+body:not(.modo-doc) .abas button:hover{background:#2a2a2a;color:#fff}
+body:not(.modo-doc) .abas button.on{background:var(--m-laranja)!important;color:#fff!important;box-shadow:none!important}
+/* títulos: grandes, finos, minúsculas */
+body:not(.modo-doc) main{padding:34px 28px 80px;max-width:1320px}
+body:not(.modo-doc) .cab-ic{width:56px;height:56px;box-shadow:none!important}
+body:not(.modo-doc) .cab-ic.t-rot{background:var(--m-laranja)!important;color:#fff}body:not(.modo-doc) .cab-ic.t-pers{background:var(--m-roxo)!important}body:not(.modo-doc) .cab-ic.t-ideia{background:var(--m-ciano)!important}
+body:not(.modo-doc) .cab-txt h1{font-size:44px;font-weight:300;letter-spacing:-.5px;text-transform:lowercase;line-height:1}
+body:not(.modo-doc) .cab-txt p{font-size:14px;color:#9a9a9a;margin-top:6px}
+/* botões: retos; o principal preenchido, os outros com contorno */
+body:not(.modo-doc) .bt{background:transparent!important;border:2px solid #fff!important;color:#fff;font-weight:600;padding:6px 16px;backdrop-filter:none;transition:background .1s,color .1s}
+body:not(.modo-doc) .bt:hover{background:#fff!important;color:#111!important}
+body:not(.modo-doc) .bt:active{transform:scale(.97)}
+body:not(.modo-doc) .bt.pri{background:var(--m-laranja)!important;border-color:var(--m-laranja)!important;color:#fff!important;box-shadow:none!important}
+body:not(.modo-doc) .bt.pri:hover{background:#ff7a1a!important;border-color:#ff7a1a!important;filter:none;transform:none}
+body:not(.modo-doc) .bt.perigo{background:var(--m-verm)!important;border-color:var(--m-verm)!important}
+body:not(.modo-doc) .bt.ic{padding:6px 9px}
+/* filtros: texto com bloco na opção escolhida */
+body:not(.modo-doc) .seg{background:none!important;border:0!important;padding:0;gap:0}
+body:not(.modo-doc) .seg button{padding:8px 16px;color:#cfcfcf;font-size:14px}
+body:not(.modo-doc) .seg button.on{background:#fff!important;color:#111!important;box-shadow:none!important}
+body:not(.modo-doc) .seg .n{background:none!important;color:inherit!important;opacity:.7}
+body:not(.modo-doc) .chips-st button,body:not(.modo-doc) .filtros button:not(.bt),body:not(.modo-doc) .chips-canal button{border:0!important;background:#2a2a2a!important;color:#d6d6d6;padding:6px 14px}
+body:not(.modo-doc) .chips-st button.on,body:not(.modo-doc) .filtros button.on,body:not(.modo-doc) .chips-canal button.on{background:var(--m-azul)!important;color:#fff!important}
+body:not(.modo-doc) .chips-st button.on svg{color:#fff!important}
+/* seções: sem painel, título grande e fino com a cor da seção */
+body:not(.modo-doc) .painel-sec{background:none!important;border:0!important;padding:0 0 8px;overflow:visible}
+body:not(.modo-doc) .painel-sec::before{display:none}
+body:not(.modo-doc) .ps-cab b{font-size:26px;font-weight:300;text-transform:lowercase}
+body:not(.modo-doc) .ps-cab small{color:#8f8f8f}
+body:not(.modo-doc) .sec-ic{width:44px;height:44px;color:#fff!important}
+body:not(.modo-doc) .sec-pc .sec-ic{background:var(--m-laranja)!important}body:not(.modo-doc) .sec-nuvem .sec-ic{background:var(--m-azul)!important}body:not(.modo-doc) .sec-uso .sec-ic{background:var(--m-verde)!important}
+body:not(.modo-doc) .secoes{gap:34px}
+/* TILES: os cartões dos roteiros em cor sólida pela situação */
+body:not(.modo-doc) .grade{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+body:not(.modo-doc) .cartao{border:0!important;padding:14px 16px;min-height:170px;color:#fff;transition:transform .08s,outline-color .1s;outline:3px solid transparent;outline-offset:-3px;box-shadow:none!important;animation:none!important}
+body:not(.modo-doc) .cartao.rascunho{background:var(--m-azul)!important}
+body:not(.modo-doc) .cartao.gravando{background:var(--m-laranja)!important}
+body:not(.modo-doc) .cartao.pronto{background:var(--m-verde)!important}
+body:not(.modo-doc) .cartao::before{display:none}
+body:not(.modo-doc) .cartao:hover{transform:none;outline-color:rgba(255,255,255,.75)}
+body:not(.modo-doc) .cartao:active{transform:scale(.97)}
+body:not(.modo-doc) .cartao b{font-size:20px;font-weight:600}
+body:not(.modo-doc) .cartao small,body:not(.modo-doc) .cartao .mt,body:not(.modo-doc) .cartao .onde,body:not(.modo-doc) .cartao .quem-l{color:rgba(255,255,255,.88)!important}
+body:not(.modo-doc) .cartao .st{background:rgba(0,0,0,.22)!important;color:#fff!important;padding:2px 8px}
+body:not(.modo-doc) .cartao .anel{color:#fff}body:not(.modo-doc) .cartao .anel circle:nth-child(2){stroke:#fff!important;filter:none!important}
+body:not(.modo-doc) .cartao .elenco .ava{box-shadow:0 0 0 2px rgba(0,0,0,.25)}
+body:not(.modo-doc) .cartao .uso{background:rgba(0,0,0,.22)!important;color:#fff!important}
+body:not(.modo-doc) .cartao.tem-vivo{outline-color:#fff}
+body:not(.modo-doc) .vivo-tag{background:#fff!important;color:#111!important}
+/* listas vazias */
+body:not(.modo-doc) .vazio:not(.carregando):not(.erro){background:#232323!important;border:0!important;color:#a8a8a8}
+body:not(.modo-doc) .vazio:not(.carregando):not(.erro)::before{background:#555!important;opacity:1}
+/* PERSONAGENS: tile na cor do personagem, foto quadrada */
+body:not(.modo-doc) .pcard2{background:var(--c)!important;border:0!important;color:#111;animation:none!important;box-shadow:none!important;outline:3px solid transparent;outline-offset:-3px}
+body:not(.modo-doc) .pcard2:hover{transform:none;outline-color:rgba(255,255,255,.8)}
+body:not(.modo-doc) .pcard2::before{display:none}
+body:not(.modo-doc) .pcard2 .foto{position:static;margin:14px 0 0 14px;align-self:flex-start}
+body:not(.modo-doc) .pcard2 .foto .ava.g{--ava:72px;border-radius:0!important;box-shadow:none;background-color:rgba(0,0,0,.18);color:#111}
+body:not(.modo-doc) .pcard2 .foto .cam{background:#111;color:#fff;box-shadow:none;border-radius:0!important}
+body:not(.modo-doc) .pcard2 .pc-meio{padding:10px 14px 14px;min-height:0}
+body:not(.modo-doc) .pcard2 .pc-meio>b{font-size:22px;font-weight:600;color:#111}
+body:not(.modo-doc) .pcard2 .pega{color:rgba(0,0,0,.55)}
+body:not(.modo-doc) .pcard2 .leg-mini{color:#111!important;text-shadow:none;font-weight:600}
+body:not(.modo-doc) .pcard2 small,body:not(.modo-doc) .pcard2 .link{color:rgba(0,0,0,.7)}
+body:not(.modo-doc) .pcard2 .paleta .cor{box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}body:not(.modo-doc) .pcard2 .paleta .cor.on{border-color:#111}
+body:not(.modo-doc) .pcard2 .el-esc{background:rgba(0,0,0,.2)!important;border:0;color:#111}
+body:not(.modo-doc) .pasta-g-tit{font-size:24px!important;font-weight:300!important;text-transform:lowercase}
+body:not(.modo-doc) .pasta-g-tit small{background:none!important;font-size:16px}
+body:not(.modo-doc) .pasta-g.alvo{background:#262626;outline-color:var(--m-azul)}
+body:not(.modo-doc) .pasta-vazia{background:#232323!important;border:0!important}
+body:not(.modo-doc) hr.sep-pasta{border-top-color:#2c2c2c}
+/* IDEIAS: análise em tiles e ideias magenta/roxas */
+body:not(.modo-doc) .an-cab h2,body:not(.modo-doc) .ids-tit{font-size:26px;font-weight:300;text-transform:lowercase}
+body:not(.modo-doc) .pad{background:#2a2a2a!important;border:0!important;animation:none!important}
+body:not(.modo-doc) .pad-n{background:var(--m-amarelo)!important;color:#111!important;border-radius:0!important}
+body:not(.modo-doc) .canal-l{background:#232323!important;border:0!important}
+body:not(.modo-doc) .cartao.ideia{color:#fff}
+body:not(.modo-doc) .cartao.ideia.short{background:var(--m-magenta)!important}
+body:not(.modo-doc) .cartao.ideia.longo{background:var(--m-roxo)!important}
+body:not(.modo-doc) .cartao.ideia .gancho{color:#fff!important}body:not(.modo-doc) .cartao.ideia .pq{color:#fff!important;opacity:.9}
+body:not(.modo-doc) .cartao.ideia .bt{border-color:#fff!important}
+body:not(.modo-doc) .cartao.ideia .bt.pri{background:#fff!important;color:#111!important;border-color:#fff!important}
+body:not(.modo-doc) .vid2 .x{border-radius:0}
+/* janelas: a faixa de ponta a ponta do Windows 8 */
+body:not(.modo-doc) .modal{background:rgba(0,0,0,.6)!important;backdrop-filter:none!important;padding:0}
+body:not(.modo-doc) .modal .caixa{width:100vw!important;max-width:none!important;border:0!important;background:#1f1f1f!important;box-shadow:none!important;padding:28px max(24px,calc(50vw - 330px))!important}
+body:not(.modo-doc) .modal .caixa>b{font-size:26px;font-weight:300}
+body:not(.modo-doc) .modal .caixa.atelie-pop{padding:0!important;max-height:90vh}
+body:not(.modo-doc) .modal .caixa.atelie-pop .ap-cab{padding:16px max(16px,calc(50vw - 480px))}
+body:not(.modo-doc) .modal .caixa.atelie-pop .ap-esp,body:not(.modo-doc) .modal .caixa.atelie-pop .ap-corpo{padding-left:max(16px,calc(50vw - 480px));padding-right:max(16px,calc(50vw - 480px))}
+/* avisos: retângulo sólido no canto de cima */
+body:not(.modo-doc) #avisos{top:64px;bottom:auto;left:auto;right:16px;transform:none;align-items:flex-end}
+body:not(.modo-doc) .aviso{background:#2b2b2b!important;border:0!important;backdrop-filter:none!important;min-width:280px;padding:12px 18px;box-shadow:none!important;border-left:6px solid var(--m-azul)!important}
+body:not(.modo-doc) .aviso.ok{border-left-color:var(--m-verde)!important}body:not(.modo-doc) .aviso.erro{border-left-color:var(--m-verm)!important}
+/* menus do botão direito e listas: chapados */
+body:not(.modo-doc) .dh-menu,body:not(.modo-doc) .lista-pers{background:#2b2b2b!important;border:1px solid #444!important;box-shadow:none!important}
+body:not(.modo-doc) .dh-menu button:hover:not(:disabled){background:var(--m-azul)!important;color:#fff}
+/* sem animação de subir (o Metro entra seco) */
+body:not(.modo-doc) .painel-sec{animation:none!important}
