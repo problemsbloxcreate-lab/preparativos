@@ -471,7 +471,7 @@ function arrastaMargem(ev, lado, c) {
 function popMenu(ancora, itens) {
   $$('.dh-menu.pop').forEach(x => x.remove()); const caixa = h('<div class="dh-menu pop" role="menu"></div>');
   for (const it of itens) { if (it === '-') { caixa.appendChild(h('<hr>')); continue; } const [rot, marca, fn, off] = it; const b = h(`<button role="menuitem" ${off ? 'disabled' : ''}><span>${rot}</span><small>${esc(marca || '')}</small></button>`); b.onclick = () => { caixa.remove(); fn(); }; caixa.appendChild(b); }
-  const r = ancora.getBoundingClientRect(); document.body.appendChild(caixa); caixa.style.left = Math.min(innerWidth - caixa.offsetWidth - 8, r.left) + 'px'; caixa.style.top = Math.min(innerHeight - caixa.offsetHeight - 8, r.bottom + 4) + 'px';
+  const r = ancora instanceof Event ? { left: ancora.clientX, bottom: ancora.clientY } : ancora.getBoundingClientRect(); document.body.appendChild(caixa); caixa.style.left = Math.min(innerWidth - caixa.offsetWidth - 8, r.left) + 'px'; caixa.style.top = Math.min(innerHeight - caixa.offsetHeight - 8, r.bottom + 4) + 'px';
   setTimeout(() => addEventListener('mousedown', function fora(e) { if (!e.target.closest('.dh-menu.pop')) { caixa.remove(); removeEventListener('mousedown', fora); } }), 0);
 }
 // muda a pasta de um personagem: na organização deste roteiro (P.org) ou na da equipe (personagens.json)
@@ -529,6 +529,12 @@ function pintaRoteiro(c) {
     $$('[data-pers]', gr).forEach(b => b.onclick = () => ed && E.novaLinha(b.dataset.pers + ': '));
     $$('[data-pf]', gr).forEach(b => b.onclick = () => { S.filtroPers = b.dataset.pf; lado(); });
     $$('[data-pasta]', gr).forEach(b => b.onclick = () => { const k = b.dataset.pasta; fechadas[k] = !fechadas[k]; try { localStorage.setItem('ep-prep-pastas', JSON.stringify(fechadas)); } catch { } b.parentElement.classList.toggle('fechada', !!fechadas[k]); });
+    $$('.prow', gr).forEach(r => r.oncontextmenu = e => { e.preventDefault(); const n = $('[data-pers]', r).dataset.pers, g0 = grupoDe(n);
+      popMenu(e, [[`${ic('pessoa', 14)} Nova fala de ${esc(n)}`, '', () => E.novaLinha(n + ': '), !ed], '-',
+        ...[...new Set([...GRUPOS_BASE, ...pastas])].map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, g === g0 ? '✓' : '', () => mudaGrupo(n, g), g === g0]),
+        [`${ic('pasta', 14)} Tirar da pasta`, !g0 ? '✓' : '', () => mudaGrupo(n, ''), !g0], [`${ic('mais', 14)} Pasta nova…`, '', async () => { const g = await pastaNova(); if (g) mudaGrupo(n, g); }]]); });
+    $$('[data-pasta]', gr).forEach(b => b.oncontextmenu = e => { e.preventDefault(); const fe = b.parentElement.classList.contains('fechada');
+      popMenu(e, [[`${ic('baixo', 14)} ${fe ? 'Abrir a pasta' : 'Fechar a pasta'}`, '', () => b.click()], [`${ic('pessoa', 14)} Organizar as pastas (aba Personagens)`, '', async () => { if (await sairDoPrep()) trocaAba('personagens'); }]]); });
     $$('[data-pmenu]', gr).forEach(b => b.onclick = () => { const n = b.dataset.pmenu, g0 = grupoDe(n);
       popMenu(b, [...[...new Set([...GRUPOS_BASE, ...pastas])].map(g => [`${ic('pasta', 14)} ${esc(g)}`, g === g0 ? '✓' : '', () => mudaGrupo(n, g)]), [`${ic('mais', 14)} Pasta nova…`, '', async () => { const g = await pastaNova(); if (g) mudaGrupo(n, g); }], '-', ['Sem pasta', !g0 ? '✓' : '', () => mudaGrupo(n, '')]]); });
     const lp = $('.lista-pers', barra); if (lp) lp.innerHTML = ps.map(p => `<button data-np="${esc(p.nome)}">${ava(p.nome, cs.get(p.chave), 'p')} ${esc(p.nome)}</button>`).join('') + `<button data-np="">${ic('mais', 14)} Personagem novo…</button>`;
@@ -810,7 +816,7 @@ async function paraWebp(arq, lado = 256) {
 const slug = s => Roteiro.chave(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'p';
 async function pintaPersonagens() {
   const el = tela(); el.innerHTML = `<section class="inicio pers-aba"><div class="cab"><h1>Personagens</h1><span class="esp"></span>${pode('organizar') ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button>` : ''}</div>
-    <p class="dica">Arraste um personagem para a pasta que quiser. Clique no nome da pasta para fechar ou abrir.</p>
+    <p class="dica">Arraste um personagem para a pasta que quiser. Clique no nome da pasta para fechar ou abrir; botão direito na pasta ou no personagem para mais opções (renomear, apagar a pasta, foto…).</p>
     <div class="pers-grade">${giroBloco()}</div>
     <input type="file" accept="image/*" data-arq hidden></section>`;
   try { await carregaPers(true); if (!S.lista) S.lista = (await Nuvem.lista().catch(() => ({ itens: [] }))).itens || []; } catch (e) { $('.pers-grade', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
@@ -837,6 +843,24 @@ async function pintaPersonagens() {
           <span class="leg-mini" style="color:${cor}">Exemplo de legenda</span>
           <div class="pc-an"><small>No Animador:</small><button class="el-esc" data-pad ${ed ? '' : 'disabled'} title="Personagem do Ateliê que faz ${esc(v.nome)} em todos os roteiros"><span class="ap-th p" ${v.atelie?.id ? `data-th="${esc(v.atelie.id)}"` : ''}>${v.atelie?.id ? esc(iniciais(v.atelie.nome || v.atelie.id)) : icAt(18)}</span>${v.atelie === null ? 'Nenhum' : v.atelie?.id ? esc(v.atelie.nome || v.atelie.id) : 'Automático (mesmo nome)'}</button></div>
           ${v.foto && ed ? `<button class="link" data-tira>Tirar a foto</button>` : ''}</div></div>`; }).join('') || `<div class="pasta-vazia">${ed ? 'Arraste personagens para cá.' : 'Ninguém nesta pasta.'}</div>`}</div></div>`).join('<hr class="sep-pasta">');
+    // BOTÃO DIREITO — na pasta: abrir/fechar, pasta nova, renomear, apagar (os personagens vão para "Sem pasta"; Principais e Secundários são fixas)
+    const mandaVarios = async (itens, msg) => { try { const r = await Nuvem.acao({ acao: 'personagens', itens }); S.pers = r.personagens || S.pers; Object.assign(todos, S.pers); if (msg) aviso(msg, 'ok'); pintaL(); } catch (er) { aviso(er.message, 'erro'); } };
+    const membros = g => Object.entries(todos).filter(([, v]) => (v.grupo || '') === g).map(([k]) => k);
+    $$('.pasta-g', el).forEach(pg => { $('.pasta-g-tit', pg).oncontextmenu = e => { e.preventDefault(); const g = pg.dataset.pasta, base = !g || GRUPOS_BASE.includes(g), ms = membros(g);
+      popMenu(e, [[`${ic('baixo', 14)} ${fechadas[g || '-'] ? 'Abrir a pasta' : 'Fechar a pasta'}`, '', () => $('[data-abre]', pg).click()],
+        [`${ic('pasta', 14)} Pasta nova…`, '', () => $('[data-pnova]', el)?.click(), !ed], '-',
+        [`${ic('lapis', 14)} Renomear…`, base ? 'fixa' : '', async () => { const nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 30)) || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (!nn || nn === g) return;
+          novas.delete(g); novas.add(nn); if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: nn }])), `Pasta renomeada para ${nn}.`); }, base || !ed],
+        [`${ic('lixo', 14)} Apagar a pasta`, base ? 'fixa' : '', async () => { if (!await pergunta(`Apagar a pasta "${g}"?`, ms.length ? `${ms.length === 1 ? 'O personagem dela vai' : `Os ${ms.length} personagens dela vão`} para "Sem pasta". Nenhum personagem é apagado.` : 'A pasta está vazia.', [['Cancelar', false], ['Apagar a pasta', true, 'perigo']])) return;
+          novas.delete(g); if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: null }])), `Pasta "${g}" apagada.`); }, base || !ed]]); }; });
+    // BOTÃO DIREITO — no personagem: foto, padrão no Animador, mover de pasta
+    $$('.pcard2', el).forEach(cd => { cd.oncontextmenu = e => { if (e.target.closest('input,select')) return; e.preventDefault(); const k = cd.dataset.k, v = todos[k], ps2 = [...new Set([...GRUPOS_BASE, ...Object.values(todos).map(x => x.grupo).filter(Boolean), ...novas])];
+      popMenu(e, [[`${ic('camera', 14)} ${v.foto ? 'Trocar a foto…' : 'Pôr uma foto…'}`, '', () => $('.foto', cd).click(), !ed],
+        ...(v.foto ? [[`${ic('lixo', 14)} Tirar a foto`, '', () => $('[data-tira]', cd)?.click(), !ed]] : []),
+        [`${icAt(14)} Padrão no Animador…`, '', () => $('[data-pad]', cd).click(), !ed], '-',
+        ...ps2.map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, (v.grupo || '') === g ? '✓' : '', () => manda(k, { grupo: g }, `${v.nome} foi para ${g}.`), !ed || (v.grupo || '') === g]),
+        [`${ic('pasta', 14)} Tirar da pasta`, !v.grupo ? '✓' : '', () => manda(k, { grupo: null }, `${v.nome} saiu da pasta.`), !ed || !v.grupo],
+        [`${ic('mais', 14)} Pasta nova com ${esc(v.nome)}…`, '', async () => { const g = await pastaNova(); if (g) { novas.add(g); manda(k, { grupo: g }, `${v.nome} foi para ${g}.`); } }, !ed]]); }; });
     // abrir/fechar pastas
     $$('[data-abre]', el).forEach(b => b.onclick = () => { const k = b.dataset.abre; fechadas[k] = !fechadas[k]; try { localStorage.setItem('ep-prep-pastas-aba', JSON.stringify(fechadas)); } catch { } b.parentElement.classList.toggle('fechada', !!fechadas[k]); });
     // ARRASTAR para outra pasta (solta no título ou na área da pasta)
