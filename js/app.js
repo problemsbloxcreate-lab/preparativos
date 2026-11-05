@@ -285,6 +285,9 @@ function mostraComo() { const m = h(`<div class="modal"><div class="caixa larga"
 addEventListener('keydown', e => { if (!S.P || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return; e.preventDefault(); if (S.sujo) salvaPrep($('.prep [data-salva]')); else aviso('Já está salvo na nuvem.', 'ok', 1800); });
 
 function pintaPrep() {
+  // o botão da conta (nuvem, computador, casinha, foto) mora no cabeçalho do roteiro: volta para o lugar dele ANTES de redesenhar,
+  // senão ele some junto com o cabeçalho velho (acontecia ao trocar o programa de destino ou a situação)
+  { const sp = document.querySelector('[data-estudio-conta]'); if (sp && contaOrig && sp.parentNode !== contaOrig.pai) contaOrig.pai.insertBefore(sp, contaOrig.prox); }
   const P = S.P, el = tela(), pp = pode('pronto'), ordem = PREP_CONFIG.status.map(x => x[0]), at = ordem.indexOf(P.status || 'rascunho');
   el.innerHTML = `<section class="prep"><div class="dh-topo">
     <header class="dh">

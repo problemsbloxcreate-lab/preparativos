@@ -743,3 +743,7 @@ body:not(.modo-doc) .painel-sec{animation:none!important}
 .grav .barra{grid-column:1/-1;height:5px;background:rgba(255,255,255,.18);overflow:hidden}.grav .barra i{display:block;height:100%;background:#fff}
 .grav.todas span{font-weight:600}
 body:not(.modo-doc) .cartao .grav{color:#fff}
+/* conserto: "1 de 3 falas gravadas" numa linha só; câmera junto da foto no Metro */
+.cartao .grav b,body:not(.modo-doc) .cartao .grav b{display:inline;font-size:inherit;font-weight:700}
+body:not(.modo-doc) .pcard2 .foto{position:relative!important}
+body:not(.modo-doc) .pcard2 .foto .cam{position:absolute;right:-4px;bottom:-4px}
