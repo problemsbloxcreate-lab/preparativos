@@ -956,7 +956,8 @@ async function pintaPersonagens() {
     $$('.pcard2', el).forEach(cd => { const k = cd.dataset.k;
       $('.foto', cd).onclick = () => { alvo = k; arq.click(); };
       $('[data-tira]', cd)?.addEventListener('click', async () => { if (await pergunta('Tirar a foto?', `${todos[k].nome} volta a aparecer com as iniciais.`, [['Cancelar', false], ['Tirar', true, 'perigo']])) manda(k, { foto: null }, 'Foto tirada.'); });
-      $('[data-pad]', cd)?.addEventListener('click', async e => { const bt = e.currentTarget, rot = bt.innerHTML; bt.innerHTML = giro('Abrindo o Ateliê'); let L; try { L = await atelie(); } catch (er) { bt.innerHTML = rot; return aviso(er.message, 'erro'); } bt.innerHTML = rot;
+      $('[data-pad]', cd)?.addEventListener('click', async e => { const bt = e.currentTarget, th = $('.ap-th', bt), rot = th.innerHTML; th.innerHTML = giro(); th.classList.add('girando'); // só o ícone vira o carregando: o botão não muda de tamanho
+        let L; try { L = await atelie(); } catch (er) { th.innerHTML = rot; th.classList.remove('girando'); return aviso(er.message, 'erro'); } th.innerHTML = rot; th.classList.remove('girando');
         const r = await escolheNoAtelie(L, todos[k].atelie, `Padrão de ${todos[k].nome} no Animador (todos os roteiros)`, 'Automático (personagem com o mesmo nome)'); if (r === false) return;
         manda(k, { atelie: r === undefined ? 'auto' : r === null ? null : { id: r.id, nome: r.nome } }, r === undefined ? 'Padrão: automático (mesmo nome).' : r === null ? 'Padrão: nenhum personagem na cena.' : `Padrão no Animador: ${r.nome}.`); });
       const thp = $('[data-pad] [data-th]', cd); if (thp) { thp.classList.add('carregando-th'); atelie().then(L => { const x = L.find(y => y.id === thp.dataset.th); if (x) thumbDe(x).then(t => { thp.classList.remove('carregando-th'); if (t) { thp.style.backgroundImage = `url("${t}")`; thp.classList.add('com-th'); } }); }).catch(() => thp.classList.remove('carregando-th')); }

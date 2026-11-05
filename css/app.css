@@ -800,3 +800,4 @@ body:not(.modo-doc) .pcard2 .pc-sec.pc-an{flex-direction:column;align-items:flex
 /* mais respiro em volta da foto do personagem */
 body:not(.modo-doc) .pcard2{padding:20px!important;gap:18px!important}
 body:not(.modo-doc) .pc-topo{gap:20px}
+.ap-th.girando{background:none!important}.ap-th.girando .w10{width:20px;height:20px;color:#111}
