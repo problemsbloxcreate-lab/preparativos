@@ -627,11 +627,11 @@ async function thumbDe(x) {
   thPedidos.set(x.id, pr); return pr;
 }
 // janela do Ateliê: pastas, miniaturas e nomes (as miniaturas carregam quando aparecem na tela)
-function escolheNoAtelie(L, atual, titulo) {
+function escolheNoAtelie(L, atual, titulo, rotAuto = 'Automático (padrão do personagem)') {
   return new Promise(ok => {
     const pastas = (L.pastas || [...new Set(L.map(x => x.pasta))]).filter(p => L.some(x => x.pasta === p));
     const m = h(`<div class="modal"><div class="caixa atelie-pop"><div class="ap-cab"><b>${esc(titulo)}</b><span class="esp"></span><input class="ap-busca" placeholder="Procurar pelo nome" aria-label="Procurar"><button class="bt ic" data-x title="Fechar">${ic('voltar', 15)}</button></div>
-      <div class="ap-esp"><button class="ap-op ${atual === undefined ? 'on' : ''}" data-v="">${ic('atualizar', 15)} Automático (mesmo nome)</button><button class="ap-op ${atual === null ? 'on' : ''}" data-v="-">${ic('lixo', 15)} Nenhum</button></div>
+      <div class="ap-esp"><button class="ap-op ${atual === undefined ? 'on' : ''}" data-v="">${ic('atualizar', 15)} ${esc(rotAuto)}</button><button class="ap-op ${atual === null ? 'on' : ''}" data-v="-">${ic('lixo', 15)} Nenhum</button></div>
       <div class="ap-corpo">${pastas.map(p => `<div class="ap-pasta" data-p="${esc(p)}"><button class="pasta-tit" data-tp>${ic('baixo', 12)} ${ic('pasta', 14)} ${esc(p)} <small>${L.filter(x => x.pasta === p).length}</small></button>
         <div class="ap-grade">${L.filter(x => x.pasta === p).map(x => `<button class="ap-card ${atual?.id === x.id ? 'on' : ''}" data-v="${esc(x.id)}" data-n="${esc(Roteiro.chave(x.nome))}"><span class="ap-th" data-th="${esc(x.id)}">${esc(iniciais(x.nome))}</span><span class="ap-nome">${esc(x.nome)}</span></button>`).join('')}</div></div>`).join('')}</div></div></div>`);
     const fim = v => { io.disconnect(); m.remove(); ok(v); };
@@ -648,19 +648,21 @@ function escolheNoAtelie(L, atual, titulo) {
 async function pintaElenco(c) {
   const P = S.P, ps = Roteiro.personagens(P.partes), ed = pode('roteiro') || pode('organizar'), cs = coresDoRoteiro();
   c.innerHTML = `<div class="elenco-an"><div class="explica">${ic('pessoa', 20)}<div><b>Quem é quem no Animador</b>
-    <p>Escolha qual personagem do Ateliê faz cada nome do roteiro. Fica salvo neste roteiro e dá para trocar depois. Em <b>Automático</b>, o Animador usa o personagem do Ateliê com o mesmo nome (se tiver); <b>Nenhum</b> = essa voz entra sem personagem na cena.</p></div></div>
+    <p>Escolha qual personagem do Ateliê faz cada nome NESTE roteiro (fica salvo nele e dá para trocar depois). Em <b>Automático</b> vale o <b>padrão do personagem</b> (aba Personagens); sem padrão, o personagem do Ateliê com o mesmo nome. <b>Nenhum</b> = essa voz entra sem personagem na cena.</p></div></div>
     <div class="el-lista"><div class="vazio">Carregando os personagens do Ateliê…</div></div>
     <div class="el-pe"><button class="bt" data-at>${ic('atualizar', 15)} Buscar a lista do Ateliê de novo</button></div></div>`;
-  let L; try { L = await atelie(); } catch (e) { $('.el-lista', c).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
+  let L; try { [L] = await Promise.all([atelie(), carregaPers().catch(() => ({}))]); } catch (e) { $('.el-lista', c).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
   $('[data-at]', c).onclick = async () => { sessionStorage.removeItem('ep-prep-atelie'); pintaElenco(c); };
   const porNome = new Map(L.map(x => [Roteiro.chave(x.nome), x])), mapa = () => (P.animador?.pers || {});
   const pinta = () => { const M = mapa();
-    $('.el-lista', c).innerHTML = ps.length ? ps.map(p => { const v = M[p.chave], auto = porNome.get(p.chave), sel = v === null ? '-' : v?.id || '';
-      const quem = v === null ? 'sem personagem na cena' : v?.id ? `vai ser <b>${esc(v.nome || v.id)}</b>` : auto ? `automático: <b>${esc(auto.nome)}</b> (mesmo nome)` : '<span class="aten">automático: nenhum personagem do Ateliê com este nome</span>';
+    $('.el-lista', c).innerHTML = ps.length ? ps.map(p => { const v = M[p.chave], pad = S.pers?.[p.chave]?.atelie, mesmo = porNome.get(p.chave), sel = v === null ? '-' : v?.id || '';
+      const auto = pad === null ? null : pad?.id ? (L.find(x => x.id === pad.id) || { id: pad.id, nome: pad.nome }) : mesmo;
+      const quem = v === null ? 'sem personagem na cena' : v?.id ? `vai ser <b>${esc(v.nome || v.id)}</b> (só neste roteiro)`
+        : pad === null ? 'padrão do personagem: <b>nenhum</b>' : pad?.id ? `padrão: <b>${esc(pad.nome || pad.id)}</b>` : mesmo ? `automático: <b>${esc(mesmo.nome)}</b> (mesmo nome)` : '<span class="aten">sem padrão e nenhum personagem do Ateliê com este nome: escolha um</span>';
       const alvo = v?.id ? L.find(x => x.id === v.id) : v === null ? null : auto;
       return `<div class="el-lin">${ava(p.nome, cs.get(p.chave), 'p')}<b>${esc(p.nome)}</b><small>${p.n} fala${p.n === 1 ? '' : 's'}</small><span class="el-seta">${ic('voltar', 14)}</span>
         <button class="el-esc" data-esc="${esc(p.chave)}" ${ed ? '' : 'disabled'} title="Escolher no Ateliê"><span class="ap-th p" ${alvo ? `data-th="${esc(alvo.id)}"` : ''}>${alvo ? esc(iniciais(alvo.nome)) : '—'}</span>${ic('pasta', 14)} Escolher no Ateliê</button>
-        <select data-k="${esc(p.chave)}" ${ed ? '' : 'disabled'}><option value="" ${sel === '' ? 'selected' : ''}>Automático (mesmo nome)</option><option value="-" ${sel === '-' ? 'selected' : ''}>Nenhum</option>
+        <select data-k="${esc(p.chave)}" ${ed ? '' : 'disabled'}><option value="" ${sel === '' ? 'selected' : ''}>Automático (padrão do personagem)</option><option value="-" ${sel === '-' ? 'selected' : ''}>Nenhum</option>
         <optgroup label="Personagens do Ateliê">${L.map(x => `<option value="${esc(x.id)}" ${sel === x.id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</optgroup>
         ${v?.id && !L.some(x => x.id === v.id) ? `<option value="${esc(v.id)}" selected>${esc(v.nome || v.id)} (não está mais no Ateliê)</option>` : ''}</select>
         <small class="el-quem">${quem}</small></div>`; }).join('') : '<div class="vazio">Ainda não há falas no roteiro.</div>';
@@ -718,6 +720,7 @@ async function pintaPersonagens() {
       <p>Quando alguém escreve <b>Nome: fala</b> num roteiro e manda para a nuvem, o personagem entra nesta lista sozinho. Aqui você escolhe:</p>
       <ul><li><b>Foto</b> (opcional): uma imagem simples de perfil. Ela é cortada no meio, diminuída e convertida para WEBP, para ficar leve na nuvem. Aparece na bolinha do personagem nos roteiros e nas falas.</li>
       <li><b>Cor da legenda</b>: a cor das falas dele nas legendas (maiúscula ou minúscula no nome tanto faz).</li>
+      <li><b>No Animador</b>: qual personagem do Ateliê faz este nome em TODOS os roteiros (padrão). Num roteiro dá para trocar só nele (guia "Elenco no Animador").</li>
       <li><b>Pasta</b>: Principais, Secundários ou uma pasta sua. No roteiro, o lado esquerdo mostra os personagens nessas pastas e dá para ver só uma delas. Cada roteiro pode usar uma organização só dele (botão de pasta ao lado de "Personagens").</li></ul></div></div>
     <div class="pers-grade"><div class="vazio">Carregando…</div></div>
     <input type="file" accept="image/*" data-arq hidden></section>`;
@@ -740,11 +743,16 @@ async function pintaPersonagens() {
           <select data-grupo ${ed ? '' : 'disabled'}>${['', ...pastas].map(x => `<option value="${esc(x)}" ${x === (v.grupo || '') ? 'selected' : ''}>${x ? esc(x) : 'Sem pasta'}</option>`).join('')}<option value="+">+ Pasta nova…</option></select>
           <div class="paleta">${PALETA.map(x => `<button class="cor ${x === cor ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'}></button>`).join('')}<input type="color" value="${cor}" ${ed ? '' : 'disabled'} title="Outra cor"></div>
           <span class="leg-mini" style="color:${cor}">Exemplo de legenda</span>
+          <div class="pc-an"><small>No Animador:</small><button class="el-esc" data-pad ${ed ? '' : 'disabled'} title="Personagem do Ateliê que faz ${esc(v.nome)} em todos os roteiros"><span class="ap-th p" ${v.atelie?.id ? `data-th="${esc(v.atelie.id)}"` : ''}>${v.atelie?.id ? esc(iniciais(v.atelie.nome || v.atelie.id)) : '—'}</span>${v.atelie === null ? 'Nenhum' : v.atelie?.id ? esc(v.atelie.nome || v.atelie.id) : 'Automático (mesmo nome)'}</button></div>
           ${v.foto && ed ? `<button class="link" data-tira>Tirar a foto</button>` : ''}</div></div>`; }).join('') || '<p class="dica">Ninguém nesta pasta.</p>'}</div></div>`).join('') : '<div class="vazio">Nenhum personagem ainda. Eles aparecem aqui quando um roteiro com falas (Nome: fala) vai para a nuvem.</div>';
     $$('.pcard2', el).forEach(cd => { const k = cd.dataset.k;
       $('.foto', cd).onclick = () => { alvo = k; arq.click(); };
       $('[data-tira]', cd)?.addEventListener('click', async () => { if (await pergunta('Tirar a foto?', `${todos[k].nome} volta a aparecer com as iniciais.`, [['Cancelar', false], ['Tirar', true, 'perigo']])) manda(k, { foto: null }, 'Foto tirada.'); });
       $('[data-grupo]', cd).onchange = async e => { let g = e.target.value; if (g === '+') { g = await pastaNova(); if (!g) return pintaL(); } manda(k, { grupo: g || null }, g ? `${todos[k].nome} foi para ${g}.` : `${todos[k].nome} saiu da pasta.`); };
+      $('[data-pad]', cd)?.addEventListener('click', async () => { let L; try { L = await atelie(); } catch (e) { return aviso(e.message, 'erro'); }
+        const r = await escolheNoAtelie(L, todos[k].atelie, `Padrão de ${todos[k].nome} no Animador (todos os roteiros)`, 'Automático (personagem com o mesmo nome)'); if (r === false) return;
+        manda(k, { atelie: r === undefined ? 'auto' : r === null ? null : { id: r.id, nome: r.nome } }, r === undefined ? 'Padrão: automático (mesmo nome).' : r === null ? 'Padrão: nenhum personagem na cena.' : `Padrão no Animador: ${r.nome}.`); });
+      const thp = $('[data-pad] [data-th]', cd); if (thp) atelie().then(L => { const x = L.find(y => y.id === thp.dataset.th); if (x) thumbDe(x).then(t => { if (t) { thp.style.backgroundImage = `url("${t}")`; thp.classList.add('com-th'); } }); }).catch(() => { });
       const cor = v => manda(k, { cor: v }); $$('.cor', cd).forEach(b => b.onclick = () => cor(b.dataset.cor)); $('input[type=color]', cd).onchange = e => cor(e.target.value); });
   };
   pintaL();

@@ -60,7 +60,7 @@ das outras rotas). Chaves na nuvem da equipe:
 |---|---|
 | `preparativos/<id>/prep.json` | o preparativo inteiro (abaixo) |
 | `preparativos/<id>/aud/<falaId>-<t>.webm` | o áudio de uma fala (`.ogg`/`.m4a` também); nome novo a cada regravação |
-| `preparativos/personagens.json` | os personagens da equipe: `{ "<nome em minúsculas>": { nome, cor, foto, grupo, em } }` |
+| `preparativos/personagens.json` | os personagens da equipe: `{ "<nome em minúsculas>": { nome, cor, foto, grupo, atelie, em } }` (`atelie` = padrão no Animador: `{ id, nome }` \| `null` = nenhum; sem o campo = mesmo nome) |
 | `preparativos/pers/<nome>-<t>.webp` | a foto de um personagem (WEBP, até 256 × 256, cortada no meio) |
 | `preparativos/cores.json` | (antigo) `{ "<nome em minúsculas>": "#rrggbb" }` — ainda é lido; as cores novas vão para `personagens.json` |
 
@@ -100,7 +100,9 @@ se `legenda.mostrarNome === true`** (aí "Nome: texto"). `legenda.ativa === fals
 
 **ELENCO NO ANIMADOR** (guia "Elenco no Animador", aparece com destino = Animador): `prep.animador.pers[Roteiro.chave(nome)]` =
 `{ id, nome }` (personagem do Ateliê, `personagens/<id>/personagem.json`) | `null` (nenhum personagem na cena). Sem entrada = o Animador
-procura um personagem da equipe com o MESMO nome. A lista do Ateliê vem do `GET /personagens` (nome = metadata do `personagem.json`).
+procura o PADRÃO do personagem (`personagens.json[chave].atelie`, escolhido na aba Personagens: `{ id, nome }` ou `null` = nenhum) e, sem
+padrão, um personagem do Ateliê com o MESMO nome. Ordem: escolha do roteiro › padrão do personagem › mesmo nome. A lista do Ateliê vem do
+`GET /personagens` (nome = metadata do `personagem.json`; pastas = `personagens/pastas.json`; miniatura = `thumb` do `personagem.json`).
 
 Cor de um personagem: `prep.legenda.cores[nome.toLowerCase()]` → senão `personagens.json[nome.toLowerCase()].cor` → senão
 `cores.json[nome.toLowerCase()]` → senão a cor padrão do programa. Foto (opcional): `personagens.json[…].foto` (chave do WEBP).
@@ -117,7 +119,7 @@ Cor de um personagem: `prep.legenda.cores[nome.toLowerCase()]` → senão `perso
 | `POST /preparativos/acao {acao:'falas', id, falas:[{id, audio, duracao}]}` | liga os áudios às falas numa gravação só; o áudio antigo da fala é apagado | gravar |
 | `POST /preparativos/acao {acao:'marca', id, destino?, status?}` | destino e situação | pronto |
 | `POST /preparativos/acao {acao:'legenda', id, ativa, mostrarNome, cores}` | legendas do preparativo + as cores vão para `personagens.json` | organizar |
-| `POST /preparativos/acao {acao:'personagens', itens:{ "<nome>": { nome?, cor?, foto?, grupo? } }}` | muda personagens da equipe (`null` tira foto/grupo; foto antiga é apagada) → `{ personagens }` | organizar |
+| `POST /preparativos/acao {acao:'personagens', itens:{ "<nome>": { nome?, cor?, foto?, grupo?, atelie? } }}` | muda personagens da equipe (`null` tira foto/grupo; foto antiga é apagada; `atelie: null` = nenhum, `atelie: "auto"` tira o padrão) → `{ personagens }` | organizar |
 | `POST /preparativos/acao {acao:'cores', cores}` | (antigo) junta cores → `personagens.json` | organizar |
 | `POST /preparativos/acao {acao:'usado', id, programa, projeto}` | **o programa que usou avisa aqui** (Animador/Shorts/Editor) | ver |
 | `DELETE /preparativos/arquivo?k=preparativos/<id>/` | apaga o preparativo inteiro | quem criou ou ADM |

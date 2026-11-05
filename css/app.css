@@ -416,3 +416,4 @@ body.modo-doc:not(.claro) .rv-pg span{color:#9aa0a6}
 .el-esc:hover{background:var(--panel-3)}
 .el-lin{grid-template-columns:auto minmax(90px,auto) auto auto auto minmax(180px,280px) 1fr}
 @media (max-width:820px){.el-esc{grid-column:1/-1}}
+.pc-an{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.pc-an small{color:var(--muted)}
