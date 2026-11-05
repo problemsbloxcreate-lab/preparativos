@@ -83,7 +83,7 @@ function marcaSujo() { S.sujo = true; pintaBarraPrep(); clearTimeout(tGuarda); t
 const tela = () => $('#tela');
 function trocaAba(a) { S.aba = a; S.P = null; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === a)); history.replaceState(null, '', a === 'roteiros' ? './' : './?aba=' + a); pinta(); }
 async function sairDoPrep() { if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; history.replaceState(null, '', './'); pinta(); return true; }
-function pinta() { if (S.P) return pintaPrep(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'cores') return pintaCores(); return pintaInicio(); }
+function pinta() { if (S.P) return pintaPrep(); modoDoc(false); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'cores') return pintaCores(); return pintaInicio(); }
 // bolinha com as iniciais do personagem, na cor dele (sem rosto de personagem)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
 const ava = (nome, cor, tam = '') => `<span class="ava ${tam}" style="--c:${cor}" title="${esc(nome)}">${esc(iniciais(nome))}</span>`;
@@ -136,22 +136,60 @@ async function abrePrep(P, base) {
   if (!S.cores) Nuvem.cores().then(c => { S.cores = c || {}; if (S.P) { S.ed?.repinta(); if (S.sub !== 'roteiro') pintaCorpo(); } }).catch(() => { S.cores = {}; });
   history.replaceState(null, '', './?id=' + encodeURIComponent(P.id)); pintaPrep();
 }
+// MODO DOCUMENTO (pedido da dona, 05/11/2026): com um roteiro aberto a tela inteira fica no estilo do Google Docs, com UM cabeçalho só
+// (o do Preparativos some e o botão da conta /estudio-conta.js vem para o canto deste, como a foto no Docs)
+let contaOrig = null;
+function modoDoc(on) {
+  document.body.classList.toggle('modo-doc', !!on);
+  const sp = document.querySelector('[data-estudio-conta]'); if (!sp) return;
+  if (on) { if (!contaOrig) contaOrig = { pai: sp.parentNode, prox: sp.nextSibling }; const alvo = $('.dh-conta'); if (alvo && sp.parentNode !== alvo) alvo.appendChild(sp); }
+  else if (contaOrig && sp.parentNode !== contaOrig.pai) { contaOrig.pai.insertBefore(sp, contaOrig.prox); }
+}
+// menus do cabeçalho (Arquivo, Editar…): abre no clique; com um aberto, passar o mouse troca (como no Docs)
+function menus(nav, def) {
+  let aberto = null; const fecha = () => { aberto?.caixa.remove(); aberto?.bt.classList.remove('on'); aberto = null; };
+  const abre = (bt, itens) => { fecha(); const caixa = h('<div class="dh-menu" role="menu"></div>');
+    for (const it of itens()) { if (it === '-') { caixa.appendChild(h('<hr>')); continue; } const [rot, atalho, fn, off] = it;
+      const b = h(`<button role="menuitem" ${off ? 'disabled' : ''}><span>${rot}</span><small>${esc(atalho || '')}</small></button>`); b.onmousedown = e => e.preventDefault(); b.onclick = () => { fecha(); fn(); }; caixa.appendChild(b); }
+    const r = bt.getBoundingClientRect(); caixa.style.left = r.left + 'px'; caixa.style.top = r.bottom + 2 + 'px'; document.body.appendChild(caixa); bt.classList.add('on'); aberto = { bt, caixa }; };
+  for (const [nome, itens] of def) { const bt = h(`<button>${esc(nome)}</button>`); bt.onmousedown = e => e.preventDefault();
+    bt.onclick = () => aberto?.bt === bt ? fecha() : abre(bt, itens); bt.onmouseenter = () => { if (aberto && aberto.bt !== bt) abre(bt, itens); }; nav.appendChild(bt); }
+  addEventListener('mousedown', e => { if (aberto && !e.target.closest('.dh-menu, .dh-menus')) fecha(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape') fecha(); });
+}
+const GUIAS = [['roteiro', 'Roteiro', 'doc'], ['falas', 'Falas e gravação', 'mic'], ['legendas', 'Legendas', 'legenda']];
+function irGuia(k) { S.sub = k; $$('.guias [data-sub]').forEach(x => x.classList.toggle('on', x.dataset.sub === k)); pintaCorpo(); }
+function baixaTexto() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([S.P.roteiro || ''], { type: 'text/plain;charset=utf-8' })); a.download = (S.P.nome || 'roteiro').replace(/[^\w\- ]+/g, '_') + '.txt'; a.click(); }
+function mostraComo() { const m = h(`<div class="modal"><div class="caixa larga">${COMO}<div class="bts"><button class="bt pri">Entendi</button></div></div></div>`); $('button', m).onclick = () => m.remove(); m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
+addEventListener('keydown', e => { if (!S.P || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return; e.preventDefault(); if (S.sujo) salvaPrep($('.prep [data-salva]')); else aviso('Já está salvo na nuvem.', 'ok', 1800); });
+
 function pintaPrep() {
   const P = S.P, el = tela(), pp = pode('pronto'), ordem = PREP_CONFIG.status.map(x => x[0]), at = ordem.indexOf(P.status || 'rascunho');
-  el.innerHTML = `<section class="prep"><div class="cab-doc">
-      <button class="bt ic" data-volta title="Voltar aos roteiros">${ic('voltar')}</button>
-      <span class="doc-ic">${ic('doc', 22)}</span>
-      <div class="titulo"><input class="nome" value="${esc(P.nome)}" ${pode('roteiro') ? '' : 'readonly'} aria-label="Nome do roteiro"><span class="salvar"></span></div>
+  el.innerHTML = `<section class="prep">
+    <header class="dh">
+      <button class="dh-logo" data-volta title="Voltar aos roteiros"><span data-estudio-icone="pr"></span></button>
+      <div class="dh-meio">
+        <div class="dh-l1"><input class="nome" value="${esc(P.nome)}" ${pode('roteiro') ? '' : 'readonly'} aria-label="Nome do roteiro" size="${Math.max(8, Math.min(40, P.nome.length + 1))}"><span class="salvar"></span></div>
+        <nav class="dh-menus"></nav>
+      </div>
       <span class="esp"></span>
-      <div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 18)}<span>${esc(n)}</span></button>`).join('')}</div>
-      <div class="etapas" role="group" aria-label="Situação">${PREP_CONFIG.status.map(([v, n], i) => `<button data-status="${v}" class="${i < at ? 'feito' : i === at ? 'on' : ''}" ${pp ? '' : 'disabled'} title="${esc(ETAPA_TIT[v])}"><i>${i < at ? ic('ok', 12) : i + 1}</i>${esc(n)}</button>`).join('')}</div>
+      <div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 20)}</button>`).join('')}</div>
+      <div class="etapas" role="group" aria-label="Situação">${PREP_CONFIG.status.map(([v, n], i) => `<button data-status="${v}" class="${i < at ? 'feito' : i === at ? 'on' : ''}" ${pp ? '' : 'disabled'} title="${esc(ETAPA_TIT[v])}"><i>${i < at ? ic('ok', 12) : i + 1}</i><span>${esc(n)}</span></button>`).join('')}</div>
       <span class="enviar"></span>
-    </div>
-    <p class="etapa-dica etapa-${esc(P.status || 'rascunho')}">${ETAPA_DICA(P)}</p>
-    <nav class="sub">${[['roteiro', 'Roteiro', 'doc'], ['falas', 'Falas e gravação', 'mic'], ['legendas', 'Legendas', 'legenda']].map(([k, n, i]) => `<button data-sub="${k}" class="${S.sub === k ? 'on' : ''}">${ic(i, 15)} ${n}</button>`).join('')}</nav>
-    <div class="corpo"></div></section>`;
+      <span class="dh-conta"></span>
+    </header>
+    <div class="dh-barra"></div>
+    <div class="dh-area">
+      <aside class="guias"><div class="g-tit">Guias do roteiro</div>
+        ${GUIAS.map(([k, n, i]) => `<button data-sub="${k}" class="${S.sub === k ? 'on' : ''}">${ic(i, 16)} ${n}</button>`).join('')}
+        <p class="etapa-dica etapa-${esc(P.status || 'rascunho')}">${ETAPA_DICA(P)}</p>
+        <div class="g-roteiro"></div></aside>
+      <div class="corpo"></div>
+    </div></section>`;
+  modoDoc(true); window.EstudioIcones?.aplicar?.();
   $('[data-volta]', el).onclick = sairDoPrep;
-  const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); marcaSujo(); };
+  const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); nm.size = Math.max(8, Math.min(40, nm.value.length + 1)); marcaSujo(); };
+  nm.onkeydown = e => { if (e.key === 'Enter') { nm.blur(); S.ed?.foca(); } };
   const mudaMarca = async (campo, v) => {
     if (campo === 'status' && v === P.status) return;
     if (campo === 'status' && v === 'pronto') { // pronto = vai para um programa: precisa do destino e avisa o que falta gravar
@@ -169,13 +207,35 @@ function pintaPrep() {
   };
   $$('[data-destino]', el).forEach(b => b.onclick = () => mudaMarca('destino', P.destino === b.dataset.destino ? '' : b.dataset.destino));
   $$('[data-status]', el).forEach(b => b.onclick = () => mudaMarca('status', b.dataset.status));
-  $$('[data-sub]', el).forEach(b => b.onclick = () => { S.sub = b.dataset.sub; $$('[data-sub]', el).forEach(x => x.classList.toggle('on', x === b)); pintaCorpo(); });
+  $$('.guias [data-sub]', el).forEach(b => b.onclick = () => irGuia(b.dataset.sub));
+  const E = () => S.sub === 'roteiro' ? S.ed : null, edita = pode('roteiro');
+  const naFolha = fn => () => { if (S.sub !== 'roteiro') irGuia('roteiro'); setTimeout(() => S.ed && fn(S.ed), 0); };
+  menus($('.dh-menus', el), [
+    ['Arquivo', () => [
+      [`${ic('mais', 15)} Novo roteiro`, '', async () => { if (await sairDoPrep()) abrePrep(novoPrep()); }, !edita],
+      [`${ic('doc', 15)} Abrir roteiros`, '', () => sairDoPrep()],
+      '-', [`${ic('nuvem', 15)} Mandar para a nuvem`, 'Ctrl+S', () => salvaPrep($('.prep [data-salva]')), !S.sujo],
+      [`${ic('enviar', 15)} Baixar como texto (.txt)`, '', baixaTexto],
+      '-', [`${ic('luz', 15)} Ideias`, '', async () => { if (await sairDoPrep()) trocaAba('ideias'); }],
+      [`${ic('legenda', 15)} Cores das legendas`, '', async () => { if (await sairDoPrep()) trocaAba('cores'); }]]],
+    ['Editar', () => [[`${ic('desfazer', 15)} Desfazer`, 'Ctrl+Z', () => E()?.desfaz(), !E()], [`${ic('refazer', 15)} Refazer`, 'Ctrl+Y', () => E()?.refaz(), !E()], '-', ['Selecionar tudo', 'Ctrl+A', () => E()?.tudo(), !E()]]],
+    ['Ver', () => [...GUIAS.map(([k, n, i]) => [`${ic(i, 15)} ${n}`, S.sub === k ? '✓' : '', () => irGuia(k)]), '-', ['Mostrar as guias do lado', document.body.classList.contains('sem-guias') ? '' : '✓', () => document.body.classList.toggle('sem-guias')]]],
+    ['Inserir', () => [[`${ic('titulo', 15)} Parte nova`, '', naFolha(e => e.novaLinha(`## ${Roteiro.norm(P.nome)} parte ${P.partes.length + 1}`, { espaco: true })), !edita],
+      ...Roteiro.personagens(P.partes).map(p => [`${ava(p.nome, coresDoRoteiro().get(p.chave), 'p')} Fala de ${esc(p.nome)}`, '', naFolha(e => e.novaLinha(p.nome + ': ')), !edita]),
+      [`${ic('pessoa', 15)} Fala de um personagem novo…`, '', async () => { const n = (await pedeTexto('Personagem novo', 'Nome do personagem (como vai aparecer no roteiro)') || '').replace(/[:*#\[\]()]/g, '').trim().slice(0, 40); if (n) naFolha(e => e.novaLinha(n + ': '))(); }, !edita],
+      '-', ['<i class="ital">I</i>&nbsp; Ação (o que está acontecendo)', '', naFolha(e => e.novaLinha('**', { recua: 1 })), !edita],
+      ['[ ] Indicação de cena', '', naFolha(e => e.novaLinha('[]', { recua: 1 })), !edita], ['// Comentário para a equipe', '', naFolha(e => e.novaLinha('// ')), !edita]]],
+    ['Formatar', () => [['Texto normal', '', naFolha(e => e.estilo('normal')), !edita], [`${ic('pessoa', 15)} Nome do personagem (seleção)`, '', naFolha(e => e.estilo('nome')), !edita],
+      ['<i class="ital">I</i>&nbsp; Ação / explicação da cena', 'Ctrl+I', naFolha(e => e.estilo('acao')), !edita], [`${ic('titulo', 15)} Título de uma parte`, '', naFolha(e => e.estilo('parte')), !edita], ['// Comentário', '', naFolha(e => e.estilo('comentario')), !edita]]],
+    ['Ferramentas', () => [[`${ic('organizar', 15)} Organizar o roteiro`, '', naFolha(e => Organizar.roda($('[data-org]') || h('<button></button>'), e)), !pode('organizar')], [`${ic('mic', 15)} Gravar as falas`, '', () => irGuia('falas')], [`${ic('legenda', 15)} Cores das legendas`, '', () => irGuia('legendas')]]],
+    ['Ajuda', () => [[`${ic('ajuda', 15)} Como escrever o roteiro`, '', mostraComo]]],
+  ]);
   pintaBarraPrep(); pintaCorpo();
 }
 function pintaBarraPrep() {
   const P = S.P, sv = $('.prep .salvar'), en = $('.prep .enviar'); if (!P || !sv) return;
-  sv.innerHTML = S.sujo ? `<span class="aqui">${ic('alerta', 13)} Guardado neste computador</span>` : P.mod ? `<span class="salvo">${ic('nuvem', 13)} Salvo na nuvem · ${esc(quando(P.mod))}</span>` : '';
-  en.innerHTML = S.sujo ? `<button class="bt pri" data-salva>${ic('nuvem')} Mandar para a nuvem</button>` : '';
+  sv.innerHTML = S.sujo ? `<span class="aqui" title="Ainda não foi para a nuvem">${ic('alerta', 15)} Guardado neste computador</span>` : P.mod ? `<span class="salvo" title="Salvo na nuvem · ${esc(quando(P.mod))}">${ic('nuvem', 16)}${ic('ok', 11)}</span>` : '';
+  en.innerHTML = S.sujo ? `<button class="bt pri pilula" data-salva>${ic('nuvem')} Mandar para a nuvem</button>` : `<span class="pilula ok">${ic('nuvem')} Na nuvem</span>`;
   const b = $('[data-salva]', en); if (b) b.onclick = () => salvaPrep(b);
 }
 async function salvaPrep(bt) {
@@ -198,7 +258,14 @@ async function salvaPrep(bt) {
   } catch (e) { aviso(e.message, 'erro'); }
   finally { pintaBarraPrep(); }
 }
-function pintaCorpo() { const c = $('.prep .corpo'); if (!c) return; if (S.sub !== 'roteiro') S.ed = null; if (S.sub === 'falas') return Falas.pinta(c); if (S.sub === 'legendas') return pintaLegendas(c); return pintaRoteiro(c); }
+function pintaCorpo() {
+  const c = $('.prep .corpo'); if (!c) return; if (S.sub !== 'roteiro') S.ed = null;
+  const barra = $('.prep .dh-barra'), gr = $('.prep .g-roteiro'); if (gr) gr.innerHTML = '';
+  c.className = 'corpo corpo-' + S.sub;
+  if (S.sub !== 'roteiro' && barra) barra.innerHTML = `<div class="db-pilula"><span class="db-tit">${ic(S.sub === 'falas' ? 'mic' : 'legenda', 16)} ${S.sub === 'falas' ? 'Falas e gravação' : 'Legendas'}</span><span class="esp"></span><button class="bt" data-volta-rot>${ic('doc', 15)} Voltar ao roteiro</button></div>`;
+  $('[data-volta-rot]', barra || document)?.addEventListener('click', () => irGuia('roteiro'));
+  if (S.sub === 'falas') return Falas.pinta(c); if (S.sub === 'legendas') return pintaLegendas(c); return pintaRoteiro(c);
+}
 // cor de cada personagem do roteiro aberto (na ordem em que aparecem)
 function coresDoRoteiro() { const m = new Map(); Roteiro.personagens(S.P?.partes).forEach((p, i) => m.set(p.chave, corOuPadrao(p.nome, i))); return m; }
 
@@ -210,49 +277,59 @@ const COMO = `<div class="como"><b>Como escrever</b>
   <div class="ex"><i><span class="mk">*</span>Problems abre a porta.<span class="mk">*</span></i><small>linha em itálico = ação / cena</small></div>
   <div class="ex"><i>[a câmera se aproxima]</i><small>colchetes = cena</small></div>
   <p>Dica: selecione um trecho (ou clique com o botão direito nele) para dizer se é <b>nome do personagem</b>, <b>ação</b> ou <b>título de parte</b>. Colar do Google Docs funciona: o itálico de lá vira ação.</p></div>`;
+const ESTILOS = [['normal', 'Texto normal'], ['parte', 'Título de parte'], ['acao', 'Ação / cena'], ['comentario', 'Comentário']];
+const ESTILO_DE = { v: 'normal', n: 'normal', f: 'normal', f2: 'normal', h: 'parte', a: 'acao', c: 'comentario' };
+let zoom = 1; try { zoom = +localStorage.getItem('ep-prep-zoom') || 1; } catch { }
 function pintaRoteiro(c) {
-  const P = S.P, ed = pode('roteiro');
-  c.innerHTML = `<div class="docs">
-    <div class="docs-barra">
-      ${ed ? `<button class="bt ic" data-desf title="Desfazer (Ctrl+Z)">${ic('desfazer', 16)}</button><button class="bt ic" data-ref title="Refazer (Ctrl+Y)">${ic('refazer', 16)}</button><span class="sep"></span>
-      <button class="bt" data-parte title="Começa uma parte nova">${ic('titulo', 15)} Parte</button>
-      <div class="falade"><button class="bt" data-falade title="Começa uma fala de um personagem">${ic('pessoa', 15)} Fala de… ${ic('baixo', 12)}</button><div class="lista-pers" hidden></div></div>
-      <button class="bt" data-acao title="Ação ou explicação da cena (Ctrl+I)"><i class="ital">I</i> Ação</button><span class="sep"></span>` : '<span class="ler">Só leitura</span>'}
-      ${pode('organizar') ? `<button class="bt" data-org title="Arruma um texto solto em partes e falas">${ic('organizar', 15)} Organizar</button>` : ''}
-      <span class="esp"></span><button class="bt" data-como>${ic('ajuda', 15)} Como escrever</button>
+  const P = S.P, ed = pode('roteiro'), barra = $('.prep .dh-barra'), gr = $('.prep .g-roteiro');
+  barra.innerHTML = `<div class="db-pilula">
+      ${ed ? `<button class="db" data-desf title="Desfazer (Ctrl+Z)">${ic('desfazer', 17)}</button><button class="db" data-ref title="Refazer (Ctrl+Y)">${ic('refazer', 17)}</button><span class="sep"></span>` : ''}
+      <select class="db-sel" data-zoom title="Zoom">${[.75, .9, 1, 1.25, 1.5].map(z => `<option value="${z}" ${z === zoom ? 'selected' : ''}>${Math.round(z * 100)}%</option>`).join('')}</select><span class="sep"></span>
+      ${ed ? `<select class="db-sel largo" data-estilo title="Estilo da linha">${ESTILOS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select><span class="sep"></span>
+      <div class="falade"><button class="db" data-falade title="Começa uma fala de um personagem">${ic('pessoa', 16)} Fala de… ${ic('baixo', 12)}</button><div class="lista-pers" hidden></div></div>
+      <button class="db" data-acao title="Ação / explicação da cena (Ctrl+I)"><i class="ital">I</i></button>
+      <button class="db" data-parte title="Parte nova">${ic('titulo', 16)}</button><span class="sep"></span>` : ''}
+      ${pode('organizar') ? `<button class="db" data-org title="Arruma um texto solto em partes e falas">${ic('organizar', 16)} Organizar</button>` : ''}
+      <span class="esp"></span>
+      <button class="db" data-como title="Como escrever">${ic('ajuda', 16)}</button>
+      <span class="db-modo">${ed ? `${ic('doc', 15)} Edição` : `${ic('doc', 15)} Só leitura`}</span>
     </div>
-    <div class="docs-area">
-      <aside class="estrutura"><h3>Partes</h3><ol class="partes"></ol><h3>Personagens</h3><div class="pers"></div></aside>
-      <div class="mesa"><div class="pagina"><div class="folha"></div></div></div>
-    </div></div>`;
+    <div class="regua"><div class="r-folha">${Array.from({ length: 18 }, (_, i) => `<span style="left:${84 + (i + 1) * 37.8 - 3}px">${i + 1}</span>`).join('')}</div></div>`;
+  c.innerHTML = `<div class="mesa"><div class="pagina" style="zoom:${zoom}"><div class="folha"></div></div></div>`;
+  gr.innerHTML = `<div class="g-tit">Partes</div><ol class="partes"></ol><div class="g-tit">Personagens</div><div class="pers"></div>`;
   const cores = () => coresDoRoteiro();
   let t = 0;
   const E = S.ed = Editor.cria($('.folha', c), { texto: P.roteiro || '', somenteLer: !ed,
     cor: n => cores().get(Roteiro.chave(n)) || corOuPadrao(n, Roteiro.personagens(P.partes).length),
-    aoMudar: tx => { P.roteiro = tx; marcaSujo(); clearTimeout(t); t = setTimeout(() => { const antes = [...cores().keys()].join(); P.partes = Roteiro.separa(P.roteiro, P.partes); lado(); if ([...cores().keys()].join() !== antes) E.repinta(); }, 200); } });
+    aoMudar: tx => { P.roteiro = tx; marcaSujo(); clearTimeout(t); t = setTimeout(() => { const antes = [...cores().keys()].join(); P.partes = Roteiro.separa(P.roteiro, P.partes); lado(); if ([...cores().keys()].join() !== antes) E.repinta(); }, 200); },
+    aoMover: () => { const s = $('[data-estilo]', barra); const tp = E.tipoAtual(); if (s && tp) s.value = ESTILO_DE[tp] || 'normal'; } });
   if (!P.roteiro && ed) E.el.dataset.vazio = 'Comece aqui. Ex.: "## Episódio 1 parte 1" e depois "Problems: Oi, gente!"';
   const lado = () => {
     const ps = Roteiro.personagens(P.partes), cs = cores(), linhas = E.linhas(); let hi = 0;
-    $('.partes', c).innerHTML = P.partes.map(p => { while (hi < linhas.length && !(linhas[hi].t === 'h' && Roteiro.chave(linhas[hi].nome) === Roteiro.chave(p.nome))) hi++; const l = hi < linhas.length ? hi++ : -1;
-      return `<li><button data-linha="${l}"><b>${esc(p.nome)}</b><small>${p.falas.length} fala${p.falas.length === 1 ? '' : 's'}${p.falas.some(f => f.regravar) ? ' · <span class="aten">regravar</span>' : ''}</small></button></li>`; }).join('') || '<li class="dica">Escreva "## Nome da parte".</li>';
-    $('.pers', c).innerHTML = ps.map(p => `<button class="pchip" data-pers="${esc(p.nome)}" title="Nova fala de ${esc(p.nome)}">${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span><small>${p.n}</small></button>`).join('') || '<p class="dica">Escreva <b>Nome: fala</b> e o personagem aparece aqui.</p>';
-    $$('[data-linha]', c).forEach(b => b.onclick = () => { const l = +b.dataset.linha; if (l >= 0) E.irPara(l); });
-    $$('[data-pers]', c).forEach(b => b.onclick = () => ed && E.novaLinha(b.dataset.pers + ': '));
-    const lp = $('.lista-pers', c); if (lp) lp.innerHTML = ps.map(p => `<button data-np="${esc(p.nome)}">${ava(p.nome, cs.get(p.chave), 'p')} ${esc(p.nome)}</button>`).join('') + `<button data-np="">${ic('mais', 14)} Personagem novo…</button>`;
+    $('.partes', gr).innerHTML = P.partes.map(p => { while (hi < linhas.length && !(linhas[hi].t === 'h' && Roteiro.chave(linhas[hi].nome) === Roteiro.chave(p.nome))) hi++; const l = hi < linhas.length ? hi++ : -1;
+      return `<li><button data-linha="${l}"><b>${esc(p.nome)}</b><small>${p.falas.length} fala${p.falas.length === 1 ? '' : 's'}${p.falas.some(f => f.regravar) ? ' · <span class="aten">regravar</span>' : ''}</small></button></li>`; }).join('') || '<li class="dica">Os títulos das partes aparecem aqui.</li>';
+    $('.pers', gr).innerHTML = ps.map(p => `<button class="pchip" data-pers="${esc(p.nome)}" title="Nova fala de ${esc(p.nome)}">${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span><small>${p.n}</small></button>`).join('') || '<p class="dica">Escreva <b>Nome: fala</b> e o personagem aparece aqui.</p>';
+    $$('[data-linha]', gr).forEach(b => b.onclick = () => { const l = +b.dataset.linha; if (l >= 0) E.irPara(l); });
+    $$('[data-pers]', gr).forEach(b => b.onclick = () => ed && E.novaLinha(b.dataset.pers + ': '));
+    const lp = $('.lista-pers', barra); if (lp) lp.innerHTML = ps.map(p => `<button data-np="${esc(p.nome)}">${ava(p.nome, cs.get(p.chave), 'p')} ${esc(p.nome)}</button>`).join('') + `<button data-np="">${ic('mais', 14)} Personagem novo…</button>`;
   };
   lado();
-  $('[data-desf]', c)?.addEventListener('click', () => E.desfaz()); $('[data-ref]', c)?.addEventListener('click', () => E.refaz());
-  $('[data-parte]', c)?.addEventListener('click', () => E.novaLinha(`## ${Roteiro.norm(P.nome)} parte ${P.partes.filter(p => p.falas.length || /parte/i.test(p.nome)).length + 1}`, { espaco: true }));
-  $('[data-acao]', c)?.addEventListener('mousedown', e => e.preventDefault()); $('[data-acao]', c)?.addEventListener('click', () => E.italico());
-  const fd = $('[data-falade]', c), lp = $('.lista-pers', c);
-  fd?.addEventListener('mousedown', e => e.preventDefault()); lp?.addEventListener('mousedown', e => e.preventDefault());
+  const sem = e => e.preventDefault(); // os botões da barra não tiram o foco da folha
+  $$('.db, .db-sel', barra).forEach(b => { if (b.tagName === 'BUTTON') b.addEventListener('mousedown', sem); });
+  $('[data-desf]', barra)?.addEventListener('click', () => E.desfaz()); $('[data-ref]', barra)?.addEventListener('click', () => E.refaz());
+  $('[data-zoom]', barra).onchange = e => { zoom = +e.target.value; $('.pagina', c).style.zoom = zoom; try { localStorage.setItem('ep-prep-zoom', zoom); } catch { } };
+  $('[data-estilo]', barra)?.addEventListener('change', e => { E.estilo(e.target.value); E.foca(); });
+  $('[data-parte]', barra)?.addEventListener('click', () => E.novaLinha(`## ${Roteiro.norm(P.nome)} parte ${P.partes.length + 1}`, { espaco: true }));
+  $('[data-acao]', barra)?.addEventListener('click', () => E.italico());
+  const fd = $('[data-falade]', barra), lp = $('.lista-pers', barra);
+  lp?.addEventListener('mousedown', sem);
   fd?.addEventListener('click', () => { lp.hidden = !lp.hidden; });
   lp?.addEventListener('click', async e => { const b = e.target.closest('[data-np]'); if (!b) return; lp.hidden = true; let n = b.dataset.np;
     if (!n) { n = await pedeTexto('Personagem novo', 'Nome do personagem (como vai aparecer no roteiro)'); if (!n) return; n = n.replace(/[:*#\[\]()]/g, '').trim().slice(0, 40); if (!n) return; }
     E.novaLinha(n + ': '); });
   addEventListener('mousedown', e => { if (lp && !lp.hidden && !e.target.closest('.falade')) lp.hidden = true; });
-  $('[data-org]', c)?.addEventListener('click', e => Organizar.roda(e.currentTarget, E));
-  $('[data-como]', c).onclick = () => { const m = h(`<div class="modal"><div class="caixa larga">${COMO}<div class="bts"><button class="bt pri">Entendi</button></div></div></div>`); $('button', m).onclick = () => m.remove(); m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); };
+  $('[data-org]', barra)?.addEventListener('click', e => Organizar.roda(e.currentTarget, E));
+  $('[data-como]', barra).onclick = mostraComo;
   if (ed && !P.roteiro) setTimeout(() => E.foca(), 50);
 }
 function pedeTexto(titulo, rotulo) {
@@ -410,38 +487,100 @@ function pintaLegendas(c) {
 
 /* ---------- aba Cores das legendas (todas as que a equipe já usou) ---------- */
 async function pintaCores() {
-  const el = tela(); el.innerHTML = `<section class="inicio"><div class="cab"><h1>Cores das legendas</h1></div><p class="dica">Cada personagem tem uma cor, pelo nome (sem diferenciar maiúscula e minúscula). Os roteiros novos já começam com estas cores.</p><div class="leg"><div class="lista"><div class="vazio">Carregando…</div></div></div></section>`;
+  const el = tela(); el.innerHTML = `<section class="inicio"><div class="cab"><h1>Cores das legendas</h1></div>
+    <p class="dica">Cada personagem tem uma cor, pelo nome (sem diferenciar maiúscula e minúscula). Os roteiros novos já começam com estas cores.</p>
+    <div class="leg2"><div class="esq"><div class="lista"><div class="vazio">Carregando…</div></div></div>
+    <div class="dir"><div class="tela-video"><div class="ceu"></div><div class="chao"></div><div class="leg-previa">Exemplo de legenda</div></div><small class="dica">Prévia: clique num personagem.</small></div></div></section>`;
   try { S.cores = await Nuvem.cores() || {}; } catch (e) { $('.lista', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
-  const ed = pode('organizar'), lista = $('.lista', el), pintaL = () => {
-    lista.innerHTML = Object.entries(S.cores).sort().map(([k, c]) => `<div class="lin"><input type="color" value="${esc(c)}" data-k="${esc(k)}" ${ed ? '' : 'disabled'}><b>${esc(k)}</b><span class="previa" style="color:${esc(c)}">Exemplo de legenda</span></div>`).join('') || '<div class="vazio">Nenhuma cor salva ainda.</div>';
-    if (ed) lista.appendChild(h(`<div class="lin nova"><input type="color" value="#19f0f0"><input class="txt" placeholder="Nome do personagem" maxlength="40"><button class="bt pri">${ic('mais', 15)} Salvar</button></div>`));
-    $$('input[type=color][data-k]', lista).forEach(i => i.onchange = () => manda({ [i.dataset.k]: i.value }));
-    const nv = $('.nova', lista); if (nv) $('button', nv).onclick = () => { const n = Roteiro.chave($('.txt', nv).value); if (!n) return aviso('Escreva o nome do personagem.', 'info'); manda({ [n]: $('input[type=color]', nv).value }); };
-  };
+  const ed = pode('organizar'), lista = $('.lista', el), pv = $('.leg-previa', el);
+  const mostra = (nome, cor) => { pv.style.color = cor; pv.textContent = `${nome[0]?.toUpperCase() || ''}${nome.slice(1)}: exemplo de legenda`; };
   const manda = async cores => { try { const r = await Nuvem.acao({ acao: 'cores', cores }); S.cores = r.cores || { ...S.cores, ...cores }; aviso('Cor salva.', 'ok'); pintaL(); } catch (e) { aviso(e.message, 'erro'); } };
+  const linha = (k, cor, nova) => `<div class="lin ${nova ? 'nova' : ''}" data-k="${esc(k)}">${nova ? `<span class="ava p todos">${ic('mais', 12)}</span><input class="txt" placeholder="Nome do personagem" maxlength="40">` : `${ava(k, cor, 'p')}<b>${esc(k)}</b>`}
+    <div class="paleta">${PALETA.map(x => `<button class="cor ${x === cor ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<input type="color" value="${esc(cor)}" ${ed ? '' : 'disabled'} title="Outra cor"></div></div>`;
+  const pintaL = () => {
+    const E = Object.entries(S.cores).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
+    lista.innerHTML = (E.map(([k, c]) => linha(k, c)).join('') || '<div class="vazio">Nenhuma cor salva ainda. As cores escolhidas na aba Legendas de um roteiro aparecem aqui.</div>') + (ed ? linha('', PALETA[E.length % PALETA.length], true) : '');
+    $$('.lin', lista).forEach(l => { const k = l.dataset.k, nova = l.classList.contains('nova'), nomeDe = () => nova ? Roteiro.chave($('.txt', l).value) : k;
+      const usa = cor => { $$('.cor', l).forEach(b => b.classList.toggle('on', b.dataset.cor === cor)); $('input[type=color]', l).value = cor; mostra(nomeDe() || 'personagem', cor);
+        if (!nova) manda({ [k]: cor }); else l.dataset.cor = cor; };
+      l.onclick = e => { if (!e.target.closest('button,input')) mostra(k, S.cores[k]); };
+      $$('.cor', l).forEach(b => b.onclick = () => usa(b.dataset.cor)); $('input[type=color]', l).onchange = e => usa(e.target.value);
+      if (nova) { const i = $('.txt', l); i.onkeydown = e => { if (e.key !== 'Enter') return; const n = nomeDe(); if (!n) return aviso('Escreva o nome do personagem.', 'info'); manda({ [n]: l.dataset.cor || $('input[type=color]', l).value }); };
+        i.placeholder = 'Nome do personagem (escolha a cor e aperte Enter)'; } });
+    const [k0, c0] = E[0] || ['problems', '#19f0f0']; mostra(k0, c0);
+  };
   pintaL();
 }
 
 /* ---------- aba Ideias (mesmos dados das Ideias do Animador: /ideias → ideias/*.json) ---------- */
+const num = n => { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(1).replace('.0', '').replace('.', ',') + ' mi' : n >= 1e3 ? Math.round(n / 1e3) + ' mil' : String(n); };
 const Ideias = {
-  S: null,
+  S: null, formato: 'todos',
   async pinta(novo) {
-    const el = tela(); el.innerHTML = `<section class="inicio"><div class="cab"><h1>Ideias</h1><span class="esp"></span>${pode('ideias') ? `<button class="bt" data-an title="Pede de novo a análise dos canais de referência">${ic('atualizar')} Atualizar análise</button><button class="bt pri" data-nova>${ic('mais')} Nova ideia</button>` : ''}</div>
-      <p class="dica analise"></p><div class="ids grade"><div class="vazio">Carregando…</div></div></section>`;
+    const el = tela(); el.innerHTML = `<section class="inicio ideias">
+      <div class="cab"><h1>Ideias</h1><span class="esp"></span>${pode('ideias') ? `<button class="bt" data-an title="Pede de novo a análise dos canais de referência">${ic('atualizar')} Atualizar análise</button><button class="bt" data-nova>${ic('mais')} Escrever ideia</button><button class="bt pri" data-sug>${ic('luz')} Sugerir ideias</button>` : ''}</div>
+      <div class="canais"></div>
+      <div class="filtros">${[['todos', 'Todas'], ['short', 'Shorts'], ['longo', 'Vídeos longos']].map(([k, n]) => `<button data-fo="${k}" class="${this.formato === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="ids grade"><div class="vazio">Carregando…</div></div></section>`;
     try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { $('.ids', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
     const A = this.S.analise, I = this.S.ideias || { lista: [] };
-    $('.analise', el).textContent = A ? `Análise dos canais de ${quando(A.em)}${this.S.canais?.length ? ' · ' + this.S.canais.join(', ') : ''}${I.padroes?.length ? ' — ' + I.padroes.slice(0, 3).join(' · ') : ''}` : 'Ainda não há análise dos canais.';
+    // o que está funcionando nos canais de referência (capinhas direto do YouTube: não gasta a nuvem)
+    $('.canais', el).innerHTML = A?.canais?.length ? `<div class="cab-an"><h3>O que está funcionando agora</h3><small class="dica">análise de ${esc(quando(A.em))}</small></div>
+      ${I.padroes?.length ? `<ul class="padroes">${I.padroes.slice(0, 6).map(p => `<li>${ic('luz', 13)} ${esc(p)}</li>`).join('')}</ul>` : ''}
+      <div class="canais-g">${A.canais.map(c => `<div class="canal"><div class="cn-cab">${c.avatar ? `<img src="${esc(c.avatar)}" alt="" referrerpolicy="no-referrer">` : ''}<div><b>${esc(c.nome)}</b><small>${esc(c.inscritos || '')} · ${esc(c.h)}</small></div></div>
+        <div class="vids">${[...(c.shorts?.bem || []).slice(0, 2).map(v => ({ v, sh: 1 })), ...(c.longos?.bem || []).slice(0, 2).map(v => ({ v, sh: 0 }))].map(({ v, sh }) => `<a class="vid" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${esc(v.id)}/mqdefault.jpg" alt="" loading="lazy" referrerpolicy="no-referrer"><span class="fmt">${sh ? 'Short' : esc(v.dur || 'Longo')}</span><b>${esc(v.titulo)}</b><small>${num(v.views)} views${v.nota ? ` · ${String(v.nota).replace('.', ',')}× a média` : ''}</small></a>`).join('')}</div></div>`).join('')}</div>`
+      : '<p class="dica">Ainda não há análise dos canais de referência.</p>';
     $('[data-an]', el)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r = await Nuvem.json('/ideias', 'POST', { acao: 'atualizar', canais: this.S.canais || [] }); aviso(r.ja ? 'A análise já foi pedida há pouco.' : 'Análise pedida. Ela chega em alguns minutos.', 'ok'); } catch (er) { aviso(er.message, 'erro'); } });
     $('[data-nova]', el)?.addEventListener('click', () => this.edita(null));
-    const g = $('.ids', el); g.innerHTML = I.lista?.length ? '' : '<div class="vazio">Nenhuma ideia ainda.</div>';
-    for (const x of I.lista || []) {
-      const c = h(`<div class="cartao ideia"><span class="st">${x.formato === 'longo' ? 'Vídeo longo' : 'Short'}</span><b>${esc(x.titulo)}</b>${x.gancho ? `<small class="gancho">“${esc(x.gancho)}”</small>` : ''}<small>${esc(x.resumo || '')}</small>
+    $('[data-sug]', el)?.addEventListener('click', e => this.sugere(e.currentTarget));
+    $$('[data-fo]', el).forEach(b => b.onclick = () => { this.formato = b.dataset.fo; this.pinta(); });
+    const g = $('.ids', el), L = (I.lista || []).filter(x => this.formato === 'todos' || x.formato === this.formato);
+    g.innerHTML = L.length ? '' : `<div class="vazio">${I.lista?.length ? 'Nenhuma ideia deste formato.' : `Nenhuma ideia ainda.${pode('ideias') && A ? ' Use "Sugerir ideias" para ganhar ideias a partir do que está funcionando, ou escreva a sua.' : ''}`}</div>`;
+    for (const x of L) {
+      const c = h(`<div class="cartao ideia ${x.formato === 'longo' ? 'longo' : 'short'}"><div class="topo"><span class="st">${x.formato === 'longo' ? 'Vídeo longo' : 'Short'}</span>${x.esforco ? `<span class="dica">esforço ${esc(x.esforco)}</span>` : ''}</div>
+        <b>${esc(x.titulo)}</b>${x.gancho ? `<p class="gancho">“${esc(x.gancho)}”</p>` : ''}<small>${esc(x.resumo || '')}</small>
+        ${x.porque ? `<small class="pq">${ic('luz', 12)} ${esc(x.porque)}</small>` : ''}${x.personagens?.length ? `<div class="elenco">${x.personagens.slice(0, 5).map((p, i) => ava(p, corDe(p) || coresPadrao[i % coresPadrao.length], 'p')).join('')}</div>` : ''}
         <div class="bts">${pode('roteiro') ? `<button class="bt pri" data-rot>${ic('doc', 14)} Virar roteiro</button>` : ''}${pode('ideias') ? `<button class="bt" data-ed>Editar</button><button class="bt ic" data-del title="Tirar esta ideia">${ic('lixo', 14)}</button>` : ''}</div></div>`);
-      $('[data-rot]', c)?.addEventListener('click', () => { const t = `// Ideia: ${x.titulo}${x.resumo ? '\n// ' + x.resumo : ''}${x.gancho ? '\n// Gancho: ' + x.gancho : ''}\n\n## ${x.titulo} parte 1\n`; S.aba = 'roteiros'; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === 'roteiros')); abrePrep(novoPrep(String(x.titulo).slice(0, 80), t)); });
+      $('[data-rot]', c)?.addEventListener('click', () => this.viraRoteiro(x, I));
       $('[data-ed]', c)?.addEventListener('click', () => this.edita(x));
       $('[data-del]', c)?.addEventListener('click', async () => { if (!await pergunta('Tirar esta ideia?', x.titulo, [['Cancelar', false], ['Tirar', true, 'perigo']])) return; I.lista = I.lista.filter(y => y !== x); this.guarda(I); });
       g.appendChild(c);
     }
+  },
+  viraRoteiro(x, I) {
+    // o que a equipe escolhe vira exemplo do gosto dela nas próximas ideias (mesmo campo do Animador)
+    I.escolhidas = [...(I.escolhidas || []), { titulo: x.titulo, formato: x.formato, em: Date.now() }].slice(-30); Nuvem.json('/ideias', 'PUT', { ideias: I }).catch(() => { });
+    const t = `// Ideia: ${x.titulo}${x.resumo ? '\n// ' + x.resumo : ''}${x.gancho ? '\n// Gancho: ' + x.gancho : ''}\n\n## ${x.titulo} parte 1\n`;
+    S.aba = 'roteiros'; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === 'roteiros')); S.sub = 'roteiro'; abrePrep(novoPrep(String(x.titulo).slice(0, 80), t));
+  },
+  // ideias novas a partir da análise dos canais (mesmo serviço do "Organizar"; nada na tela fala de IA)
+  SIS: `Você é o roteirista-chefe do canal Problems (animação 2D brasileira, Estúdio Problems). Leia a ANÁLISE dos canais de referência (números reais)
+e proponha ideias de vídeos para o NOSSO canal, com o NOSSO elenco, copiando o FORMATO e o motivo de dar certo (nunca os personagens, nomes ou histórias dos outros).
+Responda SÓ um JSON: {"padroes":["frase curta com um padrão que está funcionando, citando número", ...4 a 6],"ideias":[{"formato":"short|longo","titulo":"título no estilo do canal","gancho":"a primeira fala ou imagem (2 s)","resumo":"2-3 frases","porque":"por que deve dar certo, citando o padrão","personagens":["nomes do nosso elenco"],"esforco":"baixo|medio|alto"}]}
+Metade shorts e metade longos; formatos variados (mistério, conversa com o público, enquete, curiosidades, "e se…", desafio, clipe musical, episódio).`,
+  resumo() { const A = this.S?.analise; if (!A) return '';
+    const lin = v => `- "${v.titulo}" · ${num(v.views)} views${v.nota ? ` · ×${v.nota} da mediana` : ''}${v.dur ? ` · ${v.dur}` : ''}`;
+    return A.canais.map(c => [`CANAL ${c.nome} (${c.h}) · ${c.inscritos || ''} · mediana ${num(c.mediana?.short)} (shorts) / ${num(c.mediana?.longo)} (longos)`,
+      'SHORTS indo bem:', ...(c.shorts?.bem || []).slice(0, 10).map(lin), 'SHORTS mais vistos:', ...(c.shorts?.populares || []).slice(0, 10).map(lin),
+      'LONGOS indo bem:', ...(c.longos?.bem || []).slice(0, 8).map(lin), 'LONGOS mais vistos:', ...(c.longos?.populares || []).slice(0, 8).map(lin)].join('\n')).join('\n\n'); },
+  async sugere(bt) {
+    if (!this.S?.analise) return aviso('Ainda não há análise dos canais. Use "Atualizar análise" e espere alguns minutos.', 'info');
+    const I0 = this.S.ideias || { lista: [] }, rot = bt.innerHTML; bt.disabled = true; bt.innerHTML = '<span class="gira"></span> Pensando…';
+    try {
+      const elenco = [...new Set([...Object.keys(S.cores || await Nuvem.cores().catch(() => ({})) || {}), ...(S.lista || []).flatMap(x => x.pers || [])].map(n => Roteiro.norm(n)).filter(Boolean))].slice(0, 30);
+      const pedido = `ANÁLISE (${quando(this.S.analise.em)}):\n${this.resumo()}\n\nNOSSO ELENCO: ${elenco.join(', ') || '(use personagens genéricos do canal Problems)'}\n\n`
+        + (I0.lista?.length ? `IDEIAS QUE JÁ EXISTEM (não repita):\n${I0.lista.map(x => `- [${x.formato}] ${x.titulo}`).join('\n')}\n\n` : '')
+        + (I0.escolhidas?.length ? `IDEIAS QUE A EQUIPE JÁ ESCOLHEU (aprenda o gosto, sem repetir):\n${I0.escolhidas.slice(-15).map(x => `- [${x.formato}] ${x.titulo}`).join('\n')}\n\n` : '') + 'Escreva 8 ideias.';
+      const r = await fetch(SRV + '/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', ...(await Nuvem.hd()) }, body: JSON.stringify({ system: [{ type: 'text', text: this.SIS }], messages: [{ role: 'user', content: pedido }] }) });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error?.message || 'A nuvem não conseguiu sugerir agora.'); }
+      const saida = /event-stream/.test(r.headers.get('content-type') || '') ? await Organizar.le(r) : ((await r.json()).content || []).map(x => x.text || '').join('');
+      const m = saida.match(/\{[\s\S]*\}/); if (!m) throw new Error('Não deu para sugerir agora. Tente de novo.');
+      const j = JSON.parse(m[0]), txt = (v, n) => String(v || '').slice(0, n);
+      const novas = (j.ideias || []).filter(x => x?.titulo).map(x => ({ id: 'ide' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), formato: x.formato === 'longo' ? 'longo' : 'short', titulo: txt(x.titulo, 140), gancho: txt(x.gancho, 240), resumo: txt(x.resumo, 800), porque: txt(x.porque, 300), personagens: (Array.isArray(x.personagens) ? x.personagens : []).map(p => txt(p, 40)).slice(0, 6), esforco: ['baixo', 'medio', 'alto'].includes(x.esforco) ? x.esforco : '' }));
+      if (!novas.length) throw new Error('Não vieram ideias. Tente de novo.');
+      const I = { ...I0, em: new Date().toISOString(), base: this.S.analise.em, padroes: (j.padroes || I0.padroes || []).map(String).slice(0, 8), lista: [...novas, ...(I0.lista || [])] };
+      this.S.ideias = I; await this.guarda(I, `${novas.length} ideias novas.`);
+    } catch (e) { aviso(e.message, 'erro'); if (bt.isConnected) { bt.disabled = false; bt.innerHTML = rot; } }
   },
   edita(x) {
     const el = h(`<div class="modal"><div class="caixa larga"><b>${x ? 'Editar ideia' : 'Nova ideia'}</b>
@@ -457,7 +596,7 @@ const Ideias = {
       if (x) Object.assign(x, o); else I.lista.unshift({ id: 'ide' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...o, porque: '', personagens: [] });
       el.remove(); this.guarda(I); };
   },
-  async guarda(I) { I.em = new Date().toISOString(); try { await Nuvem.json('/ideias', 'PUT', { ideias: I }); aviso('Ideias salvas.', 'ok'); } catch (e) { aviso(e.message, 'erro'); } this.pinta(); },
+  async guarda(I, msg = 'Ideias salvas.') { I.em = new Date().toISOString(); try { await Nuvem.json('/ideias', 'PUT', { ideias: I }); aviso(msg, 'ok'); } catch (e) { aviso(e.message, 'erro'); } this.pinta(); },
 };
 
 /* ======================= começo ======================= */

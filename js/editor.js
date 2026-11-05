@@ -68,7 +68,7 @@ const Editor = (() => {
       else html.forEach((h, i) => { const d = fs[i]; if (d._h !== h || d.textContent.replace(/ /g, ' ') !== info[i].linha) { const tp = document.createElement('template'); tp.innerHTML = h; const n = tp.content.firstElementChild; n._h = h; d.replaceWith(n); } });
       [...ed.children].forEach((d, i) => { d.dataset.i = i; });
     }
-    const avisa = () => o.aoMudar?.(texto);
+    const avisa = () => { o.aoMudar?.(texto); o.aoMover?.(); };
     function guardaHist(c, junta) { clearTimeout(tHist); if (junta && hi === hist.length - 1 && hist[hi]._aberto) { hist[hi] = { t: texto, c, _aberto: true }; } else { hist = hist.slice(0, hi + 1); hist.push({ t: texto, c, _aberto: !!junta }); if (hist.length > 300) hist.shift(); hi = hist.length - 1; } tHist = setTimeout(() => { if (hist[hi]) hist[hi]._aberto = false; }, 800); }
     function troca(a, b, s, cAntes) { texto = texto.slice(0, a) + s + texto.slice(b); pinta(); poeCursor(a + s.length); guardaHist(a + s.length, false); avisa(); }
     function vaiHist(d) { const n = hi + d; if (n < 0 || n >= hist.length) return; hi = n; texto = hist[hi].t; pinta(); poeCursor(Math.min(hist[hi].c, texto.length)); avisa(); }
@@ -140,8 +140,16 @@ const Editor = (() => {
       // insere numa linha nova logo depois da linha do cursor (ou no fim)
       novaLinha(s, opc = {}) { ed.focus(); const c = cursor(); let p = texto.length; if (c) { const fim = texto.indexOf('\n', c.b); p = fim < 0 ? texto.length : fim; }
         const antes = texto.slice(0, p), pre = !antes ? '' : antes.endsWith('\n') ? '' : opc.espaco && !/\n\s*$/.test(antes) ? '\n\n' : '\n';
-        troca(p, p, pre + s); ed.querySelector(`[data-i="${Roteiro.classifica(texto.slice(0, p + pre.length + s.length)).length - 1}"]`)?.scrollIntoView({ block: 'nearest' }); },
+        troca(p, p, pre + s); if (opc.recua) poeCursor(p + pre.length + s.length - opc.recua);
+        ed.querySelector(`[data-i="${Roteiro.classifica(texto.slice(0, p + pre.length + s.length)).length - 1}"]`)?.scrollIntoView({ block: 'nearest' }); },
       italico, desfaz: () => vaiHist(-1), refaz: () => vaiHist(1),
+      // estilo da linha (a caixa "Texto normal / Título de parte / Ação / Comentário" da barra): com seleção vale para ela, sem seleção para a linha
+      estilo(t) { ed.focus(); let c = cursor(); if (!c) return; if (c.a === c.b) { const [i, f] = linhaDe(c.a); if (i === f) return; c = { a: i, b: f }; }
+        if (t === 'comentario') { const [i, f] = linhaDe(c.a); return troca(i, f, '// ' + texto.slice(i, f).replace(/^\s*\/\/\s*/, '')); }
+        if (t === 'normal') { const [i, f] = linhaDe(c.a); const l = texto.slice(i, f); if (/^\s*(\/\/|#)/.test(l) || /^\s*\*.*\*\s*$/.test(l)) return troca(i, f, l.replace(/^\s*(\/\/|#{1,6})\s*/, '').replace(/^\s*\*(.*)\*\s*$/, '$1')); }
+        FAZ[t]?.(c); },
+      tipoAtual() { const c = cursor(); if (!c) return null; return info[texto.slice(0, c.a).split('\n').length - 1]?.t || null; },
+      tudo() { ed.focus(); poeCursor(0, texto.length); },
       irPara(linha) { const d = ed.querySelector(`[data-i="${linha}"]`); if (!d) return; d.scrollIntoView({ block: 'center', behavior: 'smooth' }); ed.focus(); let p = 0; const ls = texto.split('\n'); for (let i = 0; i < linha; i++) p += ls[i].length + 1; poeCursor(p + ls[linha].length); },
       linhas: () => info,
       repinta: () => { const c = document.activeElement === ed ? cursor() : null; ed.innerHTML = ''; pinta(); if (c) poeCursor(c.a, c.b); },
