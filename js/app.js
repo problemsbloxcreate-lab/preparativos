@@ -231,7 +231,8 @@ function cartao(it, onde) {
   const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · mudanças só aqui`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('play', 13)} Em uso` };
   const autor = it.autor || (it.quem?.a ? { id: it.quem.a.i, nome: it.quem.a.n } : null), eds = it.edicoes || (it.quem?.e || []).map(x => ({ id: x.i, nome: x.n }));
   return h(`<button class="cartao ${esc(st)}" data-id="${esc(it.id || '')}"><div class="vivo-c" data-vivo="${esc(it.id || '')}"></div><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
-    <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div>${anel(pct)}</div>
+    <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div></div>
+    <div class="grav ${n && g === n ? 'todas' : ''}" title="${g} de ${n} falas já têm áudio gravado">${ic(n && g === n ? 'ok' : 'mic', 14)}<span>${!n ? 'ainda sem falas' : g === n ? 'todas as falas gravadas' : `<b>${g}</b> de <b>${n}</b> falas gravadas`}</span><div class="barra"><i style="width:${pct}%"></i></div></div>
     <div class="elenco">${pers.slice(0, 6).map(p => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
     ${quemHtml(autor, eds, true) ? `<div class="quem-c">${quemHtml(autor, eds, true)}</div>` : ''}
     ${uso.length ? `<div class="usos">${uso.map(u => `<span class="uso">${progIc(u, 16)} usado no ${esc(DESTINOS[u] || u)}</span>`).join('')}</div>` : ''}
