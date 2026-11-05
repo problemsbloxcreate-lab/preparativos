@@ -764,3 +764,30 @@ body:not(.modo-doc) .pcard2 .paleta input[type=color]::-moz-color-swatch{border:
 body:not(.modo-doc) .pcard2 .pc-an{gap:6px}
 body:not(.modo-doc) .pcard2 .pc-an .el-esc{padding:4px 10px 4px 4px;font-size:13px}
 body:not(.modo-doc) .pcard2 .pega{top:8px!important;right:8px!important}
+/* ===== TILE DO PERSONAGEM refeito (topo com foto + nome, "Cor da legenda" e "No Animador" com espaço) ===== */
+body:not(.modo-doc) .pcard2{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:16px!important;padding:18px!important}
+.pc-topo{display:flex;align-items:flex-start;gap:16px}
+body:not(.modo-doc) .pcard2 .foto{position:relative!important;margin:0!important;flex:none}
+body:not(.modo-doc) .pcard2 .foto .ava.g{--ava:76px;border-radius:0!important;background-color:rgba(0,0,0,.2);color:#111;font-size:22px}
+body:not(.modo-doc) .pcard2 .foto .cam{position:absolute!important;right:4px!important;bottom:4px!important;width:22px;height:22px;display:grid;place-items:center;background:rgba(0,0,0,.6)!important;color:#fff;box-shadow:none!important}
+.pc-nome{display:flex;flex-direction:column;gap:6px;min-width:0;padding-top:2px}
+body:not(.modo-doc) .pc-nome b{font-size:22px;font-weight:600;line-height:1.1;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:18px}
+body:not(.modo-doc) .pc-nome small{display:inline-flex;align-items:center;gap:5px;color:rgba(0,0,0,.65);font-size:12.5px}
+body:not(.modo-doc) .pcard2 .leg-mini{align-self:flex-start;background:#111;color:var(--c)!important;font-weight:700;font-size:12.5px;padding:3px 8px;text-shadow:none}
+body:not(.modo-doc) .pcard2 .pc-meio{display:flex;flex-direction:column;gap:14px!important;padding:0!important}
+.pc-sec{display:flex;flex-direction:column;gap:7px}
+body:not(.modo-doc) .pc-sec>small{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:rgba(0,0,0,.6)}
+/* quadradinhos de cor: retos, sem círculo dentro; a escolhida ganha a borda POR DENTRO */
+body:not(.modo-doc) .pcard2 .paleta{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+body:not(.modo-doc) .pcard2 .paleta .cor{width:24px!important;height:24px!important;border:0!important;border-radius:0!important;background:var(--c)!important;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)!important;transform:none!important;padding:0}
+body:not(.modo-doc) .pcard2 .paleta .cor:hover{box-shadow:inset 0 0 0 2px rgba(0,0,0,.45)!important}
+body:not(.modo-doc) .pcard2 .paleta .cor.on{box-shadow:inset 0 0 0 3px #111,inset 0 0 0 5px rgba(255,255,255,.9)!important}
+.cor-outra{position:relative;width:24px;height:24px;display:inline-grid;place-items:center;background:rgba(0,0,0,.18);box-shadow:inset 0 0 0 1px rgba(0,0,0,.3);cursor:pointer;color:#111}
+.cor-outra input{position:absolute;inset:0;width:100%!important;height:100%!important;opacity:0;cursor:pointer;border:0!important}
+/* No Animador: botão sem fundo cinza atrás do ícone do Ateliê */
+body:not(.modo-doc) .pcard2 .el-esc{display:inline-flex;align-items:center;gap:10px;align-self:flex-start;background:rgba(0,0,0,.14)!important;border:0!important;padding:6px 12px 6px 6px;color:#111;font-size:13.5px;font-weight:500}
+body:not(.modo-doc) .pcard2 .el-esc:hover{background:rgba(0,0,0,.24)!important}
+body:not(.modo-doc) .pcard2 .ap-th.p{width:30px;height:30px}
+.ap-th.sem-th{background:none!important}
+body:not(.modo-doc) .pcard2 .link{color:rgba(0,0,0,.7);font-weight:600}
+body:not(.modo-doc) .pcards{grid-template-columns:repeat(auto-fill,minmax(310px,1fr))!important;gap:10px!important}
