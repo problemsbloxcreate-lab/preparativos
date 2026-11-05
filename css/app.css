@@ -821,3 +821,14 @@ body:not(.modo-doc) .pc-topo{gap:20px}
 .onda{width:100%;height:100%;display:block}.onda-pos{display:none}
 .onda-box.ao-vivo{background:color-mix(in srgb,var(--rec) 8%,transparent);border-radius:6px}
 body:not(.modo-doc) .mic-painel{border-radius:0}
+/* espaço em cima nas guias Falas, Legendas e Elenco (o modo documento zerava) */
+body.modo-doc .corpo.corpo-falas,body.modo-doc .corpo.corpo-legendas,body.modo-doc .corpo.corpo-elenco{padding-top:24px}
+/* AO VIVO: selo vermelho "AO VIVO" com o ponto piscando; fotos com um pontinho verde no canto (no lugar do anel) */
+.vivo-tag,body:not(.modo-doc) .vivo-tag{display:inline-flex;align-items:center;gap:5px;background:#e51400!important;color:#fff!important;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;border-radius:4px!important;padding:3px 7px;margin-right:6px;box-shadow:0 2px 8px rgba(229,20,0,.35)}
+.vivo-tag i{width:6px;height:6px;border-radius:50%!important;background:#fff!important;animation:pulsoVivo 1.2s ease-in-out infinite}
+.pava{position:relative}
+.pava.vivo,body:not(.modo-doc) .pava.vivo{box-shadow:0 0 0 2px var(--bg)!important}
+.pava.vivo::after{content:'';position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:50%;background:#34c759;box-shadow:0 0 0 2px var(--bg)}
+.pava.vivo.p::after{width:8px;height:8px}
+.vivo-c .pava{margin-left:-6px}.vivo-c .pava:first-of-type{margin-left:0}
+.o-salvando{color:var(--muted)!important}.o-salvando .w10{width:16px;height:16px}

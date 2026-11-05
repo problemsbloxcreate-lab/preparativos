@@ -113,10 +113,10 @@ function novoPrep(nome = 'Roteiro novo', texto = '') {
   return { v: 1, id: 'pr' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nome, destino: null, status: 'rascunho', roteiro: texto, partes: Roteiro.separa(texto), legenda: { ativa: true, mostrarNome: false, cores: {} }, usadoPor: [], criado: Date.now(), mod: 0, novo: true };
 }
 // rascunho deste navegador (guardado a cada mudança, sem gastar a nuvem). "Trabalhar junto" (P.junto) manda sozinho 20 s depois da última mudança.
-let tGuarda = 0, tJunto = 0;
+let tGuarda = 0, tJunto = 0, ultAuto = 0;
 function marcaSujo() {
   S.sujo = true; pintaBarraPrep(); clearTimeout(tGuarda); tGuarda = setTimeout(() => DB.put('rasc', S.P.id, { P: S.P, base: S.base, em: Date.now() }).catch(() => { }), 600);
-  clearTimeout(tJunto); if (S.P?.junto && S.P.mod && !S.P.novo) tJunto = setTimeout(() => { if (S.sujo && S.P?.junto) salvaPrep(null, true); }, 20000);
+  clearTimeout(tJunto); if (S.P?.mod && !S.P.novo && pode('roteiro')) { const falta = Math.max(8000, 15000 - (Date.now() - ultAuto)); tJunto = setTimeout(() => { if (S.sujo && S.P?.mod && !S.P.novo) { ultAuto = Date.now(); salvaPrep(null, true); } }, falta); }
 }
 
 /* ---------- QUEM: quem criou, quem editou e quem está AO VIVO (igual no Animador e no Ateliê) ----------
@@ -234,7 +234,7 @@ function cartao(it, onde) {
   const n = fs ? fs.length : it.n || 0, g = fs ? fs.filter(f => f.audio).length : it.g || 0, np = Array.isArray(it.partes) ? it.partes.length : it.partes || 0;
   const pers = fs ? Roteiro.personagens(it.partes).map(p => p.nome) : it.pers || [], pct = n ? Math.round(g / n * 100) : 0, st = it.status || 'rascunho';
   const uso = onde === 'uso' ? (it.uso || []) : [];
-  const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · mudanças só aqui`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('play', 13)} Em uso` };
+  const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · termina de salvar ao abrir`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('play', 13)} Em uso` };
   const autor = it.autor || (it.quem?.a ? { id: it.quem.a.i, nome: it.quem.a.n } : null), eds = it.edicoes || (it.quem?.e || []).map(x => ({ id: x.i, nome: x.n }));
   return h(`<button class="cartao ${esc(st)}" data-id="${esc(it.id || '')}"><div class="vivo-c" data-vivo="${esc(it.id || '')}"></div><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
     <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div></div>
@@ -359,7 +359,6 @@ function pintaPrep() {
       [`${ic('mais', 15)} Novo roteiro`, '', async () => { if (await sairDoPrep()) abrePrep(novoPrep()); }, !edita],
       [`${ic('doc', 15)} Abrir roteiros`, '', () => sairDoPrep()],
       '-', [`${ic('nuvem', 15)} Mandar para a nuvem`, 'Ctrl+S', () => salvaPrep($('.prep [data-salva]')), !S.sujo],
-      [`${ic('junto', 15)} Trabalhar junto (manda sozinho para a nuvem)`, P.junto ? '✓' : '', () => { P.junto = !P.junto; marcaSujo(); aviso(P.junto ? 'Trabalhando junto: as mudanças vão sozinhas para a nuvem 20 s depois que você para de mexer.' : 'As mudanças ficam neste computador até você mandar.', 'info', 6000); }, !pode('roteiro')],
       [`${ic('enviar', 15)} Baixar como texto (.txt)`, '', baixaTexto],
       '-', [`${ic('luz', 15)} Ideias`, '', async () => { if (await sairDoPrep()) trocaAba('ideias'); }],
       [`${ic('pessoa', 15)} Personagens`, '', async () => { if (await sairDoPrep()) trocaAba('personagens'); }]]],
@@ -381,10 +380,9 @@ function pintaPrep() {
 function pintaBarraPrep() {
   const P = S.P, sv = $('.prep .salvar'), en = $('.prep .enviar'); if (!P || !sv) return;
   sv.innerHTML = P.novo || !P.mod ? `<span class="onde o-pc" title="Ainda não foi para a nuvem: só você vê">${ic('pc', 15)} Só neste computador</span>`
-    : S.sujo ? `<span class="onde o-mudou" title="Está na nuvem, mas as últimas mudanças estão só aqui">${ic('nuvem', 15)} Na nuvem · ${ic('pc', 14)} mudanças só aqui</span>`
+    : S.sujo ? `<span class="onde o-salvando" title="Está na nuvem: as mudanças vão sozinhas daqui a pouco">${giro()} Salvando na nuvem…</span>`
     : `<span class="onde o-nuvem" title="Salvo na nuvem · ${esc(quando(P.mod))}">${ic('nuvem', 15)} Salvo na nuvem</span>`;
-  if (P.junto) sv.insertAdjacentHTML('beforeend', `<span class="onde o-junto" title="As mudanças vão sozinhas para a nuvem">${ic('junto', 14)} trabalhando junto</span>`);
-  en.innerHTML = S.sujo ? `<button class="bt pri pilula" data-salva title="A equipe passa a ver (e gravar) este roteiro">${ic('nuvem')} Mandar para a nuvem</button>` : `<span class="pilula ok">${ic('nuvem')} Na nuvem</span>`;
+  en.innerHTML = S.sujo && (P.novo || !P.mod) ? `<button class="bt pri pilula" data-salva title="A equipe passa a ver (e gravar) este roteiro">${ic('nuvem')} Mandar para a nuvem</button>` : `<span class="pilula ok">${ic('nuvem')} Na nuvem</span>`;
   const b = $('[data-salva]', en); if (b) b.onclick = () => salvaPrep(b);
 }
 async function salvaPrep(bt, quieto) {
