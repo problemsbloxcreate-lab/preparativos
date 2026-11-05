@@ -140,7 +140,8 @@ async function abrePrep(P, base) {
 // (o do Preparativos some e o botão da conta /estudio-conta.js vem para o canto deste, como a foto no Docs)
 let contaOrig = null;
 function modoDoc(on) {
-  document.body.classList.toggle('modo-doc', !!on);
+  document.body.classList.toggle('modo-doc', !!on); let tema = 'escuro'; try { tema = localStorage.getItem('ep-prep-tema') || 'escuro'; } catch { }
+  document.body.classList.toggle('claro', !!on && tema === 'claro'); // escuro é o padrão (pedido da dona)
   const sp = document.querySelector('[data-estudio-conta]'); if (!sp) return;
   if (on) { if (!contaOrig) contaOrig = { pai: sp.parentNode, prox: sp.nextSibling }; const alvo = $('.dh-conta'); if (alvo && sp.parentNode !== alvo) alvo.appendChild(sp); }
   else if (contaOrig && sp.parentNode !== contaOrig.pai) { contaOrig.pai.insertBefore(sp, contaOrig.prox); }
@@ -219,7 +220,8 @@ function pintaPrep() {
       '-', [`${ic('luz', 15)} Ideias`, '', async () => { if (await sairDoPrep()) trocaAba('ideias'); }],
       [`${ic('legenda', 15)} Cores das legendas`, '', async () => { if (await sairDoPrep()) trocaAba('cores'); }]]],
     ['Editar', () => [[`${ic('desfazer', 15)} Desfazer`, 'Ctrl+Z', () => E()?.desfaz(), !E()], [`${ic('refazer', 15)} Refazer`, 'Ctrl+Y', () => E()?.refaz(), !E()], '-', ['Selecionar tudo', 'Ctrl+A', () => E()?.tudo(), !E()]]],
-    ['Ver', () => [...GUIAS.map(([k, n, i]) => [`${ic(i, 15)} ${n}`, S.sub === k ? '✓' : '', () => irGuia(k)]), '-', ['Mostrar as guias do lado', document.body.classList.contains('sem-guias') ? '' : '✓', () => document.body.classList.toggle('sem-guias')]]],
+    ['Ver', () => [...GUIAS.map(([k, n, i]) => [`${ic(i, 15)} ${n}`, S.sub === k ? '✓' : '', () => irGuia(k)]), '-', ['Mostrar as guias do lado', document.body.classList.contains('sem-guias') ? '' : '✓', () => document.body.classList.toggle('sem-guias')],
+      ['Tema claro', document.body.classList.contains('claro') ? '✓' : '', () => { const c = document.body.classList.toggle('claro'); try { localStorage.setItem('ep-prep-tema', c ? 'claro' : 'escuro'); } catch { } }]]],
     ['Inserir', () => [[`${ic('titulo', 15)} Parte nova`, '', naFolha(e => e.novaLinha(`## ${Roteiro.norm(P.nome)} parte ${P.partes.length + 1}`, { espaco: true })), !edita],
       ...Roteiro.personagens(P.partes).map(p => [`${ava(p.nome, coresDoRoteiro().get(p.chave), 'p')} Fala de ${esc(p.nome)}`, '', naFolha(e => e.novaLinha(p.nome + ': ')), !edita]),
       [`${ic('pessoa', 15)} Fala de um personagem novo…`, '', async () => { const n = (await pedeTexto('Personagem novo', 'Nome do personagem (como vai aparecer no roteiro)') || '').replace(/[:*#\[\]()]/g, '').trim().slice(0, 40); if (n) naFolha(e => e.novaLinha(n + ': '))(); }, !edita],
