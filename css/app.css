@@ -192,7 +192,7 @@ body.modo-doc main{max-width:none;padding:0}
 .dh-menus button{border:0;background:none;padding:2px 7px;border-radius:4px;font-size:14px;color:var(--text)}.dh-menus button:hover,.dh-menus button.on{background:var(--panel-3)}
 .dh-menu{position:fixed;z-index:95;background:#fff;color:#1f1f1f;border-radius:6px;box-shadow:0 2px 6px rgba(60,64,67,.15),0 1px 2px rgba(60,64,67,.3);padding:6px 0;min-width:280px;display:flex;flex-direction:column}
 .dh-menu button{display:flex;align-items:center;gap:10px;border:0;background:none;padding:6px 16px 6px 14px;font-size:14px;text-align:left;color:#1f1f1f}
-.dh-menu button span{display:inline-flex;align-items:center;gap:10px;flex:1}.dh-menu button small{color:#5f6368;font-size:12.5px}
+.dh-menu button>span{display:inline-flex;align-items:center;gap:10px;flex:1}.dh-menu button small{color:#5f6368;font-size:12.5px}
 .dh-menu button:hover:not(:disabled){background:#f1f3f4}.dh-menu button:disabled{color:#9aa0a6}.dh-menu hr{border:0;border-top:1px solid #e3e3e3;margin:6px 0}
 .dh-menu .ava{box-shadow:none}
 .dh .destinos,.dh .etapas{background:var(--panel-2);border:0;border-radius:99px;padding:3px}
