@@ -373,6 +373,9 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
 }));
 (async () => {
   try { S.eu = await window.EstudioLogin?.pronto; } catch { }
+  // níveis de acesso: o /estudio-conta.js (defer) cria o EstudioPerm depois deste arquivo; espera ele antes de desenhar os botões
+  if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));
+  try { await window.EstudioPerm?.pronto; } catch { }
   const q = new URLSearchParams(location.search), id = q.get('id'), aba = q.get('aba');
   if (aba === 'ideias' || aba === 'cores') return trocaAba(aba);
   if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { try { return abrePrep(await Nuvem.abre(id)); } catch { const r = await DB.get('rasc', id).catch(() => null); if (r?.P) return abrePrep(r.P, r.base); } }
