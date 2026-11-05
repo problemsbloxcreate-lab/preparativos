@@ -228,12 +228,12 @@ const Falas = {
     const locais = await this.locais();
     const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.filter(f => !this.quem || Roteiro.chave(f.personagem) === this.quem) })).filter(p => p.falas.length);
     c.innerHTML = `<div class="falas"><div class="ferr"><span class="rot-quem">${ic('pessoa', 15)} Quem vai gravar:</span>
-        <div class="chips">${['', ...ps.map(p => p.chave)].map((k, i) => { const p = ps.find(x => x.chave === k); return `<button class="chip ${this.quem === k ? 'on' : ''}" data-quem="${esc(k)}" ${p ? `style="--c:${corOuPadrao(p.nome, i - 1)}"` : ''}>${p ? esc(p.nome) + ` <small>${p.g}/${p.n}</small>` : 'Todos'}</button>`; }).join('')}</div>
+        <div class="chips">${['', ...ps.map(p => p.chave)].map((k, i) => { const p = ps.find(x => x.chave === k); return `<button class="chip ${this.quem === k ? 'on' : ''}" data-grava="${esc(k)}" ${p ? `style="--c:${corOuPadrao(p.nome, i - 1)}"` : ''}>${p ? esc(p.nome) + ` <small>${p.g}/${p.n}</small>` : 'Todos'}</button>`; }).join('')}</div>
         <span class="esp"></span><span class="env"></span></div>
       ${P.novo || S.sujo && !P.mod ? `<p class="aviso-linha">${ic('alerta', 15)} Mande o roteiro para a nuvem antes de enviar as gravações (as gravações ficam guardadas aqui enquanto isso).</p>` : ''}
       ${!ps.length ? '<div class="vazio">Ainda não há falas. Escreva o roteiro como <code>NOME: texto</code>.</div>' : ''}
       ${visiveis.map(p => `<div class="parte"><h3>${esc(p.nome)}</h3>${p.falas.map(f => this.linha(f, locais.get(f.id), ps)).join('')}</div>`).join('')}</div>`;
-    $$('[data-quem]', c).forEach(b => b.onclick = () => { this.quem = b.dataset.quem; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } this.pinta(c); });
+    $$('[data-grava]', c).forEach(b => b.onclick = () => { this.quem = b.dataset.grava; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } this.pinta(c); });
     $$('.fala', c).forEach(el => { const f = this.acha(el.dataset.f); if (!f) return;
       $('[data-gravar]', el)?.addEventListener('click', () => this.grava(f, el));
       $('[data-ouvir]', el)?.addEventListener('click', e => this.ouve(f, e.currentTarget));
