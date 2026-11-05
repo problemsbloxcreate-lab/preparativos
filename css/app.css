@@ -797,3 +797,6 @@ body:not(.modo-doc) .pcard2 .foto{top:auto!important;left:auto!important}
 body:not(.modo-doc) .pcard2 .pc-sec.pc-an{flex-direction:column;align-items:flex-start;flex-wrap:nowrap}
 .cartao .mt{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.cartao .mt svg{display:block;flex:none}
 .tela-in{display:contents}
+/* mais respiro em volta da foto do personagem */
+body:not(.modo-doc) .pcard2{padding:20px!important;gap:18px!important}
+body:not(.modo-doc) .pc-topo{gap:20px}
