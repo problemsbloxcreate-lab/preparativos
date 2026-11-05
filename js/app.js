@@ -22,9 +22,19 @@ const IC = {
   pc: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>', coment: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
   pasta: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', mais3: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   junto: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20a6 6 0 0 1 12 0M10 20a6 6 0 0 1 12 0"/>', camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  grade: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  lapis: '<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>', play: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/>',
+  mover: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
+  celular: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>', filme: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M3 15h18M8 5v4M16 5v4M8 15v4M16 15v4"/>',
+  grafico: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   desfazer: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', refazer: '<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>',
   titulo: '<path d="M6 4v16M18 4v16M6 12h12"/>', baixo: '<path d="M6 9l6 6 6-6"/>', ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 1-1 1.7M12 17v.5"/>', legenda: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 14h4M13 14h4M7 10h10"/>',
 };
+// CARREGANDO: as bolinhas girando do Windows 10 (em tudo que carrega, pedido da dona)
+const giro = (txt = '') => `<span class="w10" role="progressbar" aria-label="${esc(txt || 'Carregando')}"><i></i><i></i><i></i><i></i><i></i></span>${txt ? `<span class="w10-t">${esc(txt)}</span>` : ''}`;
+const giroBloco = (txt = 'Carregando') => `<div class="vazio carregando">${giro(txt)}</div>`;
+// ícone do ATELIÊ (o mesmo do menu e do Animador) onde a escolha vem de lá
+const icAt = (px = 16) => window.EstudioIcones ? `<span class="ic-at">${window.EstudioIcones.svg('at', px)}</span>` : '';
 const ic = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n] || ''}</svg>`;
 
 /* ---------- avisos ---------- */
@@ -123,39 +133,52 @@ const progIc = (d, px = 18) => window.EstudioIcones && icProg(d) ? window.Estudi
 const anel = (pct, tam = 44) => { const r = 16, L = 2 * Math.PI * r; return `<svg class="anel" width="${tam}" height="${tam}" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="${r}" fill="none" stroke="currentColor" stroke-opacity=".14" stroke-width="4"/><circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--ok)" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(pct / 100 * L).toFixed(1)} ${L.toFixed(1)}" transform="rotate(-90 20 20)"/><text x="20" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">${pct}%</text></svg>`; };
 
 /* ---------- início: lista dos roteiros ---------- */
-let filtro = 'todos';
+// ONDE: neste computador · na nuvem · em uso (um programa já usou) — e a SITUAÇÃO (rascunho, gravando, pronto); filtros com ícones
+let filtro = 'todos', filtroOnde = 'tudo';
+const ST_IC = { todos: 'grade', rascunho: 'lapis', gravando: 'mic', pronto: 'ok' };
 async function pintaInicio(novo) {
+  const ONDES = [['tudo', 'Tudo', 'grade'], ['pc', 'Neste computador', 'pc'], ['nuvem', 'Na nuvem', 'nuvem'], ['uso', 'Em uso', 'play']];
   const el = tela(); el.innerHTML = `<section class="inicio">
-    <div class="hero"><div class="hero-txt"><h1>Do roteiro à gravação</h1><p>Escreva o roteiro, o Estúdio separa sozinho as falas de cada personagem e cada pessoa grava só a parte dela.</p>
-      <ol class="passos"><li><i>${ic('doc', 16)}</i><b>Escrever</b><small>capítulos e partes</small></li><li><i>${ic('pessoa', 16)}</i><b>Separar</b><small>falas por personagem</small></li><li><i>${ic('mic', 16)}</i><b>Gravar</b><small>pelo navegador</small></li><li><i>${ic('ok', 16)}</i><b>Pronto</b><small>vai para o programa</small></li></ol></div>
-      ${pode('roteiro') ? `<button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
-    <div class="filtros">${[['todos', 'Todos'], ...PREP_CONFIG.status].map(([k, n]) => `<button data-f="${k}" class="${filtro === k ? 'on' : ''}">${esc(n)}</button>`).join('')}<span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button></div>
-    <div class="secao sec-pc"><h2 class="sec-tit"><span class="sec-ic">${ic('pc', 18)}</span>Neste computador<small>só você vê. Vai para a nuvem quando for gravar, quando ficar pronto ou quando você mandar (para trabalhar junto).</small></h2><div class="grade locais"><div class="vazio">Nada só neste computador.</div></div></div>
-    <div class="secao sec-nuvem"><h2 class="sec-tit"><span class="sec-ic">${ic('nuvem', 18)}</span>Na nuvem<small>a equipe toda vê e grava.</small></h2><div class="grade nuvem"><div class="vazio">Carregando…</div></div></div></section>`;
+    <div class="cab topo-ini"><h1>Roteiros</h1><span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button>${pode('roteiro') ? `<button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
+    <div class="filtros-ini">
+      <div class="seg" role="group" aria-label="Onde">${ONDES.map(([k, n, i]) => `<button data-onde="${k}" class="${filtroOnde === k ? 'on' : ''}">${ic(i, 15)} ${n}<b class="n" data-n="${k}"></b></button>`).join('')}</div>
+      <div class="chips-st" role="group" aria-label="Situação">${[['todos', 'Todas as situações'], ...PREP_CONFIG.status].map(([k, n]) => `<button data-f="${k}" class="st-${k} ${filtro === k ? 'on' : ''}">${ic(ST_IC[k], 14)} ${esc(n)}</button>`).join('')}</div>
+    </div>
+    <div class="secoes">
+      <div class="painel-sec sec-pc" data-sec="pc"><div class="ps-cab"><span class="sec-ic">${ic('pc', 18)}</span><div><b>Neste computador</b><small>Só você vê. Vai para a nuvem quando for gravar, quando ficar pronto ou quando você mandar.</small></div></div><div class="grade" data-g="pc">${giroBloco()}</div></div>
+      <div class="painel-sec sec-nuvem" data-sec="nuvem"><div class="ps-cab"><span class="sec-ic">${ic('nuvem', 18)}</span><div><b>Na nuvem</b><small>A equipe toda vê e grava.</small></div></div><div class="grade" data-g="nuvem">${giroBloco()}</div></div>
+      <div class="painel-sec sec-uso" data-sec="uso"><div class="ps-cab"><span class="sec-ic">${ic('play', 18)}</span><div><b>Em uso</b><small>Já foram usados num programa (Animador, Shorts ou Editor).</small></div></div><div class="grade" data-g="uso">${giroBloco()}</div></div>
+    </div></section>`;
   $('[data-at]', el).onclick = () => { S.lista = null; pintaInicio(true); };
   $('[data-novo]', el)?.addEventListener('click', () => abrePrep(novoPrep()));
   $$('[data-f]', el).forEach(b => b.onclick = () => { filtro = b.dataset.f; pintaInicio(); });
+  $$('[data-onde]', el).forEach(b => b.onclick = () => { filtroOnde = b.dataset.onde; pintaInicio(); });
   await carregaPers().catch(() => { });
-  const passa = it => filtro === 'todos' || (it.status || 'rascunho') === filtro;
-  try { const R = (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id && passa(v.P)).sort((a, b) => b.em - a.em), box = $('.grade.locais', el);
-    if (R.length) { box.innerHTML = ''; for (const r of R) { const c = cartao(r.P, r.P.novo || !r.base?.mod ? 'pc' : 'mudou'); c.onclick = () => abrePrep(r.P, r.base); box.appendChild(c); } } } catch { }
-  const g = $('.grade.nuvem', el);
-  try { if (!S.lista || novo) S.lista = (await Nuvem.lista()).itens || []; }
-  catch (e) { g.innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
-  const L = S.lista.filter(passa).sort((a, b) => (b.mod || 0) - (a.mod || 0));
-  g.innerHTML = L.length ? '' : `<div class="vazio">${S.lista.length ? 'Nenhum roteiro nesta situação.' : 'Nenhum roteiro na nuvem ainda.'}</div>`;
-  for (const it of L) { const c = cartao(it, 'nuvem'); c.onclick = async () => { c.classList.add('carregando'); try { abrePrep(await Nuvem.abre(it.id)); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); } }; g.appendChild(c); }
+  const passa = it => filtro === 'todos' || (it.status || 'rascunho') === filtro, G = { pc: [], nuvem: [], uso: [] };
+  try { for (const r of (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id).sort((a, b) => b.em - a.em)) G.pc.push({ it: r.P, onde: r.P.novo || !r.base?.mod ? 'pc' : 'mudou', abre: () => abrePrep(r.P, r.base) }); } catch { }
+  try { if (!S.lista || novo) S.lista = (await Nuvem.lista()).itens || []; } catch (e) { $('[data-g="nuvem"]', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; }
+  for (const it of (S.lista || []).sort((a, b) => (b.mod || 0) - (a.mod || 0))) (it.uso?.length ? G.uso : G.nuvem).push({ it, onde: it.uso?.length ? 'uso' : 'nuvem', abre: () => Nuvem.abre(it.id).then(abrePrep) });
+  for (const k of ['pc', 'nuvem', 'uso']) {
+    const L = G[k].filter(x => passa(x.it)), sec = $(`[data-sec="${k}"]`, el), g = $(`[data-g="${k}"]`, el); $(`[data-n="${k}"]`, el).textContent = G[k].length || '';
+    sec.hidden = filtroOnde !== 'tudo' && filtroOnde !== k; if (sec.hidden) continue;
+    if (g.querySelector('.erro')) continue;
+    g.innerHTML = L.length ? '' : `<div class="vazio">${G[k].length ? 'Nada nesta situação.' : { pc: 'Nada só neste computador.', nuvem: 'Nenhum roteiro na nuvem.', uso: 'Nenhum roteiro foi usado num programa ainda.' }[k]}</div>`;
+    for (const x of L) { const c = cartao(x.it, x.onde); c.onclick = async () => { c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } }; g.appendChild(c); }
+  }
+  $('[data-n="tudo"]', el).textContent = G.pc.length + G.nuvem.length + G.uso.length || '';
 }
-// onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem'
+// onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem' | 'uso' (um programa já usou)
 function cartao(it, onde) {
   const fs = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null;
   const n = fs ? fs.length : it.n || 0, g = fs ? fs.filter(f => f.audio).length : it.g || 0, np = Array.isArray(it.partes) ? it.partes.length : it.partes || 0;
   const pers = fs ? Roteiro.personagens(it.partes).map(p => p.nome) : it.pers || [], pct = n ? Math.round(g / n * 100) : 0, st = it.status || 'rascunho';
-  const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · mudanças só aqui`, nuvem: `${ic('nuvem', 13)} Na nuvem` };
-  return h(`<button class="cartao ${esc(st)}"><div class="topo"><span class="st">${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
+  const uso = onde === 'uso' ? (it.uso || []) : [];
+  const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · mudanças só aqui`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('play', 13)} Em uso` };
+  return h(`<button class="cartao ${esc(st)}"><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
     <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div>${anel(pct)}</div>
-    <div class="elenco">${pers.slice(0, 6).map((p, i) => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
-    <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${onde === 'nuvem' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
+    <div class="elenco">${pers.slice(0, 6).map(p => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
+    ${uso.length ? `<div class="usos">${uso.map(u => `<span class="uso">${progIc(u, 16)} usado no ${esc(DESTINOS[u] || u)}</span>`).join('')}</div>` : ''}
+    <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
 }
 
 /* ---------- um preparativo ---------- */
@@ -289,7 +312,7 @@ function pintaBarraPrep() {
 }
 async function salvaPrep(bt, quieto) {
   const P = S.P; if (!pode('roteiro') && !pode('organizar') && !pode('pronto')) return aviso('Sua conta pode gravar, mas não mudar o roteiro.', 'erro');
-  if (bt) { bt.disabled = true; bt.textContent = 'Mandando…'; }
+  if (bt) { bt.disabled = true; bt.innerHTML = giro('Mandando'); }
   const enviado = P.roteiro;
   try {
     const { novo, ...corpo } = P; let r;
@@ -492,7 +515,7 @@ dentro de uma fala são a nota (como falar), não o texto falado; separe em part
 se o texto não indicar partes, use uma parte com o nome do roteiro.`,
   async roda(bt, E) {
     const P = S.P, txt = E.texto.trim(); if (!txt) return aviso('Escreva ou cole o roteiro primeiro.', 'info');
-    const rot = bt.innerHTML; bt.disabled = true; bt.innerHTML = `<span class="gira"></span> Organizando…`;
+    const rot = bt.innerHTML; bt.disabled = true; bt.innerHTML = giro('Organizando');
     try {
       const r = await fetch(SRV + '/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', ...(await Nuvem.hd()) }, body: JSON.stringify({ system: [{ type: 'text', text: this.SIS }], messages: [{ role: 'user', content: `NOME DO ROTEIRO: ${P.nome}\n\nTEXTO:\n${txt.slice(0, 60000)}` }] }) });
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error?.message || 'A nuvem não conseguiu organizar agora.'); }
@@ -588,7 +611,7 @@ const Falas = {
     const P = S.P; if (P.novo || !P.mod) return aviso('Mande o roteiro para a nuvem primeiro (botão "Mandar para a nuvem" lá em cima).', 'info');
     bt.disabled = true; const lista = [...locais.entries()].filter(([id]) => this.acha(id)); const feitas = [];
     try {
-      for (const [i, [id, l]] of lista.entries()) { bt.textContent = `Enviando ${i + 1} de ${lista.length}…`;
+      for (const [i, [id, l]] of lista.entries()) { bt.innerHTML = giro(`Enviando ${i + 1} de ${lista.length}`);
         const ext = /mp4/.test(l.blob.type) ? 'm4a' : /ogg/.test(l.blob.type) ? 'ogg' : 'webm', k = `preparativos/${P.id}/aud/${id}-${Date.now().toString(36)}.${ext}`;
         await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(k), { method: 'POST', headers: { 'content-type': l.blob.type || 'audio/webm' }, body: l.blob });
         feitas.push({ id, audio: k, duracao: l.duracao }); }
@@ -634,13 +657,13 @@ async function thumbDe(x) {
 function escolheNoAtelie(L, atual, titulo, rotAuto = 'Automático (padrão do personagem)') {
   return new Promise(ok => {
     const pastas = (L.pastas || [...new Set(L.map(x => x.pasta))]).filter(p => L.some(x => x.pasta === p));
-    const m = h(`<div class="modal"><div class="caixa atelie-pop"><div class="ap-cab"><b>${esc(titulo)}</b><span class="esp"></span><input class="ap-busca" placeholder="Procurar pelo nome" aria-label="Procurar"><button class="bt ic" data-x title="Fechar">${ic('voltar', 15)}</button></div>
+    const m = h(`<div class="modal"><div class="caixa atelie-pop"><div class="ap-cab">${icAt(24)}<b>${esc(titulo)}</b><span class="esp"></span><input class="ap-busca" placeholder="Procurar pelo nome" aria-label="Procurar"><button class="bt ic" data-x title="Fechar">${ic('voltar', 15)}</button></div>
       <div class="ap-esp"><button class="ap-op ${atual === undefined ? 'on' : ''}" data-v="">${ic('atualizar', 15)} ${esc(rotAuto)}</button><button class="ap-op ${atual === null ? 'on' : ''}" data-v="-">${ic('lixo', 15)} Nenhum</button></div>
       <div class="ap-corpo">${pastas.map(p => `<div class="ap-pasta" data-p="${esc(p)}"><button class="pasta-tit" data-tp>${ic('baixo', 12)} ${ic('pasta', 14)} ${esc(p)} <small>${L.filter(x => x.pasta === p).length}</small></button>
         <div class="ap-grade">${L.filter(x => x.pasta === p).map(x => `<button class="ap-card ${atual?.id === x.id ? 'on' : ''}" data-v="${esc(x.id)}" data-n="${esc(Roteiro.chave(x.nome))}"><span class="ap-th" data-th="${esc(x.id)}">${esc(iniciais(x.nome))}</span><span class="ap-nome">${esc(x.nome)}</span></button>`).join('')}</div></div>`).join('')}</div></div></div>`);
     const fim = v => { io.disconnect(); m.remove(); ok(v); };
     const io = new IntersectionObserver(es => { for (const e of es) { if (!e.isIntersecting) continue; const el = e.target; io.unobserve(el); const x = L.find(y => y.id === el.dataset.th);
-      if (x) thumbDe(x).then(t => { if (t) { el.style.backgroundImage = `url("${t}")`; el.classList.add('com-th'); } }); } }, { root: null, rootMargin: '200px' });
+      if (x) { el.classList.add('carregando-th'); thumbDe(x).then(t => { el.classList.remove('carregando-th'); if (t) { el.style.backgroundImage = `url("${t}")`; el.classList.add('com-th'); } }); } } }, { root: null, rootMargin: '200px' });
     $$('[data-th]', m).forEach(el => io.observe(el));
     m.onclick = e => { if (e.target === m || e.target.closest('[data-x]')) return fim(false); const t = e.target.closest('[data-tp]'); if (t) return t.parentElement.classList.toggle('fechada');
       const b = e.target.closest('[data-v]'); if (!b) return; const v = b.dataset.v; fim(v === '' ? undefined : v === '-' ? null : L.find(x => x.id === v)); };
@@ -653,7 +676,7 @@ async function pintaElenco(c) {
   const P = S.P, ps = Roteiro.personagens(P.partes), ed = pode('roteiro') || pode('organizar'), cs = coresDoRoteiro();
   c.innerHTML = `<div class="elenco-an"><div class="explica">${ic('pessoa', 20)}<div><b>Quem é quem no Animador</b>
     <p>Escolha qual personagem do Ateliê faz cada nome NESTE roteiro (fica salvo nele e dá para trocar depois). Em <b>Automático</b> vale o <b>padrão do personagem</b> (aba Personagens); sem padrão, o personagem do Ateliê com o mesmo nome. <b>Nenhum</b> = essa voz entra sem personagem na cena.</p></div></div>
-    <div class="el-lista"><div class="vazio">Carregando os personagens do Ateliê…</div></div>
+    <div class="el-lista">${giroBloco('Carregando os personagens do Ateliê')}</div>
     <div class="el-pe"><button class="bt" data-at>${ic('atualizar', 15)} Buscar a lista do Ateliê de novo</button></div></div>`;
   let L; try { [L] = await Promise.all([atelie(), carregaPers().catch(() => ({}))]); } catch (e) { $('.el-lista', c).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
   $('[data-at]', c).onclick = async () => { sessionStorage.removeItem('ep-prep-atelie'); pintaElenco(c); };
@@ -665,7 +688,7 @@ async function pintaElenco(c) {
         : pad === null ? 'padrão do personagem: <b>nenhum</b>' : pad?.id ? `padrão: <b>${esc(pad.nome || pad.id)}</b>` : mesmo ? `automático: <b>${esc(mesmo.nome)}</b> (mesmo nome)` : '<span class="aten">sem padrão e nenhum personagem do Ateliê com este nome: escolha um</span>';
       const alvo = v?.id ? L.find(x => x.id === v.id) : v === null ? null : auto;
       return `<div class="el-lin">${ava(p.nome, cs.get(p.chave), 'p')}<b>${esc(p.nome)}</b><small>${p.n} fala${p.n === 1 ? '' : 's'}</small><span class="el-seta">${ic('voltar', 14)}</span>
-        <button class="el-esc" data-esc="${esc(p.chave)}" ${ed ? '' : 'disabled'} title="Escolher no Ateliê"><span class="ap-th p" ${alvo ? `data-th="${esc(alvo.id)}"` : ''}>${alvo ? esc(iniciais(alvo.nome)) : '—'}</span>${ic('pasta', 14)} Escolher no Ateliê</button>
+        <button class="el-esc" data-esc="${esc(p.chave)}" ${ed ? '' : 'disabled'} title="Escolher no Ateliê"><span class="ap-th p" ${alvo ? `data-th="${esc(alvo.id)}"` : ''}>${alvo ? esc(iniciais(alvo.nome)) : icAt(18)}</span>${icAt(15)} Escolher no Ateliê</button>
         <select data-k="${esc(p.chave)}" ${ed ? '' : 'disabled'}><option value="" ${sel === '' ? 'selected' : ''}>Automático (padrão do personagem)</option><option value="-" ${sel === '-' ? 'selected' : ''}>Nenhum</option>
         <optgroup label="Personagens do Ateliê">${L.map(x => `<option value="${esc(x.id)}" ${sel === x.id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</optgroup>
         ${v?.id && !L.some(x => x.id === v.id) ? `<option value="${esc(v.id)}" selected>${esc(v.nome || v.id)} (não está mais no Ateliê)</option>` : ''}</select>
@@ -719,44 +742,49 @@ async function paraWebp(arq, lado = 256) {
 }
 const slug = s => Roteiro.chave(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'p';
 async function pintaPersonagens() {
-  const el = tela(); el.innerHTML = `<section class="inicio pers-aba"><div class="cab"><h1>Personagens</h1></div>
-    <div class="explica">${ic('pessoa', 20)}<div><b>Todos os personagens dos roteiros ficam aqui, para a equipe toda.</b>
-      <p>Quando alguém escreve <b>Nome: fala</b> num roteiro e manda para a nuvem, o personagem entra nesta lista sozinho. Aqui você escolhe:</p>
-      <ul><li><b>Foto</b> (opcional): uma imagem simples de perfil. Ela é cortada no meio, diminuída e convertida para WEBP, para ficar leve na nuvem. Aparece na bolinha do personagem nos roteiros e nas falas.</li>
-      <li><b>Cor da legenda</b>: a cor das falas dele nas legendas (maiúscula ou minúscula no nome tanto faz).</li>
-      <li><b>No Animador</b>: qual personagem do Ateliê faz este nome em TODOS os roteiros (padrão). Num roteiro dá para trocar só nele (guia "Elenco no Animador").</li>
-      <li><b>Pasta</b>: Principais, Secundários ou uma pasta sua. No roteiro, o lado esquerdo mostra os personagens nessas pastas e dá para ver só uma delas. Cada roteiro pode usar uma organização só dele (botão de pasta ao lado de "Personagens").</li></ul></div></div>
-    <div class="pers-grade"><div class="vazio">Carregando…</div></div>
+  const el = tela(); el.innerHTML = `<section class="inicio pers-aba"><div class="cab"><h1>Personagens</h1><span class="esp"></span>${pode('organizar') ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button>` : ''}</div>
+    <p class="dica">Arraste um personagem para a pasta que quiser. Clique no nome da pasta para fechar ou abrir.</p>
+    <div class="pers-grade">${giroBloco()}</div>
     <input type="file" accept="image/*" data-arq hidden></section>`;
   try { await carregaPers(true); if (!S.lista) S.lista = (await Nuvem.lista().catch(() => ({ itens: [] }))).itens || []; } catch (e) { $('.pers-grade', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
   // os da equipe + os que aparecem nos roteiros e ainda não entraram na lista (ex.: roteiro só neste computador)
   const todos = { ...S.pers }; for (const it of S.lista) for (const n of it.pers || []) { const k = Roteiro.chave(n); if (!todos[k]) todos[k] = { nome: n, _fora: 1 }; }
   try { for (const [, v] of await DB.todos('rasc')) for (const p of Roteiro.personagens(v?.P?.partes)) if (!todos[p.chave]) todos[p.chave] = { nome: p.nome, _fora: 1 }; } catch { }
-  const ed = pode('organizar'), arq = $('[data-arq]', el); let alvo = null;
+  const ed = pode('organizar'), arq = $('[data-arq]', el), novas = new Set(); let alvo = null, fechadas = {};
+  try { fechadas = JSON.parse(localStorage.getItem('ep-prep-pastas-aba') || '{}'); } catch { }
   const manda = async (k, mudas, msg) => { try { const r = await Nuvem.acao({ acao: 'personagens', itens: { [k]: { nome: todos[k]?.nome || k, ...mudas } } }); S.pers = r.personagens || S.pers; Object.assign(todos, S.pers); if (msg) aviso(msg, 'ok'); pintaL(); } catch (e) { aviso(e.message, 'erro'); } };
   arq.onchange = async () => { const f = arq.files[0]; arq.value = ''; if (!f || !alvo) return; const k = alvo;
     try { aviso('Preparando a foto…', 'info', 1500); const b = await paraWebp(f), chaveF = `preparativos/pers/${slug(k)}-${Date.now().toString(36)}.webp`;
       await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(chaveF), { method: 'POST', headers: { 'content-type': 'image/webp' }, body: b });
       await manda(k, { foto: chaveF }, `Foto salva (${Math.max(1, Math.round(b.size / 1024))} KB).`); } catch (e) { aviso(e.message, 'erro'); } };
+  $('[data-pnova]', el)?.addEventListener('click', async () => { const g = await pastaNova(); if (!g) return; novas.add(g); pintaL(); aviso(`Pasta "${g}" criada. Arraste personagens para ela.`, 'info'); });
   const pintaL = () => {
-    const E = Object.entries(todos).sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')), pastas = [...new Set([...GRUPOS_BASE, ...E.map(([, v]) => v.grupo).filter(Boolean)])];
-    const grupos = [...pastas, ''].map(g => [g, E.filter(([, v]) => (v.grupo || '') === g)]).filter(([g, l]) => l.length || GRUPOS_BASE.includes(g));
-    $('.pers-grade', el).innerHTML = E.length ? grupos.map(([g, l]) => `<div class="pasta-g"><h3>${ic('pasta', 14)} ${g ? esc(g) : 'Sem pasta'} <small>${l.length}</small></h3><div class="pcards">${l.map(([k, v], i) => { const cor = v.cor || corPadrao(v.nome);
-      return `<div class="pcard2" data-k="${esc(k)}" style="--c:${cor}"><button class="foto" ${ed ? '' : 'disabled'} title="${v.foto ? 'Trocar a foto' : 'Pôr uma foto'}">${ava(v.nome, cor, 'g')}<span class="cam">${ic('camera', 14)}</span></button>
+    const E = Object.entries(todos).sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')), pastas = [...new Set([...GRUPOS_BASE, ...E.map(([, v]) => v.grupo).filter(Boolean), ...novas])];
+    const grupos = [...pastas, ''].map(g => [g, E.filter(([, v]) => (v.grupo || '') === g)]);
+    $('.pers-grade', el).innerHTML = grupos.map(([g, l]) => `<div class="pasta-g ${fechadas[g || '-'] ? 'fechada' : ''}" data-pasta="${esc(g)}">
+      <button class="pasta-g-tit" data-abre="${esc(g || '-')}">${ic('baixo', 14)} ${ic('pasta', 16)} <b>${g ? esc(g) : 'Sem pasta'}</b> <small>${l.length}</small></button>
+      <div class="pcards">${l.map(([k, v]) => { const cor = v.cor || corPadrao(v.nome);
+      return `<div class="pcard2" data-k="${esc(k)}" style="--c:${cor}" ${ed ? 'draggable="true"' : ''}><span class="pega" title="Arraste para outra pasta">${ic('mover', 14)}</span><button class="foto" ${ed ? '' : 'disabled'} title="${v.foto ? 'Trocar a foto' : 'Pôr uma foto'}">${ava(v.nome, cor, 'g')}<span class="cam">${ic('camera', 14)}</span></button>
         <div class="pc-meio"><b>${esc(v.nome)}</b>
-          <select data-grupo ${ed ? '' : 'disabled'}>${['', ...pastas].map(x => `<option value="${esc(x)}" ${x === (v.grupo || '') ? 'selected' : ''}>${x ? esc(x) : 'Sem pasta'}</option>`).join('')}<option value="+">+ Pasta nova…</option></select>
           <div class="paleta">${PALETA.map(x => `<button class="cor ${x === cor ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'}></button>`).join('')}<input type="color" value="${cor}" ${ed ? '' : 'disabled'} title="Outra cor"></div>
           <span class="leg-mini" style="color:${cor}">Exemplo de legenda</span>
-          <div class="pc-an"><small>No Animador:</small><button class="el-esc" data-pad ${ed ? '' : 'disabled'} title="Personagem do Ateliê que faz ${esc(v.nome)} em todos os roteiros"><span class="ap-th p" ${v.atelie?.id ? `data-th="${esc(v.atelie.id)}"` : ''}>${v.atelie?.id ? esc(iniciais(v.atelie.nome || v.atelie.id)) : '—'}</span>${v.atelie === null ? 'Nenhum' : v.atelie?.id ? esc(v.atelie.nome || v.atelie.id) : 'Automático (mesmo nome)'}</button></div>
-          ${v.foto && ed ? `<button class="link" data-tira>Tirar a foto</button>` : ''}</div></div>`; }).join('') || '<p class="dica">Ninguém nesta pasta.</p>'}</div></div>`).join('') : '<div class="vazio">Nenhum personagem ainda. Eles aparecem aqui quando um roteiro com falas (Nome: fala) vai para a nuvem.</div>';
+          <div class="pc-an"><small>No Animador:</small><button class="el-esc" data-pad ${ed ? '' : 'disabled'} title="Personagem do Ateliê que faz ${esc(v.nome)} em todos os roteiros"><span class="ap-th p" ${v.atelie?.id ? `data-th="${esc(v.atelie.id)}"` : ''}>${v.atelie?.id ? esc(iniciais(v.atelie.nome || v.atelie.id)) : icAt(18)}</span>${v.atelie === null ? 'Nenhum' : v.atelie?.id ? esc(v.atelie.nome || v.atelie.id) : 'Automático (mesmo nome)'}</button></div>
+          ${v.foto && ed ? `<button class="link" data-tira>Tirar a foto</button>` : ''}</div></div>`; }).join('') || `<div class="pasta-vazia">${ed ? 'Arraste personagens para cá.' : 'Ninguém nesta pasta.'}</div>`}</div></div>`).join('<hr class="sep-pasta">');
+    // abrir/fechar pastas
+    $$('[data-abre]', el).forEach(b => b.onclick = () => { const k = b.dataset.abre; fechadas[k] = !fechadas[k]; try { localStorage.setItem('ep-prep-pastas-aba', JSON.stringify(fechadas)); } catch { } b.parentElement.classList.toggle('fechada', !!fechadas[k]); });
+    // ARRASTAR para outra pasta (solta no título ou na área da pasta)
+    $$('.pcard2[draggable]', el).forEach(cd => { cd.ondragstart = e => { e.dataTransfer.setData('text/plain', cd.dataset.k); e.dataTransfer.effectAllowed = 'move'; cd.classList.add('arrastando'); document.body.classList.add('arrastando-pers'); };
+      cd.ondragend = () => { cd.classList.remove('arrastando'); document.body.classList.remove('arrastando-pers'); $$('.pasta-g.alvo', el).forEach(x => x.classList.remove('alvo')); }; });
+    $$('.pasta-g', el).forEach(pg => { pg.ondragover = e => { if (!ed) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; pg.classList.add('alvo'); }; pg.ondragleave = e => { if (!pg.contains(e.relatedTarget)) pg.classList.remove('alvo'); };
+      pg.ondrop = e => { e.preventDefault(); pg.classList.remove('alvo'); const k = e.dataTransfer.getData('text/plain'), g = pg.dataset.pasta; if (!k || !todos[k] || (todos[k].grupo || '') === g) return;
+        todos[k] = { ...todos[k], grupo: g || undefined }; pintaL(); manda(k, { grupo: g || null }, g ? `${todos[k].nome} foi para ${g}.` : `${todos[k].nome} saiu da pasta.`); }; });
     $$('.pcard2', el).forEach(cd => { const k = cd.dataset.k;
       $('.foto', cd).onclick = () => { alvo = k; arq.click(); };
       $('[data-tira]', cd)?.addEventListener('click', async () => { if (await pergunta('Tirar a foto?', `${todos[k].nome} volta a aparecer com as iniciais.`, [['Cancelar', false], ['Tirar', true, 'perigo']])) manda(k, { foto: null }, 'Foto tirada.'); });
-      $('[data-grupo]', cd).onchange = async e => { let g = e.target.value; if (g === '+') { g = await pastaNova(); if (!g) return pintaL(); } manda(k, { grupo: g || null }, g ? `${todos[k].nome} foi para ${g}.` : `${todos[k].nome} saiu da pasta.`); };
-      $('[data-pad]', cd)?.addEventListener('click', async () => { let L; try { L = await atelie(); } catch (e) { return aviso(e.message, 'erro'); }
+      $('[data-pad]', cd)?.addEventListener('click', async e => { const bt = e.currentTarget, rot = bt.innerHTML; bt.innerHTML = giro('Abrindo o Ateliê'); let L; try { L = await atelie(); } catch (er) { bt.innerHTML = rot; return aviso(er.message, 'erro'); } bt.innerHTML = rot;
         const r = await escolheNoAtelie(L, todos[k].atelie, `Padrão de ${todos[k].nome} no Animador (todos os roteiros)`, 'Automático (personagem com o mesmo nome)'); if (r === false) return;
         manda(k, { atelie: r === undefined ? 'auto' : r === null ? null : { id: r.id, nome: r.nome } }, r === undefined ? 'Padrão: automático (mesmo nome).' : r === null ? 'Padrão: nenhum personagem na cena.' : `Padrão no Animador: ${r.nome}.`); });
-      const thp = $('[data-pad] [data-th]', cd); if (thp) atelie().then(L => { const x = L.find(y => y.id === thp.dataset.th); if (x) thumbDe(x).then(t => { if (t) { thp.style.backgroundImage = `url("${t}")`; thp.classList.add('com-th'); } }); }).catch(() => { });
+      const thp = $('[data-pad] [data-th]', cd); if (thp) { thp.classList.add('carregando-th'); atelie().then(L => { const x = L.find(y => y.id === thp.dataset.th); if (x) thumbDe(x).then(t => { thp.classList.remove('carregando-th'); if (t) { thp.style.backgroundImage = `url("${t}")`; thp.classList.add('com-th'); } }); }).catch(() => thp.classList.remove('carregando-th')); }
       const cor = v => manda(k, { cor: v }); $$('.cor', cd).forEach(b => b.onclick = () => cor(b.dataset.cor)); $('input[type=color]', cd).onchange = e => cor(e.target.value); });
   };
   pintaL();
@@ -765,21 +793,18 @@ async function pintaPersonagens() {
 /* ---------- aba Ideias (mesmos dados das Ideias do Animador: /ideias → ideias/*.json) ---------- */
 const num = n => { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(1).replace('.0', '').replace('.', ',') + ' mi' : n >= 1e3 ? Math.round(n / 1e3) + ' mil' : String(n); };
 const Ideias = {
-  S: null, formato: 'todos',
+  S: null, formato: 'todos', aFormato: 'short', aCanal: '',
   async pinta(novo) {
     const el = tela(); el.innerHTML = `<section class="inicio ideias">
-      <div class="cab"><h1>Ideias</h1><span class="esp"></span>${pode('ideias') ? `<button class="bt" data-an title="Pede de novo a análise dos canais de referência">${ic('atualizar')} Atualizar análise</button><button class="bt" data-nova>${ic('mais')} Escrever ideia</button><button class="bt pri" data-sug>${ic('luz')} Sugerir ideias</button>` : ''}</div>
-      <div class="canais"></div>
-      <div class="filtros">${[['todos', 'Todas'], ['short', 'Shorts'], ['longo', 'Vídeos longos']].map(([k, n]) => `<button data-fo="${k}" class="${this.formato === k ? 'on' : ''}">${n}</button>`).join('')}</div>
-      <div class="ids grade"><div class="vazio">Carregando…</div></div></section>`;
-    try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { $('.ids', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
+      <div class="cab"><h1>Ideias</h1><span class="esp"></span>${pode('ideias') ? `<button class="bt" data-canais>${ic('play', 15)} Canais</button><button class="bt" data-an title="Pede de novo a análise dos canais de referência">${ic('atualizar')} Atualizar análise</button><button class="bt" data-nova>${ic('mais')} Escrever ideia</button><button class="bt pri" data-sug>${ic('luz')} Sugerir ideias</button>` : ''}</div>
+      <div class="analise-box">${giroBloco('Carregando a análise')}</div>
+      <h2 class="ids-tit">${ic('luz', 16)} Ideias para o nosso canal</h2>
+      <div class="filtros">${[['todos', 'Todas', 'grade'], ['short', 'Shorts', 'celular'], ['longo', 'Vídeos longos', 'filme']].map(([k, n, i]) => `<button data-fo="${k}" class="${this.formato === k ? 'on' : ''}">${ic(i, 14)} ${n}</button>`).join('')}</div>
+      <div class="ids grade">${giroBloco()}</div></section>`;
+    try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { $('.ids', el).innerHTML = $('.analise-box', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
     const A = this.S.analise, I = this.S.ideias || { lista: [] };
-    // o que está funcionando nos canais de referência (capinhas direto do YouTube: não gasta a nuvem)
-    $('.canais', el).innerHTML = A?.canais?.length ? `<div class="cab-an"><h3>O que está funcionando agora</h3><small class="dica">análise de ${esc(quando(A.em))}</small></div>
-      ${I.padroes?.length ? `<ul class="padroes">${I.padroes.slice(0, 6).map(p => `<li>${ic('luz', 13)} ${esc(p)}</li>`).join('')}</ul>` : ''}
-      <div class="canais-g">${A.canais.map(c => `<div class="canal"><div class="cn-cab">${c.avatar ? `<img src="${esc(c.avatar)}" alt="" referrerpolicy="no-referrer">` : ''}<div><b>${esc(c.nome)}</b><small>${esc(c.inscritos || '')} · ${esc(c.h)}</small></div></div>
-        <div class="vids">${[...(c.shorts?.bem || []).slice(0, 2).map(v => ({ v, sh: 1 })), ...(c.longos?.bem || []).slice(0, 2).map(v => ({ v, sh: 0 }))].map(({ v, sh }) => `<a class="vid" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${esc(v.id)}/mqdefault.jpg" alt="" loading="lazy" referrerpolicy="no-referrer"><span class="fmt">${sh ? 'Short' : esc(v.dur || 'Longo')}</span><b>${esc(v.titulo)}</b><small>${num(v.views)} views${v.nota ? ` · ${String(v.nota).replace('.', ',')}× a média` : ''}</small></a>`).join('')}</div></div>`).join('')}</div>`
-      : '<p class="dica">Ainda não há análise dos canais de referência.</p>';
+    this.pintaAnalise($('.analise-box', el), A, I);
+    $('[data-canais]', el)?.addEventListener('click', () => this.canais());
     $('[data-an]', el)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r = await Nuvem.json('/ideias', 'POST', { acao: 'atualizar', canais: this.S.canais || [] }); aviso(r.ja ? 'A análise já foi pedida há pouco.' : 'Análise pedida. Ela chega em alguns minutos.', 'ok'); } catch (er) { aviso(er.message, 'erro'); } });
     $('[data-nova]', el)?.addEventListener('click', () => this.edita(null));
     $('[data-sug]', el)?.addEventListener('click', e => this.sugere(e.currentTarget));
@@ -787,15 +812,50 @@ const Ideias = {
     const g = $('.ids', el), L = (I.lista || []).filter(x => this.formato === 'todos' || x.formato === this.formato);
     g.innerHTML = L.length ? '' : `<div class="vazio">${I.lista?.length ? 'Nenhuma ideia deste formato.' : `Nenhuma ideia ainda.${pode('ideias') && A ? ' Use "Sugerir ideias" para ganhar ideias a partir do que está funcionando, ou escreva a sua.' : ''}`}</div>`;
     for (const x of L) {
-      const c = h(`<div class="cartao ideia ${x.formato === 'longo' ? 'longo' : 'short'}"><div class="topo"><span class="st">${x.formato === 'longo' ? 'Vídeo longo' : 'Short'}</span>${x.esforco ? `<span class="dica">esforço ${esc(x.esforco)}</span>` : ''}</div>
+      const c = h(`<div class="cartao ideia ${x.formato === 'longo' ? 'longo' : 'short'}"><div class="topo"><span class="st">${ic(x.formato === 'longo' ? 'filme' : 'celular', 12)} ${x.formato === 'longo' ? 'Vídeo longo' : 'Short'}</span>${x.esforco ? `<span class="dica">esforço ${esc(x.esforco)}</span>` : ''}</div>
         <b>${esc(x.titulo)}</b>${x.gancho ? `<p class="gancho">“${esc(x.gancho)}”</p>` : ''}<small>${esc(x.resumo || '')}</small>
-        ${x.porque ? `<small class="pq">${ic('luz', 12)} ${esc(x.porque)}</small>` : ''}${x.personagens?.length ? `<div class="elenco">${x.personagens.slice(0, 5).map((p, i) => ava(p, corOuPadrao(p), 'p')).join('')}</div>` : ''}
+        ${x.porque ? `<small class="pq">${ic('luz', 12)} ${esc(x.porque)}</small>` : ''}${x.personagens?.length ? `<div class="elenco">${x.personagens.slice(0, 5).map(p => ava(p, corOuPadrao(p), 'p')).join('')}</div>` : ''}
         <div class="bts">${pode('roteiro') ? `<button class="bt pri" data-rot>${ic('doc', 14)} Virar roteiro</button>` : ''}${pode('ideias') ? `<button class="bt" data-ed>Editar</button><button class="bt ic" data-del title="Tirar esta ideia">${ic('lixo', 14)}</button>` : ''}</div></div>`);
       $('[data-rot]', c)?.addEventListener('click', () => this.viraRoteiro(x, I));
       $('[data-ed]', c)?.addEventListener('click', () => this.edita(x));
       $('[data-del]', c)?.addEventListener('click', async () => { if (!await pergunta('Tirar esta ideia?', x.titulo, [['Cancelar', false], ['Tirar', true, 'perigo']])) return; I.lista = I.lista.filter(y => y !== x); this.guarda(I); });
       g.appendChild(c);
     }
+  },
+  // O QUE ESTÁ FUNCIONANDO: os padrões em cartões (título + detalhe) e os canais um embaixo do outro, com Shorts OU Vídeos longos
+  // (um formato por vez, para não misturar) e filtro por canal; muitos canais = a lista rola por dentro
+  pintaAnalise(box, A, I) {
+    if (!A?.canais?.length) { box.innerHTML = `<div class="vazio">Ainda não há análise dos canais de referência.${pode('ideias') ? ' Use "Canais" para escolher e "Atualizar análise".' : ''}</div>`; return; }
+    const sh = this.aFormato === 'short', cs = A.canais.filter(c => !this.aCanal || c.h === this.aCanal);
+    const pad = (I.padroes || []).slice(0, 8).map(p => { const i = p.indexOf(':'); return i > 8 && i < 110 ? [p.slice(0, i), p.slice(i + 1).trim()] : [p, '']; });
+    box.innerHTML = `<div class="an-cab"><h2>${ic('grafico', 16)} O que está funcionando agora</h2><small class="dica">análise de ${esc(quando(A.em))} · ${A.canais.length} cana${A.canais.length === 1 ? 'l' : 'is'}</small></div>
+      ${pad.length ? `<div class="padroes2">${pad.map(([t, d], i) => `<div class="pad"><span class="pad-n">${i + 1}</span><div><b>${esc(t)}</b>${d ? `<p>${esc(d)}</p>` : ''}</div></div>`).join('')}</div>` : ''}
+      <div class="an-filtros"><div class="seg">${[['short', 'Shorts', 'celular'], ['longo', 'Vídeos longos', 'filme']].map(([k, n, i]) => `<button data-af="${k}" class="${this.aFormato === k ? 'on' : ''}">${ic(i, 14)} ${n}</button>`).join('')}</div>
+        <div class="chips-canal"><button data-ac="" class="${!this.aCanal ? 'on' : ''}">Todos os canais</button>${A.canais.map(c => `<button data-ac="${esc(c.h)}" class="${this.aCanal === c.h ? 'on' : ''}">${c.avatar ? `<img src="${esc(c.avatar)}" alt="" referrerpolicy="no-referrer">` : ''}${esc(c.nome)}</button>`).join('')}</div></div>
+      <div class="canais-l">${cs.map(c => { const vs = ((sh ? c.shorts : c.longos)?.bem || []).slice(0, 10), med = c.mediana?.[sh ? 'short' : 'longo'];
+        return `<div class="canal-l"><div class="cl-info">${c.avatar ? `<img src="${esc(c.avatar)}" alt="" referrerpolicy="no-referrer">` : ''}<div><b>${esc(c.nome)}</b><small>${esc(c.h)}</small><small>${esc(c.inscritos || '')}</small>${med ? `<small>média de ${num(med)} views por ${sh ? 'short' : 'vídeo'}</small>` : ''}</div></div>
+          <div class="cl-vids ${sh ? 'sh' : 'lg'}">${vs.length ? vs.map(v => `<a class="vid2" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener" title="${esc(v.titulo)}"><span class="vt"><img src="https://i.ytimg.com/vi/${esc(v.id)}/${sh ? 'oardefault' : 'mqdefault'}.jpg" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="if(!this.dataset.r){this.dataset.r=1;this.src='https://i.ytimg.com/vi/${esc(v.id)}/mqdefault.jpg'}">${v.nota ? `<span class="x">${String(v.nota).replace('.', ',')}×</span>` : ''}${!sh && v.dur ? `<span class="d">${esc(v.dur)}</span>` : ''}</span><b>${esc(v.titulo || '(sem título)')}</b><small>${num(v.views)} views</small></a>`).join('') : `<small class="dica">Nada acima da média em ${sh ? 'shorts' : 'vídeos longos'}.</small>`}</div></div>`; }).join('')}</div>
+      <small class="dica">"2×" = o vídeo teve o dobro das views que o canal costuma ter.</small>`;
+    $$('[data-af]', box).forEach(b => b.onclick = () => { this.aFormato = b.dataset.af; this.pintaAnalise(box, A, I); });
+    $$('[data-ac]', box).forEach(b => b.onclick = () => { this.aCanal = b.dataset.ac; this.pintaAnalise(box, A, I); });
+  },
+  // CANAIS de referência (até 20): adicionar e tirar; salvar já pede a análise de novo
+  canais() {
+    let L = [...(this.S?.canais || ['@Torajo', '@TurmaDaBatatinha'])];
+    const m = h(`<div class="modal"><div class="caixa larga"><b>Canais de referência</b><p>Os canais do YouTube que a análise acompanha (até 20). Escreva o @ do canal, como aparece no endereço dele.</p>
+      <div class="can-lista"></div><div class="can-add"><input placeholder="@canal" maxlength="41"><button class="bt" data-add>${ic('mais', 14)} Adicionar</button></div>
+      <div class="bts"><button class="bt" data-c>Cancelar</button><button class="bt pri" data-s>Salvar e analisar</button></div></div></div>`);
+    const A = this.S?.analise, info = h => A?.canais?.find(c => c.h.toLowerCase() === h.toLowerCase());
+    const pinta = () => { $('.can-lista', m).innerHTML = L.map((x, i) => { const c = info(x); return `<div class="can-l">${c?.avatar ? `<img src="${esc(c.avatar)}" alt="" referrerpolicy="no-referrer">` : `<span class="can-sem">${ic('play', 14)}</span>`}<div><b>${esc(c?.nome || x)}</b><small>${esc(x)}${c?.inscritos ? ' · ' + esc(c.inscritos) : c ? '' : ' · entra na próxima análise'}</small></div><button class="bt ic" data-tira="${i}" title="Tirar">${ic('lixo', 14)}</button></div>`; }).join('') || '<p class="dica">Nenhum canal.</p>';
+      $$('[data-tira]', m).forEach(b => b.onclick = () => { L.splice(+b.dataset.tira, 1); pinta(); }); };
+    const add = () => { const i = $('.can-add input', m); let v = i.value.trim().replace(/^https?:\/\/(www\.)?youtube\.com\//i, '').replace(/\/.*$/, ''); if (!v) return; if (!v.startsWith('@')) v = '@' + v;
+      if (!/^@[\w.\-]{3,40}$/.test(v)) return aviso('Escreva o @ do canal (ex.: @Torajo).', 'info'); if (L.some(x => x.toLowerCase() === v.toLowerCase())) return aviso('Esse canal já está na lista.', 'info'); if (L.length >= 20) return aviso('No máximo 20 canais.', 'info'); L.push(v); i.value = ''; pinta(); };
+    $('[data-add]', m).onclick = add; $('.can-add input', m).onkeydown = e => { if (e.key === 'Enter') add(); };
+    $('[data-c]', m).onclick = () => m.remove();
+    $('[data-s]', m).onclick = async e => { if (!L.length) return aviso('Ponha pelo menos um canal.', 'info'); const b = e.currentTarget; b.disabled = true; b.innerHTML = giro('Salvando');
+      try { const r = await Nuvem.json('/ideias', 'POST', { acao: 'atualizar', canais: L }); this.S.canais = L; m.remove(); aviso(r.ja ? 'Canais salvos. A análise já tinha sido pedida há pouco; ela chega em alguns minutos.' : 'Canais salvos. A análise nova chega em alguns minutos.', 'ok', 6000); }
+      catch (er) { aviso(er.message, 'erro'); b.disabled = false; b.textContent = 'Salvar e analisar'; } };
+    document.body.appendChild(m); pinta(); $('.can-add input', m).focus();
   },
   viraRoteiro(x, I) {
     // o que a equipe escolhe vira exemplo do gosto dela nas próximas ideias (mesmo campo do Animador)
@@ -815,7 +875,7 @@ Metade shorts e metade longos; formatos variados (mistério, conversa com o púb
       'LONGOS indo bem:', ...(c.longos?.bem || []).slice(0, 8).map(lin), 'LONGOS mais vistos:', ...(c.longos?.populares || []).slice(0, 8).map(lin)].join('\n')).join('\n\n'); },
   async sugere(bt) {
     if (!this.S?.analise) return aviso('Ainda não há análise dos canais. Use "Atualizar análise" e espere alguns minutos.', 'info');
-    const I0 = this.S.ideias || { lista: [] }, rot = bt.innerHTML; bt.disabled = true; bt.innerHTML = '<span class="gira"></span> Pensando…';
+    const I0 = this.S.ideias || { lista: [] }, rot = bt.innerHTML; bt.disabled = true; bt.innerHTML = giro('Pensando nas ideias');
     try {
       const elenco = [...new Set([...Object.values(await carregaPers().catch(() => ({}))).map(v => v.nome), ...(S.lista || []).flatMap(x => x.pers || [])].map(n => Roteiro.norm(n)).filter(Boolean))].slice(0, 30);
       const pedido = `ANÁLISE (${quando(this.S.analise.em)}):\n${this.resumo()}\n\nNOSSO ELENCO: ${elenco.join(', ') || '(use personagens genéricos do canal Problems)'}\n\n`
@@ -860,6 +920,8 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
     return out; },
 }));
 (async () => {
+  { const conta = document.querySelector('.top [data-estudio-conta]'); if (conta) { const b = h(`<button class="nuvem-top" title="O Preparativos usa a nuvem da equipe: o que está na nuvem a equipe toda vê. Clique para ver os roteiros na nuvem.">${ic('nuvem', 18)}<span>Nuvem</span></button>`);
+    b.onclick = async () => { if (S.P && !await sairDoPrep()) return; filtroOnde = 'nuvem'; trocaAba('roteiros'); }; conta.before(b); } }
   try { S.eu = await window.EstudioLogin?.pronto; } catch { }
   // níveis de acesso: o /estudio-conta.js (defer) cria o EstudioPerm depois deste arquivo; espera ele antes de desenhar os botões
   if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));
