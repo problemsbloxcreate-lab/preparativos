@@ -211,12 +211,12 @@ body.modo-doc main{max-width:none;padding:0}
 .db-tit{display:inline-flex;align-items:center;gap:8px;font-weight:500;color:#444746;padding:0 6px}
 .db-modo{display:inline-flex;align-items:center;gap:6px;color:#444746;font-size:14px;padding:4px 10px;border-radius:4px}
 .ital{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-style:italic;font-size:16px}
-.regua{height:22px;margin:4px 0 0;display:flex;justify-content:center;overflow:hidden}
+.regua{height:22px;margin:4px 0 0;display:flex;justify-content:center;overflow:hidden;padding-left:260px}
 .r-folha{position:relative;width:816px;flex:none;height:22px;border-bottom:1px solid #dadce0;background-color:#fff;
   background-image:linear-gradient(90deg,rgba(218,220,224,.9) 0 84px,transparent 84px calc(100% - 84px),rgba(218,220,224,.9) calc(100% - 84px)),repeating-linear-gradient(90deg,#9aa0a6 0 1px,transparent 1px 9.45px);
   background-size:100% 100%,100% 5px;background-position:0 0,0 100%;background-repeat:no-repeat,repeat-x}
 .r-folha span{position:absolute;top:2px;font-size:10px;color:#5f6368}
-body.sem-guias .regua{display:none}
+body.sem-guias .regua{padding-left:0}
 .dh-area{display:grid;grid-template-columns:260px minmax(0,1fr);align-items:start}
 body.sem-guias .dh-area{grid-template-columns:minmax(0,1fr)}body.sem-guias .guias{display:none}
 .guias{position:sticky;top:132px;max-height:calc(100vh - 140px);overflow:auto;padding:14px 10px 20px 16px}
@@ -241,7 +241,7 @@ body.modo-doc .redondo.gravar.de-novo{background:#fff}
 body.modo-doc .lista-pers{box-shadow:0 2px 6px rgba(60,64,67,.15),0 1px 2px rgba(60,64,67,.3)}
 body.modo-doc .aviso{background:#303030;color:#f2f2f2;border-color:#303030}
 @media (max-width:980px){.dh-area{grid-template-columns:1fr}.guias{position:static;max-height:none;display:flex;flex-wrap:wrap;gap:4px}.guias .g-roteiro,.guias .etapa-dica,.guias .g-tit{display:none}.guias>[data-sub]{width:auto}
-  .dh .etapas span{display:none}.regua{display:none}.dh-barra{top:0;position:static}}
+  .dh .etapas span{display:none}.regua{display:none!important}.dh-barra{top:0;position:static}}
 @media (max-width:720px){.dh{flex-wrap:wrap}.dh-menus{overflow-x:auto;max-width:100vw}.corpo-falas,.corpo-legendas{padding:12px}}
 /* Ideias */
 .cab-an{display:flex;align-items:baseline;gap:10px;margin-top:10px}.cab-an h3{margin:10px 0 6px}
