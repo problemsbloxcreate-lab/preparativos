@@ -853,34 +853,99 @@ async function pintaElenco(c) {
   pinta();
 }
 
-/* ---------- aba Legendas (do roteiro aberto) ---------- */
+/* ---------- aba LEGENDAS: o estilo da legenda que o Animador, o Shorts e o Editor usam ----------
+   prep.legenda = { ativa, mostrarNome, cores, estilo, quadro }. estilo usa FRAÇÕES do quadro (tamanho = altura da letra ÷ altura do vídeo;
+   x/y = centro da legenda; largura = largura da caixa ÷ largura do vídeo; contorno/sombra também em fração da altura).
+   A foto de fundo da prévia é SÓ deste computador (banco de miniaturas), nunca vai para a nuvem. */
 const PALETA = ['#19f0f0', '#ffb04a', '#ff6b93', '#a796ff', '#4fe08f', '#ffd36b', '#7fd1ff', '#ff8f6b', '#ffffff', '#c9ff6b'];
+const LEG_PADRAO = { fonte: 'Rubik', tamanho: .045, peso: 800, x: .5, y: .82, largura: .86, alinhar: 'center', maiusculas: false,
+  contorno: { ativo: false, cor: '#000000', largura: .004 }, sombra: { ativa: false, cor: '#000000', desfoque: .006, x: 0, y: .003, opacidade: .8 }, fundo: { ativo: false, cor: '#000000', opacidade: .5 } };
+const QUADROS = [['1080x1920', 'Short / Reels — 1080 × 1920'], ['1920x1080', 'Vídeo — 1920 × 1080'], ['1080x1080', 'Quadrado — 1080 × 1080'], ['1080x1350', 'Retrato 4:5 — 1080 × 1350'], ['outro', 'Outro tamanho…']];
+const FONTES = ['Rubik', 'Arial', 'Segoe UI', 'Verdana', 'Trebuchet MS', 'Georgia', 'Impact', 'Comic Sans MS'];
+const estiloDe = P => { const e = P.legenda?.estilo || {}; return { ...LEG_PADRAO, ...e, contorno: { ...LEG_PADRAO.contorno, ...(e.contorno || {}) }, sombra: { ...LEG_PADRAO.sombra, ...(e.sombra || {}) }, fundo: { ...LEG_PADRAO.fundo, ...(e.fundo || {}) } }; };
+const rgba = (hex, a) => { const n = parseInt(String(hex).slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
 function pintaLegendas(c) {
-  const P = S.P, ps = Roteiro.personagens(P.partes), ed = pode('organizar'); P.legenda = P.legenda || { ativa: true, mostrarNome: false, cores: {} };
-  const cs = coresDoRoteiro(), escolha = Object.fromEntries(ps.map(p => [p.chave, cs.get(p.chave)]));
+  const P = S.P, ps = Roteiro.personagens(P.partes), ed = pode('organizar');
+  P.legenda = P.legenda || { ativa: true, mostrarNome: false, cores: {} };
+  const E = estiloDe(P), Q = { w: 1080, h: 1920, ...(P.legenda.quadro || {}) }, cs = coresDoRoteiro(), escolha = Object.fromEntries(ps.map(p => [p.chave, cs.get(p.chave)]));
   const exemplo = k => P.partes.flatMap(x => x.falas).find(f => Roteiro.chave(f.personagem) === k)?.texto || 'Exemplo de legenda';
-  let foco = ps[0]?.chave;
-  c.innerHTML = `<div class="leg2">
-    <div class="esq">
-      <label class="chave"><input type="checkbox" data-liga ${P.legenda.ativa ? 'checked' : ''} ${ed ? '' : 'disabled'}><span class="trilho"><i></i></span> Legendas ligadas neste roteiro</label>
-      <label class="chave"><input type="checkbox" data-nome ${P.legenda.mostrarNome ? 'checked' : ''} ${ed ? '' : 'disabled'}><span class="trilho"><i></i></span> Mostrar o nome de quem fala na legenda</label>
-      <p class="dica">Normalmente a legenda mostra só o que é falado, na cor de quem fala (o nome não aparece). A cor vale pelo nome do personagem, sem diferenciar maiúscula e minúscula; mudar aqui muda para a equipe toda (aba Personagens).</p>
-      <div class="lista">${ps.map(p => `<div class="lin" data-k="${esc(p.chave)}">${ava(p.nome, escolha[p.chave], 'p')}<b>${esc(p.nome)}</b>
-        <div class="paleta">${PALETA.map(x => `<button class="cor ${x === escolha[p.chave] ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<input type="color" value="${escolha[p.chave]}" ${ed ? '' : 'disabled'} title="Outra cor"></div></div>`).join('') || '<div class="vazio">Sem personagens ainda. Escreva falas no roteiro (Nome: fala).</div>'}</div>
-      ${ed && ps.length ? `<button class="bt pri" data-salva>${ic('ok', 15)} Salvar as cores</button>` : ''}
+  let foco = ps[0]?.chave, img = { x: 0, y: 0, zoom: 1 };
+  const qv = `${Q.w}x${Q.h}`, qSel = QUADROS.some(([v]) => v === qv) ? qv : 'outro';
+  const faixa = (k, rot, min, max, passo, val, fmt) => `<label class="lg-f"><small>${rot} <b data-v="${k}">${fmt(val)}</b></small><input type="range" data-k="${k}" min="${min}" max="${max}" step="${passo}" value="${val}" ${ed ? '' : 'disabled'}></label>`;
+  const chave = (k, rot, v) => `<label class="mp-ch"><input type="checkbox" data-ch="${k}" ${v ? 'checked' : ''} ${ed ? '' : 'disabled'}><span class="trilho"><i></i></span>${rot}</label>`;
+  const pct = v => Math.round(v * 1000) / 10 + '%';
+  c.innerHTML = `<div class="leg3">
+    <div class="lg-cfg">
+      <div class="lg-bloco">${chave('ativa', 'Legendas ligadas neste roteiro', P.legenda.ativa)}${chave('mostrarNome', 'Mostrar o nome de quem fala', P.legenda.mostrarNome)}
+        <p class="dica">Por padrão a legenda mostra só o que é falado, na cor de quem fala. Tudo daqui vai junto para o Animador, o Shorts e o Editor.</p></div>
+      <div class="lg-bloco"><h4>Tamanho do vídeo</h4><select data-quadro ${ed ? '' : 'disabled'}>${QUADROS.map(([v, n]) => `<option value="${v}" ${v === qSel ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        <div class="lg-wh" ${qSel === 'outro' ? '' : 'hidden'}><input type="number" data-w min="160" max="7680" value="${Q.w}" ${ed ? '' : 'disabled'}> × <input type="number" data-h min="160" max="7680" value="${Q.h}" ${ed ? '' : 'disabled'}> px</div></div>
+      <div class="lg-bloco"><h4>Texto</h4>
+        <div class="lg-2"><label class="lg-f"><small>Fonte</small><select data-fonte ${ed ? '' : 'disabled'}>${FONTES.map(f => `<option ${f === E.fonte ? 'selected' : ''} style="font-family:'${f}'">${f}</option>`).join('')}</select></label>
+          <label class="lg-f"><small>Alinhamento</small><select data-alinhar ${ed ? '' : 'disabled'}>${[['left', 'Esquerda'], ['center', 'Centro'], ['right', 'Direita']].map(([v, n]) => `<option value="${v}" ${v === E.alinhar ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
+        ${faixa('tamanho', 'Tamanho da letra', .015, .12, .001, E.tamanho, pct)}${faixa('peso', 'Grossura', 300, 900, 100, E.peso, v => v)}
+        ${chave('maiusculas', 'TUDO EM MAIÚSCULAS', E.maiusculas)}</div>
+      <div class="lg-bloco"><h4>${chave('sombra.ativa', 'Sombra', E.sombra.ativa)}</h4><div class="lg-sub" ${E.sombra.ativa ? '' : 'hidden'} data-sub="sombra">
+        <label class="lg-cor"><small>Cor</small><input type="color" data-cor="sombra.cor" value="${E.sombra.cor}" ${ed ? '' : 'disabled'}></label>
+        ${faixa('sombra.desfoque', 'Desfoque', 0, .04, .001, E.sombra.desfoque, pct)}${faixa('sombra.y', 'Distância', -.03, .03, .001, E.sombra.y, pct)}${faixa('sombra.opacidade', 'Força', 0, 1, .05, E.sombra.opacidade, v => Math.round(v * 100) + '%')}</div></div>
+      <div class="lg-bloco"><h4>${chave('contorno.ativo', 'Contorno', E.contorno.ativo)}</h4><div class="lg-sub" ${E.contorno.ativo ? '' : 'hidden'} data-sub="contorno">
+        <label class="lg-cor"><small>Cor</small><input type="color" data-cor="contorno.cor" value="${E.contorno.cor}" ${ed ? '' : 'disabled'}></label>${faixa('contorno.largura', 'Grossura', .001, .02, .0005, E.contorno.largura, pct)}</div></div>
+      <div class="lg-bloco"><h4>${chave('fundo.ativo', 'Fundo atrás do texto', E.fundo.ativo)}</h4><div class="lg-sub" ${E.fundo.ativo ? '' : 'hidden'} data-sub="fundo">
+        <label class="lg-cor"><small>Cor</small><input type="color" data-cor="fundo.cor" value="${E.fundo.cor}" ${ed ? '' : 'disabled'}></label>${faixa('fundo.opacidade', 'Opacidade', 0, 1, .05, E.fundo.opacidade, v => Math.round(v * 100) + '%')}</div></div>
+      <div class="lg-bloco"><h4>Cor de cada personagem</h4><div class="lista">${ps.map(p => `<div class="lin" data-k="${esc(p.chave)}">${ava(p.nome, escolha[p.chave], 'p')}<b>${esc(p.nome)}</b>
+        <div class="paleta">${PALETA.map(x => `<button class="cor ${x === escolha[p.chave] ? 'on' : ''}" style="--c:${x}" data-cor-p="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<label class="cor-outra" title="Outra cor"><input type="color" value="${escolha[p.chave]}" ${ed ? '' : 'disabled'}><span>${ic('mais', 12)}</span></label></div></div>`).join('') || '<div class="vazio">Sem personagens ainda.</div>'}</div></div>
     </div>
-    <div class="dir"><div class="tela-video"><div class="ceu"></div><div class="chao"></div><div class="leg-previa"></div></div><small class="dica">Prévia da legenda. Clique num personagem para ver a cor dele.</small></div></div>`;
-  const liga = $('[data-liga]', c), nome = $('[data-nome]', c), previa = () => { const pv = $('.leg-previa', c); pv.hidden = !liga.checked; if (!foco) return; const p = ps.find(x => x.chave === foco);
-    pv.style.color = escolha[foco]; pv.textContent = (nome.checked ? `${p?.nome || ''}: ` : '') + exemplo(foco); };
-  $$('.lin', c).forEach(l => { const k = l.dataset.k, troca = v => { escolha[k] = v; $$('.cor', l).forEach(b => b.classList.toggle('on', b.dataset.cor === v)); $('.ava', l).style.setProperty('--c', v); $('input[type=color]', l).value = v; foco = k; previa(); };
-    l.onclick = e => { if (!e.target.closest('button,input')) { foco = k; previa(); } };
-    $$('.cor', l).forEach(b => b.onclick = () => troca(b.dataset.cor)); $('input[type=color]', l).oninput = e => troca(e.target.value); });
-  const salva = async () => { P.legenda = { ativa: liga.checked, mostrarNome: nome.checked, cores: { ...escolha } };
-    for (const [k, v] of Object.entries(escolha)) if (S.pers) S.pers[k] = { ...(S.pers[k] || { nome: k }), cor: v };
-    if (P.novo || S.sujo) { marcaSujo(); return aviso('Guardado aqui. Vai para a nuvem junto com o roteiro.', 'info'); }
-    try { const r = await Nuvem.acao({ acao: 'legenda', id: P.id, ...P.legenda }); P.mod = r.mod || P.mod; S.base.mod = P.mod; S.cores = r.cores || S.cores; aviso('Legendas salvas.', 'ok'); pintaBarraPrep(); } catch (e) { aviso(e.message, 'erro'); } };
-  liga.onchange = () => { previa(); salva(); }; nome.onchange = () => { previa(); salva(); }; $('[data-salva]', c)?.addEventListener('click', salva);
-  previa();
+    <div class="lg-prev"><div class="lg-barra"><b>Prévia</b><span class="esp"></span><button class="bt" data-img>${ic('camera', 14)} Imagem de fundo</button><button class="bt" data-sem-img hidden>${ic('lixo', 14)} Tirar</button><button class="bt" data-centra title="Voltar a legenda para o lugar padrão">${ic('atualizar', 14)} Posição padrão</button></div>
+      <div class="lg-moldura"><div class="quadro" style="aspect-ratio:${Q.w} / ${Q.h}"><img class="q-img" alt="" hidden><div class="q-leg" tabindex="0"><span class="q-txt"></span><i class="q-alca e"></i><i class="q-alca d"></i></div></div></div>
+      <small class="dica">Arraste a legenda para mudar o lugar; puxe as bordas dela para mudar a largura; rodinha do mouse em cima da legenda = tamanho da letra. Com imagem de fundo: arraste o fundo para mover e use a rodinha para dar zoom. A imagem fica só neste computador.</small>
+      <input type="file" accept="image/*" data-arq-img hidden></div></div>`;
+  const qd = $('.quadro', c), leg = $('.q-leg', c), txt = $('.q-txt', c), im = $('.q-img', c);
+  // ---- aplica o estilo na prévia (em unidades do quadro: cqh = 1% da altura do quadro) ----
+  const aplica = () => { const e = E, h = v => `calc(${v * 100} * 1cqh)`, p = ps.find(x => x.chave === foco);
+    leg.style.left = e.x * 100 + '%'; leg.style.top = e.y * 100 + '%'; leg.style.width = e.largura * 100 + '%'; leg.hidden = !P.legenda.ativa;
+    txt.textContent = (P.legenda.mostrarNome && p ? p.nome + ': ' : '') + (foco ? exemplo(foco) : 'Exemplo de legenda');
+    Object.assign(txt.style, { fontFamily: `'${e.fonte}', sans-serif`, fontSize: h(e.tamanho), fontWeight: e.peso, textAlign: e.alinhar, textTransform: e.maiusculas ? 'uppercase' : 'none', color: escolha[foco] || '#ffffff',
+      textShadow: e.sombra.ativa ? `${h(e.sombra.x)} ${h(e.sombra.y)} ${h(e.sombra.desfoque)} ${rgba(e.sombra.cor, e.sombra.opacidade)}` : 'none',
+      webkitTextStroke: e.contorno.ativo ? `${h(e.contorno.largura)} ${e.contorno.cor}` : '0', paintOrder: 'stroke fill',
+      background: e.fundo.ativo ? rgba(e.fundo.cor, e.fundo.opacidade) : 'transparent', padding: e.fundo.ativo ? `${h(.006)} ${h(.012)}` : '0' });
+    leg.style.textAlign = e.alinhar; };
+  // ---- guarda (vai sozinho para a nuvem se o roteiro já estiver lá) ----
+  let tSalva = 0; const guarda = () => { P.legenda = { ...P.legenda, estilo: JSON.parse(JSON.stringify(E)), quadro: { w: Q.w, h: Q.h }, cores: { ...(P.legenda.cores || {}), ...escolha } }; clearTimeout(tSalva); tSalva = setTimeout(marcaSujo, 300); };
+  const poe = (k, v) => { const [a, b] = k.split('.'); if (b) E[a][b] = v; else E[a] = v; };
+  $$('[data-k]', c).forEach(i => i.oninput = () => { const v = +i.value; poe(i.dataset.k, v); const s = $(`[data-v="${i.dataset.k}"]`, c); if (s) s.textContent = /opacidade/.test(i.dataset.k) ? Math.round(v * 100) + '%' : i.dataset.k === 'peso' ? v : pct(v); aplica(); guarda(); });
+  $$('[data-ch]', c).forEach(i => i.onchange = () => { const k = i.dataset.ch; if (k === 'ativa' || k === 'mostrarNome') P.legenda[k] = i.checked; else poe(k, i.checked);
+    const sub = $(`[data-sub="${k.split('.')[0]}"]`, c); if (sub) sub.hidden = !i.checked; aplica(); guarda(); });
+  $$('[data-cor]', c).forEach(i => i.oninput = () => { poe(i.dataset.cor, i.value); aplica(); guarda(); });
+  $('[data-fonte]', c).onchange = e => { E.fonte = e.target.value; aplica(); guarda(); };
+  $('[data-alinhar]', c).onchange = e => { E.alinhar = e.target.value; aplica(); guarda(); };
+  const muda = (w, h) => { Q.w = Math.round(w); Q.h = Math.round(h); qd.style.aspectRatio = `${Q.w} / ${Q.h}`; aplica(); guarda(); };
+  $('[data-quadro]', c).onchange = e => { const v = e.target.value, wh = $('.lg-wh', c); wh.hidden = v !== 'outro'; if (v !== 'outro') { const [w, h] = v.split('x').map(Number); muda(w, h); $('[data-w]', c).value = w; $('[data-h]', c).value = h; } };
+  $('[data-w]', c).onchange = $('[data-h]', c).onchange = () => muda(Math.max(160, Math.min(7680, +$('[data-w]', c).value || 1080)), Math.max(160, Math.min(7680, +$('[data-h]', c).value || 1920)));
+  // cores dos personagens (clicar no nome = ver a cor dele na prévia)
+  $$('.lg-cfg .lin', c).forEach(l => { const k = l.dataset.k, troca = v => { escolha[k] = v; $$('.cor', l).forEach(b => b.classList.toggle('on', b.dataset.corP === v)); $('.ava', l).style.setProperty('--c', v); $('input[type=color]', l).value = v; foco = k; aplica(); guarda(); };
+    l.onclick = e => { if (!e.target.closest('button,input,label')) { foco = k; aplica(); } };
+    $$('.cor', l).forEach(b => b.onclick = () => troca(b.dataset.corP)); $('input[type=color]', l).oninput = e => troca(e.target.value); });
+  // ---- ARRASTAR a legenda, mudar a largura pelas bordas, rodinha = tamanho ----
+  const arrasta = (ev, fn) => { if (!ed) return; ev.preventDefault(); ev.stopPropagation(); const r = qd.getBoundingClientRect(), x0 = ev.clientX, y0 = ev.clientY, base = { ...E };
+    const mv = e => { fn((e.clientX - x0) / r.width, (e.clientY - y0) / r.height, base); aplica(); };
+    const fim = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', fim); leg.classList.remove('mexendo'); guarda(); }; leg.classList.add('mexendo'); addEventListener('pointermove', mv); addEventListener('pointerup', fim); };
+  leg.onpointerdown = e => { const alca = e.target.closest('.q-alca'); if (alca) return arrasta(e, (dx, dy, b) => { E.largura = Math.max(.1, Math.min(1, b.largura + (alca.classList.contains('d') ? 2 * dx : -2 * dx))); });
+    arrasta(e, (dx, dy, b) => { E.x = Math.max(0, Math.min(1, b.x + dx)); E.y = Math.max(0, Math.min(1, b.y + dy)); }); };
+  leg.onwheel = e => { if (!ed) return; e.preventDefault(); e.stopPropagation(); E.tamanho = Math.max(.015, Math.min(.12, E.tamanho * (e.deltaY < 0 ? 1.06 : 1 / 1.06))); const i = $('[data-k="tamanho"]', c); i.value = E.tamanho; $('[data-v="tamanho"]', c).textContent = pct(E.tamanho); aplica(); guarda(); };
+  $('[data-centra]', c).onclick = () => { if (!ed) return; Object.assign(E, { x: LEG_PADRAO.x, y: LEG_PADRAO.y, largura: LEG_PADRAO.largura }); aplica(); guarda(); };
+  // ---- IMAGEM DE FUNDO só deste computador: arrastar = mover, rodinha = zoom ----
+  const poeImg = () => { im.style.transform = `translate(-50%,-50%) translate(${img.x * 100}%, ${img.y * 100}%) scale(${img.zoom})`; };
+  const guardaImg = blob => TH.put('fundo-legenda', { blob: blob || TH._blob, ...img }).catch(() => { });
+  const mostraImg = (blob, o) => { if (im.src) URL.revokeObjectURL(im.src); TH._blob = blob; im.src = URL.createObjectURL(blob); im.hidden = false; $('[data-sem-img]', c).hidden = false; img = { x: 0, y: 0, zoom: 1, ...(o || {}) }; poeImg(); };
+  TH.get('fundo-legenda').then(g => { if (g?.blob) mostraImg(g.blob, { x: g.x || 0, y: g.y || 0, zoom: g.zoom || 1 }); }).catch(() => { });
+  const arq = $('[data-arq-img]', c); $('[data-img]', c).onclick = () => arq.click();
+  arq.onchange = () => { const f = arq.files[0]; arq.value = ''; if (!f) return; mostraImg(f); guardaImg(f); };
+  $('[data-sem-img]', c).onclick = () => { im.hidden = true; im.removeAttribute('src'); $('[data-sem-img]', c).hidden = true; TH.put('fundo-legenda', null).catch(() => { }); };
+  qd.onpointerdown = e => { if (im.hidden || e.target.closest('.q-leg')) return; e.preventDefault(); const r = qd.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY, b = { ...img }; qd.classList.add('movendo');
+    const mv = ev => { img.x = b.x + (ev.clientX - x0) / (im.offsetWidth || r.width); img.y = b.y + (ev.clientY - y0) / (im.offsetHeight || r.height); poeImg(); };
+    const fim = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', fim); qd.classList.remove('movendo'); guardaImg(); }; addEventListener('pointermove', mv); addEventListener('pointerup', fim); };
+  qd.onwheel = e => { if (im.hidden || e.target.closest('.q-leg')) return; e.preventDefault(); img.zoom = Math.max(.2, Math.min(8, img.zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08))); poeImg(); clearTimeout(qd._t); qd._t = setTimeout(() => guardaImg(), 400); };
+  aplica();
 }
 
 /* ---------- aba PERSONAGENS (a lista da equipe: preparativos/personagens.json) ---------- */
