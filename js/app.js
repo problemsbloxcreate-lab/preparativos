@@ -191,7 +191,7 @@ const ST_IC = { todos: 'grade', rascunho: 'lapis', gravando: 'mic', pronto: 'ok'
 async function pintaInicio(novo) {
   const ONDES = [['tudo', 'Tudo', 'grade'], ['pc', 'Neste computador', 'pc'], ['nuvem', 'Na nuvem', 'nuvem'], ['uso', 'Em uso', 'play']];
   const el = tela(); el.innerHTML = `<section class="inicio">
-    <div class="cab topo-ini"><h1>Roteiros</h1><span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button>${pode('roteiro') ? `<button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
+    <div class="cab topo-ini"><span class="cab-ic t-rot">${ic('doc', 24)}</span><div class="cab-txt"><h1>Roteiros</h1><p>Escreva, separe as falas de cada personagem e grave.</p></div><span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button>${pode('roteiro') ? `<button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
     <div class="filtros-ini">
       <div class="seg" role="group" aria-label="Onde">${ONDES.map(([k, n, i]) => `<button data-onde="${k}" class="${filtroOnde === k ? 'on' : ''}">${ic(i, 15)} ${n}<b class="n" data-n="${k}"></b></button>`).join('')}</div>
       <div class="chips-st" role="group" aria-label="Situação">${[['todos', 'Todas as situações'], ...PREP_CONFIG.status].map(([k, n]) => `<button data-f="${k}" class="st-${k} ${filtro === k ? 'on' : ''}">${ic(ST_IC[k], 14)} ${esc(n)}</button>`).join('')}</div>
@@ -880,7 +880,7 @@ function confirmaHtml(titulo, html, rotOk, perigo) {
 }
 
 async function pintaPersonagens() {
-  const el = tela(); el.innerHTML = `<section class="inicio pers-aba"><div class="cab"><h1>Personagens</h1><span class="esp"></span>${pode('organizar') ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button><button class="bt pri" data-novop>${ic('mais', 15)} Personagem novo</button>` : ''}</div>
+  const el = tela(); el.innerHTML = `<section class="inicio pers-aba"><div class="cab"><span class="cab-ic t-pers">${ic('pessoa', 24)}</span><div class="cab-txt"><h1>Personagens</h1><p>O elenco da equipe: foto, cor da legenda, pasta e quem faz no Animador.</p></div><span class="esp"></span>${pode('organizar') ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button><button class="bt pri" data-novop>${ic('mais', 15)} Personagem novo</button>` : ''}</div>
     <p class="dica">Arraste um personagem para a pasta que quiser. Clique no nome da pasta para fechar ou abrir; botão direito na pasta ou no personagem para mais opções (renomear, apagar a pasta, foto…).</p>
     <div class="pers-grade">${giroBloco()}</div>
     <input type="file" accept="image/*" data-arq hidden></section>`;
@@ -959,7 +959,7 @@ const Ideias = {
   S: null, formato: 'todos', aFormato: 'short', aCanal: '',
   async pinta(novo) {
     const el = tela(); el.innerHTML = `<section class="inicio ideias">
-      <div class="cab"><h1>Ideias</h1><span class="esp"></span>${pode('ideias') ? `<button class="bt" data-canais>${ic('play', 15)} Canais</button><button class="bt" data-an title="Pede de novo a análise dos canais de referência">${ic('atualizar')} Atualizar análise</button><button class="bt" data-nova>${ic('mais')} Escrever ideia</button><button class="bt pri" data-sug>${ic('luz')} Sugerir ideias</button>` : ''}</div>
+      <div class="cab"><span class="cab-ic t-ideia">${ic('luz', 24)}</span><div class="cab-txt"><h1>Ideias</h1><p>O que está funcionando nos canais e ideias para o nosso.</p></div><span class="esp"></span>${pode('ideias') ? `<button class="bt" data-canais>${ic('play', 15)} Canais</button><button class="bt" data-an title="Pede de novo a análise dos canais de referência">${ic('atualizar')} Atualizar análise</button><button class="bt" data-nova>${ic('mais')} Escrever ideia</button><button class="bt pri" data-sug>${ic('luz')} Sugerir ideias</button>` : ''}</div>
       <div class="analise-box">${giroBloco('Carregando a análise')}</div>
       <h2 class="ids-tit">${ic('luz', 16)} Ideias para o nosso canal</h2>
       <div class="filtros">${[['todos', 'Todas', 'grade'], ['short', 'Shorts', 'celular'], ['longo', 'Vídeos longos', 'filme']].map(([k, n, i]) => `<button data-fo="${k}" class="${this.formato === k ? 'on' : ''}">${ic(i, 14)} ${n}</button>`).join('')}</div>
@@ -1083,6 +1083,7 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
     return out; },
 }));
 (async () => {
+  { const IAB = { roteiros: 'doc', ideias: 'luz', personagens: 'pessoa' }; $$('[data-aba]').forEach(b => { if (!b.querySelector('svg')) b.insertAdjacentHTML('afterbegin', ic(IAB[b.dataset.aba] || 'doc', 16) + ' '); }); }
   try { S.eu = await window.EstudioLogin?.pronto; } catch { }
   // níveis de acesso: o /estudio-conta.js (defer) cria o EstudioPerm depois deste arquivo; espera ele antes de desenhar os botões
   if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));

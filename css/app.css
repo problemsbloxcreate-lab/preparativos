@@ -527,3 +527,99 @@ body.modo-doc.claro .dh-menu,body.modo-doc.claro .sel-menu,body.modo-doc.claro .
 .conf-corpo p{margin:6px 0;color:var(--muted)}.conf-corpo p b{color:var(--text)}
 .lista-r{margin:4px 0 8px;padding:0 0 0 4px;list-style:none;max-height:180px;overflow:auto}.lista-r li{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:13px}.lista-r small{color:var(--muted)}
 .aten-box{display:flex;gap:6px;align-items:flex-start;background:color-mix(in srgb,var(--aten) 12%,transparent);border-radius:8px;padding:8px 10px;color:var(--text)!important}
+
+/* ===================== TEMA NOVO (05/11/2026, pedido da dona: "mais legal, menos padrão, mas fácil de achar e organizado") =====================
+   Só nas telas do programa (início, Ideias, Personagens, Falas, Legendas). O roteiro aberto (modo documento) continua no estilo do editor. */
+body:not(.modo-doc){--bg:#0e0f15;--panel:rgba(30,32,44,.72);--panel-2:rgba(44,47,62,.75);--panel-3:rgba(60,64,82,.85);--line:rgba(255,255,255,.08);--text:#f1f2f6;--muted:#a3a8b8;
+  --marca:#ffcc4d;--marca2:#ff8a3d;--roxo:#8f7bff;--ciano:#2fe2f0;--rosa:#ff6b9a;--verde:#4fe08f;--accent:#7c9bff;
+  font-family:'Rubik','Segoe UI',system-ui,sans-serif;
+  background:radial-gradient(900px 520px at 8% -8%,rgba(255,204,77,.13),transparent 62%),radial-gradient(800px 560px at 102% 6%,rgba(143,123,255,.17),transparent 60%),radial-gradient(900px 600px at 50% 115%,rgba(47,226,240,.09),transparent 60%),#0e0f15;background-attachment:fixed}
+/* topo de vidro, abas com ícone */
+body:not(.modo-doc) .top{background:rgba(14,15,21,.62);backdrop-filter:blur(18px) saturate(1.4);border-bottom:1px solid var(--line);padding:10px 20px}
+body:not(.modo-doc) .logo b{font-size:18px}
+body:not(.modo-doc) .abas{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
+body:not(.modo-doc) .abas button{display:inline-flex;align-items:center;gap:7px;padding:7px 16px;border-radius:10px;font-weight:500;color:var(--muted);transition:background .15s,color .15s}
+body:not(.modo-doc) .abas button:hover{color:var(--text);background:rgba(255,255,255,.05)}
+body:not(.modo-doc) .abas button.on{color:#1f1400;background:linear-gradient(135deg,var(--marca),var(--marca2));box-shadow:0 4px 18px rgba(255,138,61,.3)}
+body:not(.modo-doc) main{max-width:1240px;padding:28px 20px 80px}
+/* títulos com ícone */
+.cab-ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;flex:none;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25)}
+.cab-ic.t-rot{background:linear-gradient(135deg,#ffcc4d,#ff8a3d);color:#2a1700}.cab-ic.t-pers{background:linear-gradient(135deg,#8f7bff,#ff6b9a)}.cab-ic.t-ideia{background:linear-gradient(135deg,#2fe2f0,#4f7bff)}
+.cab-txt h1{font-size:30px;font-weight:800;letter-spacing:-.5px;line-height:1.1}.cab-txt p{margin:4px 0 0;color:var(--muted);font-size:14px}
+body:not(.modo-doc) .inicio>.cab{gap:14px;align-items:center}
+/* botões */
+body:not(.modo-doc) .bt{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-weight:500;backdrop-filter:blur(8px)}
+body:not(.modo-doc) .bt:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.16)}
+body:not(.modo-doc) .bt.pri{background:linear-gradient(135deg,var(--marca),var(--marca2));color:#241400;border:0;font-weight:700;box-shadow:0 6px 22px rgba(255,138,61,.32)}
+body:not(.modo-doc) .bt.pri:hover{filter:brightness(1.07);transform:translateY(-1px)}
+body:not(.modo-doc) .bt.grande{padding:12px 22px;border-radius:14px;font-size:15px}
+body:not(.modo-doc) .bt.perigo{background:linear-gradient(135deg,#ff5a6e,#d7385a);color:#fff;border:0}
+/* filtros do início */
+body:not(.modo-doc) .seg{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:4px}
+body:not(.modo-doc) .seg button{border-radius:10px;font-weight:500}
+body:not(.modo-doc) .seg button.on{background:rgba(255,255,255,.12);color:var(--text);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+body:not(.modo-doc) .seg .n{background:rgba(255,204,77,.18);color:var(--marca)}
+body:not(.modo-doc) .chips-st button{border-radius:99px;padding:6px 14px;background:rgba(255,255,255,.03)}
+body:not(.modo-doc) .chips-st button.on{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35)}
+/* painéis das seções */
+body:not(.modo-doc) .painel-sec{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));border:1px solid var(--line);border-radius:22px;padding:18px 20px 20px;border-top:0;position:relative;overflow:hidden}
+body:not(.modo-doc) .painel-sec::before{content:'';position:absolute;left:0;right:0;top:0;height:3px}
+.sec-pc::before{background:linear-gradient(90deg,var(--marca),var(--marca2))}.sec-nuvem::before{background:linear-gradient(90deg,#7c9bff,var(--ciano))}.sec-uso::before{background:linear-gradient(90deg,var(--verde),#2fd0a8)}
+body:not(.modo-doc) .sec-ic{width:40px;height:40px;border-radius:12px}
+body:not(.modo-doc) .sec-pc .sec-ic{background:linear-gradient(135deg,rgba(255,204,77,.25),rgba(255,138,61,.2));color:var(--marca)}
+body:not(.modo-doc) .sec-nuvem .sec-ic{background:linear-gradient(135deg,rgba(124,155,255,.28),rgba(47,226,240,.18));color:#9db4ff}
+body:not(.modo-doc) .sec-uso .sec-ic{background:linear-gradient(135deg,rgba(79,224,143,.25),rgba(47,208,168,.18));color:var(--verde)}
+body:not(.modo-doc) .ps-cab b{font-size:17px;font-weight:700}
+/* cartões dos roteiros */
+body:not(.modo-doc) .grade{gap:16px}
+body:not(.modo-doc) .cartao{background:rgba(22,24,34,.85)!important;border:1px solid var(--line);border-radius:20px;padding:16px 18px;transition:transform .18s,box-shadow .18s,border-color .18s}
+body:not(.modo-doc) .cartao::before{width:auto;left:0;right:0;top:0;bottom:auto;height:3px;border-radius:20px 20px 0 0;opacity:1}
+body:not(.modo-doc) .cartao.rascunho::before{background:linear-gradient(90deg,#8a90a2,#5d6273)}
+body:not(.modo-doc) .cartao.gravando::before{background:linear-gradient(90deg,var(--marca),var(--marca2))}
+body:not(.modo-doc) .cartao.pronto::before{background:linear-gradient(90deg,var(--verde),#2fd0a8)}
+body:not(.modo-doc) .cartao:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.16);box-shadow:0 14px 40px rgba(0,0,0,.45),0 0 0 1px rgba(255,204,77,.08)}
+body:not(.modo-doc) .cartao b{font-size:17px;font-weight:700}
+body:not(.modo-doc) .cartao .st{border-radius:99px;padding:3px 10px;font-weight:600}
+body:not(.modo-doc) .cartao .st-rascunho{background:rgba(163,168,184,.14);color:#c6cad6}
+body:not(.modo-doc) .cartao .st-gravando{background:rgba(255,204,77,.15);color:var(--marca)}
+body:not(.modo-doc) .cartao .st-pronto{background:rgba(79,224,143,.15);color:var(--verde)}
+body:not(.modo-doc) .cartao .anel circle:nth-child(2){stroke:var(--verde);filter:drop-shadow(0 0 4px rgba(79,224,143,.45))}
+body:not(.modo-doc) .elenco .ava{width:28px;height:28px;font-size:10px;box-shadow:0 0 0 2px #161822}
+/* lista vazia com desenho */
+body:not(.modo-doc) .vazio:not(.carregando):not(.erro){display:flex;flex-direction:column;align-items:center;gap:10px;padding:34px 20px;border:1px dashed rgba(255,255,255,.1);border-radius:18px;background:rgba(255,255,255,.02)}
+body:not(.modo-doc) .vazio:not(.carregando):not(.erro)::before{content:'';width:56px;height:56px;background:linear-gradient(135deg,var(--marca),var(--roxo));opacity:.75;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 3h7l4 4v14H7z'/%3E%3Cpath d='M14 3v4h4M10 12h5M10 16h3'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 3h7l4 4v14H7z'/%3E%3Cpath d='M14 3v4h4M10 12h5M10 16h3'/%3E%3C/svg%3E") center/contain no-repeat}
+/* personagens: faixa na cor de cada um e foto grande */
+body:not(.modo-doc) .pcards{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+body:not(.modo-doc) .pcard2{flex-direction:column;align-items:stretch;gap:0;padding:0;border:1px solid var(--line);border-left:1px solid var(--line);border-radius:20px;background:rgba(22,24,34,.88);overflow:hidden;transition:transform .18s,box-shadow .18s}
+body:not(.modo-doc) .pcard2:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(0,0,0,.45)}
+body:not(.modo-doc) .pcard2::before{content:'';display:block;height:56px;background:linear-gradient(135deg,var(--c),color-mix(in srgb,var(--c) 40%,#1b1d29))}
+body:not(.modo-doc) .pcard2 .foto{position:absolute;left:16px;top:22px}
+body:not(.modo-doc) .pcard2 .foto .ava.g{--ava:64px;box-shadow:0 0 0 4px #161822}
+body:not(.modo-doc) .pcard2 .pega{color:rgba(255,255,255,.75);top:10px;right:12px}
+body:not(.modo-doc) .pcard2 .pc-meio{padding:12px 16px 16px 96px;min-height:96px}
+body:not(.modo-doc) .pcard2 .pc-meio>b{font-size:18px;font-weight:700}
+body:not(.modo-doc) .pcard2 .leg-mini{font-size:14px}
+body:not(.modo-doc) .pasta-g-tit{font-size:16px;font-weight:600}
+body:not(.modo-doc) .pasta-g-tit>svg:nth-child(2){color:var(--marca)}
+body:not(.modo-doc) .pasta-vazia{border-radius:16px;background:rgba(255,255,255,.02)}
+/* ideias */
+body:not(.modo-doc) .pad{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border-radius:16px}
+body:not(.modo-doc) .pad-n{background:linear-gradient(135deg,var(--marca),var(--marca2));color:#241400}
+body:not(.modo-doc) .canal-l{background:rgba(22,24,34,.82);border-radius:18px}
+body:not(.modo-doc) .cartao.ideia.short::before{background:linear-gradient(90deg,var(--rosa),#ff9a6b)}
+body:not(.modo-doc) .cartao.ideia.longo::before{background:linear-gradient(90deg,var(--roxo),#5b8bff)}
+body:not(.modo-doc) .cartao.ideia .gancho{color:#e7e2ff}
+body:not(.modo-doc) .chips-canal button.on,body:not(.modo-doc) .filtros button.on{background:rgba(255,255,255,.12);color:var(--text);border-color:rgba(255,255,255,.3)}
+body:not(.modo-doc) .filtros button:not(.bt){display:inline-flex;align-items:center;gap:6px}
+/* janelas e avisos de vidro */
+.modal{background:rgba(6,7,12,.55);backdrop-filter:blur(6px)}
+body:not(.modo-doc) .modal .caixa{background:rgba(26,28,40,.92);border:1px solid rgba(255,255,255,.1);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.55)}
+body:not(.modo-doc) .aviso{background:rgba(30,32,44,.92);backdrop-filter:blur(12px);border-radius:14px;border:1px solid rgba(255,255,255,.1)}
+body:not(.modo-doc) .aviso.ok{box-shadow:inset 3px 0 0 var(--verde),0 10px 30px rgba(0,0,0,.4)}body:not(.modo-doc) .aviso.erro{box-shadow:inset 3px 0 0 #ff5a6e,0 10px 30px rgba(0,0,0,.4)}
+/* animação de entrada suave */
+@keyframes sobe{from{opacity:0;transform:translateY(8px)}}
+body:not(.modo-doc) .cartao,body:not(.modo-doc) .pcard2,body:not(.modo-doc) .painel-sec,body:not(.modo-doc) .pad{animation:sobe .35s ease-out both}
+@media (prefers-reduced-motion:reduce){body:not(.modo-doc) .cartao,body:not(.modo-doc) .pcard2,body:not(.modo-doc) .painel-sec,body:not(.modo-doc) .pad{animation:none}}
+@media (max-width:720px){.cab-txt h1{font-size:24px}.cab-ic{width:44px;height:44px}}
