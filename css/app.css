@@ -862,3 +862,12 @@ body.modo-doc .corpo.corpo-falas,body.modo-doc .corpo.corpo-legendas,body.modo-d
 .q-leg:hover .q-alca,.q-leg.mexendo .q-alca{opacity:1}.q-alca.e{left:-14px}.q-alca.d{right:-14px}
 @media (max-width:1100px){.leg3{grid-template-columns:1fr}.lg-prev{position:static}}
 .quadro{height:auto!important;width:min(100%,calc(min(68vh,760px) * var(--ar,.5625)))}
+
+/* Legendas: escolher o trecho da prévia */
+.lg-barra .bt[hidden]{display:none}
+.lg-trecho{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:10px 0}
+.lg-trecho .lg-f{flex:1 1 220px;min-width:0}.lg-trecho select{width:100%}
+.lg-nav{display:flex;align-items:center;gap:6px}.lg-num{min-width:64px;text-align:center;color:var(--muted);font-size:13px}
+.lg-falas{flex:1 1 100%;display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px}
+.lg-falas .lf{display:block;text-align:left;border:0;background:none;color:inherit;padding:6px 8px;border-radius:6px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid var(--c)}
+.lg-falas .lf b{color:var(--c);margin-right:4px}.lg-falas .lf:hover{background:rgba(127,127,127,.12)}.lg-falas .lf.on{background:rgba(127,127,127,.22)}

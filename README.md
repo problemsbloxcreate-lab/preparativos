@@ -98,6 +98,14 @@ das outras rotas). Chaves na nuvem da equipe:
 **LEGENDA NO PROGRAMA DE DESTINO:** mostre só o `texto` da fala (nunca a `nota`), na cor do personagem. O **nome de quem fala só aparece
 se `legenda.mostrarNome === true`** (aí "Nome: texto"). `legenda.ativa === false` = sem legendas.
 
+**ESTILO E TAMANHO DA LEGENDA** (aba Legendas; o Animador, o Shorts e o Editor devem usar): `legenda.quadro = { w, h }` = tamanho do
+vídeo em px (padrão 1080 × 1920). `legenda.estilo` = `{ fonte ('Rubik'), tamanho (.045), peso (800), x (.5), y (.82), largura (.86),
+alinhar ('left'|'center'|'right'), maiusculas (false), contorno: { ativo (false), cor, largura (.004) }, sombra: { ativa (FALSE por padrão),
+cor, desfoque (.006), x (0), y (.003), opacidade (.8) }, fundo: { ativo (false), cor, opacidade (.5) } }`. TODOS os números de medida são
+FRAÇÃO DA ALTURA do quadro (tamanho .045 = 4,5% da altura; em 1920 px = 86 px), menos `x`, `y` e `largura`, que são fração da largura/altura
+do quadro: `x`,`y` = CENTRO da legenda (`y` é o meio do bloco de texto), `largura` = largura máxima da caixa (o texto quebra dentro dela).
+Sem `estilo`/`quadro` = use esses padrões. A imagem de fundo da prévia é só do navegador de quem configurou e NÃO vai para a nuvem.
+
 **ELENCO NO ANIMADOR** (guia "Elenco no Animador", aparece com destino = Animador): `prep.animador.pers[Roteiro.chave(nome)]` =
 `{ id, nome }` (personagem do Ateliê, `personagens/<id>/personagem.json`) | `null` (nenhum personagem na cena). Sem entrada = o Animador
 procura o PADRÃO do personagem (`personagens.json[chave].atelie`, escolhido na aba Personagens: `{ id, nome }` ou `null` = nenhum) e, sem
@@ -118,7 +126,7 @@ Cor de um personagem: `prep.legenda.cores[nome.toLowerCase()]` → senão `perso
 | `POST /preparativos/arquivo?k=preparativos/pers/<nome>-<t>.webp` | foto de um personagem (só WEBP, até 512 KB) | organizar |
 | `POST /preparativos/acao {acao:'falas', id, falas:[{id, audio, duracao}]}` | liga os áudios às falas numa gravação só; o áudio antigo da fala é apagado | gravar |
 | `POST /preparativos/acao {acao:'marca', id, destino?, status?}` | destino e situação | pronto |
-| `POST /preparativos/acao {acao:'legenda', id, ativa, mostrarNome, cores}` | legendas do preparativo + as cores vão para `personagens.json` | organizar |
+| `POST /preparativos/acao {acao:'legenda', id, ativa, mostrarNome, cores, estilo, quadro}` | legendas do preparativo + as cores vão para `personagens.json` | organizar |
 | `POST /preparativos/acao {acao:'personagens', itens:{ "<nome>": { nome?, cor?, foto?, grupo?, atelie? } }}` | muda personagens da equipe (`null` tira foto/grupo; foto antiga é apagada; `atelie: null` = nenhum, `atelie: "auto"` tira o padrão) → `{ personagens }` | organizar |
 | `POST /preparativos/acao {acao:'cores', cores}` | (antigo) junta cores → `personagens.json` | organizar |
 | `POST /preparativos/acao {acao:'usado', id, programa, projeto}` | **o programa que usou avisa aqui** (Animador/Shorts/Editor) | ver |

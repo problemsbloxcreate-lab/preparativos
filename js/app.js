@@ -869,7 +869,8 @@ function pintaLegendas(c) {
   P.legenda = P.legenda || { ativa: true, mostrarNome: false, cores: {} };
   const E = estiloDe(P), Q = { w: 1080, h: 1920, ...(P.legenda.quadro || {}) }, cs = coresDoRoteiro(), escolha = Object.fromEntries(ps.map(p => [p.chave, cs.get(p.chave)]));
   const exemplo = k => P.partes.flatMap(x => x.falas).find(f => Roteiro.chave(f.personagem) === k)?.texto || 'Exemplo de legenda';
-  let foco = ps[0]?.chave, img = { x: 0, y: 0, zoom: 1 };
+  let foco = ps[0]?.chave, img = { x: 0, y: 0, zoom: 1 }, pi = Math.max(0, P.partes.findIndex(x => x.falas.length)), fi = 0;
+  const nomeParte = (x, i) => (x.capitulo ? x.capitulo + ' › ' : '') + (x.nome || 'Parte ' + (i + 1));
   const qv = `${Q.w}x${Q.h}`, qSel = QUADROS.some(([v]) => v === qv) ? qv : 'outro';
   const faixa = (k, rot, min, max, passo, val, fmt) => `<label class="lg-f"><small>${rot} <b data-v="${k}">${fmt(val)}</b></small><input type="range" data-k="${k}" min="${min}" max="${max}" step="${passo}" value="${val}" ${ed ? '' : 'disabled'}></label>`;
   const chave = (k, rot, v) => `<label class="mp-ch"><input type="checkbox" data-ch="${k}" ${v ? 'checked' : ''} ${ed ? '' : 'disabled'}><span class="trilho"><i></i></span>${rot}</label>`;
@@ -896,6 +897,9 @@ function pintaLegendas(c) {
         <div class="paleta">${PALETA.map(x => `<button class="cor ${x === escolha[p.chave] ? 'on' : ''}" style="--c:${x}" data-cor-p="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<label class="cor-outra" title="Outra cor"><input type="color" value="${escolha[p.chave]}" ${ed ? '' : 'disabled'}><span>${ic('mais', 12)}</span></label></div></div>`).join('') || '<div class="vazio">Sem personagens ainda.</div>'}</div></div>
     </div>
     <div class="lg-prev"><div class="lg-barra"><b>Prévia</b><span class="esp"></span><button class="bt" data-img>${ic('camera', 14)} Imagem de fundo</button><button class="bt" data-sem-img hidden>${ic('lixo', 14)} Tirar</button><button class="bt" data-centra title="Voltar a legenda para o lugar padrão">${ic('atualizar', 14)} Posição padrão</button></div>
+      <div class="lg-trecho"><label class="lg-f"><small>Parte</small><select data-parte>${P.partes.map((x, i) => `<option value="${i}" ${i === pi ? 'selected' : ''}>${esc(nomeParte(x, i))} (${x.falas.length})</option>`).join('') || '<option>Sem partes ainda</option>'}</select></label>
+        <div class="lg-nav"><button class="bt ic" data-ant title="Fala anterior">${ic('voltar', 15)}</button><span class="lg-num"></span><button class="bt ic" data-prox title="Próxima fala" style="transform:scaleX(-1)">${ic('voltar', 15)}</button></div>
+        <div class="lg-falas"></div></div>
       <div class="lg-moldura"><div class="quadro" style="aspect-ratio:${Q.w} / ${Q.h};--ar:${Q.w / Q.h}"><img class="q-img" alt="" hidden><div class="q-leg" tabindex="0"><span class="q-txt"></span><i class="q-alca e"></i><i class="q-alca d"></i></div></div></div>
       <small class="dica">Arraste a legenda para mudar o lugar; puxe as bordas dela para mudar a largura; rodinha do mouse em cima da legenda = tamanho da letra. Com imagem de fundo: arraste o fundo para mover e use a rodinha para dar zoom. A imagem fica só neste computador.</small>
       <input type="file" accept="image/*" data-arq-img hidden></div></div>`;
@@ -903,8 +907,11 @@ function pintaLegendas(c) {
   // ---- aplica o estilo na prévia (em unidades do quadro: cqh = 1% da altura do quadro) ----
   const aplica = () => { const e = E, h = v => `calc(${v * 100} * 1cqh)`, p = ps.find(x => x.chave === foco);
     leg.style.left = e.x * 100 + '%'; leg.style.top = e.y * 100 + '%'; leg.style.width = e.largura * 100 + '%'; leg.hidden = !P.legenda.ativa;
-    txt.textContent = (P.legenda.mostrarNome && p ? p.nome + ': ' : '') + (foco ? exemplo(foco) : 'Exemplo de legenda');
-    Object.assign(txt.style, { fontFamily: `'${e.fonte}', sans-serif`, fontSize: h(e.tamanho), fontWeight: e.peso, textAlign: e.alinhar, textTransform: e.maiusculas ? 'uppercase' : 'none', color: escolha[foco] || '#ffffff',
+    const fa = P.partes[pi]?.falas[fi], k = fa ? Roteiro.chave(fa.personagem) : foco, pn = fa ? fa.personagem : p?.nome;
+    txt.textContent = (P.legenda.mostrarNome && pn ? pn + ': ' : '') + (fa ? fa.texto : foco ? exemplo(foco) : 'Exemplo de legenda');
+    const fs = P.partes[pi]?.falas || []; $('.lg-num', c).textContent = fs.length ? `${fi + 1} de ${fs.length}` : '—'; $('[data-ant]', c).disabled = fi <= 0; $('[data-prox]', c).disabled = fi >= fs.length - 1;
+    $$('.lg-falas .lf', c).forEach((b, i) => b.classList.toggle('on', i === fi));
+    Object.assign(txt.style, { fontFamily: `'${e.fonte}', sans-serif`, fontSize: h(e.tamanho), fontWeight: e.peso, textAlign: e.alinhar, textTransform: e.maiusculas ? 'uppercase' : 'none', color: escolha[k] || '#ffffff',
       textShadow: e.sombra.ativa ? `${h(e.sombra.x)} ${h(e.sombra.y)} ${h(e.sombra.desfoque)} ${rgba(e.sombra.cor, e.sombra.opacidade)}` : 'none',
       webkitTextStroke: e.contorno.ativo ? `${h(e.contorno.largura)} ${e.contorno.cor}` : '0', paintOrder: 'stroke fill',
       background: e.fundo.ativo ? rgba(e.fundo.cor, e.fundo.opacidade) : 'transparent', padding: e.fundo.ativo ? `${h(.006)} ${h(.012)}` : '0' });
@@ -921,9 +928,16 @@ function pintaLegendas(c) {
   const muda = (w, h) => { Q.w = Math.round(w); Q.h = Math.round(h); qd.style.aspectRatio = `${Q.w} / ${Q.h}`; qd.style.setProperty('--ar', Q.w / Q.h); aplica(); guarda(); };
   $('[data-quadro]', c).onchange = e => { const v = e.target.value, wh = $('.lg-wh', c); wh.hidden = v !== 'outro'; if (v !== 'outro') { const [w, h] = v.split('x').map(Number); muda(w, h); $('[data-w]', c).value = w; $('[data-h]', c).value = h; } };
   $('[data-w]', c).onchange = $('[data-h]', c).onchange = () => muda(Math.max(160, Math.min(7680, +$('[data-w]', c).value || 1080)), Math.max(160, Math.min(7680, +$('[data-h]', c).value || 1920)));
-  // cores dos personagens (clicar no nome = ver a cor dele na prévia)
-  $$('.lg-cfg .lin', c).forEach(l => { const k = l.dataset.k, troca = v => { escolha[k] = v; $$('.cor', l).forEach(b => b.classList.toggle('on', b.dataset.corP === v)); $('.ava', l).style.setProperty('--c', v); $('input[type=color]', l).value = v; foco = k; aplica(); guarda(); };
-    l.onclick = e => { if (!e.target.closest('button,input,label')) { foco = k; aplica(); } };
+  const pintaFalas = () => { const fs = P.partes[pi]?.falas || []; $('.lg-falas', c).innerHTML = fs.map((f, i) => `<button class="lf" data-i="${i}" style="--c:${escolha[Roteiro.chave(f.personagem)] || '#fff'}"><b>${esc(f.personagem)}</b> ${esc(f.texto.slice(0, 90))}</button>`).join('') || '<div class="vazio">Nenhuma fala nesta parte.</div>';
+    $$('.lg-falas .lf', c).forEach(b => b.onclick = () => { fi = +b.dataset.i; aplica(); }); };
+  $('[data-parte]', c).onchange = e => { pi = +e.target.value; fi = 0; pintaFalas(); aplica(); };
+  $('[data-ant]', c).onclick = () => { if (fi > 0) { fi--; aplica(); $('.lg-falas .lf.on', c)?.scrollIntoView({ block: 'nearest' }); } };
+  $('[data-prox]', c).onclick = () => { if (fi < (P.partes[pi]?.falas.length || 0) - 1) { fi++; aplica(); $('.lg-falas .lf.on', c)?.scrollIntoView({ block: 'nearest' }); } };
+  pintaFalas();
+  // cores dos personagens (clicar no nome = pula para a primeira fala dele na parte escolhida)
+  const pulaPara = k => { const i = (P.partes[pi]?.falas || []).findIndex(f => Roteiro.chave(f.personagem) === k); if (i >= 0) fi = i; };
+  $$('.lg-cfg .lin', c).forEach(l => { const k = l.dataset.k, troca = v => { escolha[k] = v; $$('.cor', l).forEach(b => b.classList.toggle('on', b.dataset.corP === v)); $('.ava', l).style.setProperty('--c', v); $('input[type=color]', l).value = v; foco = k; pulaPara(k); pintaFalas(); aplica(); guarda(); };
+    l.onclick = e => { if (!e.target.closest('button,input,label')) { foco = k; pulaPara(k); aplica(); } };
     $$('.cor', l).forEach(b => b.onclick = () => troca(b.dataset.corP)); $('input[type=color]', l).oninput = e => troca(e.target.value); });
   // ---- ARRASTAR a legenda, mudar a largura pelas bordas, rodinha = tamanho ----
   const arrasta = (ev, fn) => { if (!ed) return; ev.preventDefault(); ev.stopPropagation(); const r = qd.getBoundingClientRect(), x0 = ev.clientX, y0 = ev.clientY, base = { ...E };
