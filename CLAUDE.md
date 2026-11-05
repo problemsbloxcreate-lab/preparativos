@@ -9,3 +9,5 @@
 - FORMATO DO ROTEIRO (para escrever ou ler um roteiro): README.md › "Como escrever o roteiro". Resumo: `## Parte`, `Nome: fala`,
   `*itálico*` = ação / como falar (vira nota, fora da legenda), linha inteira em itálico ou `[…]` = cena, `//` = comentário. O parser é
   `js/roteiro.js` (classifica/separa); a folha estilo Google Docs é `js/editor.js` (o texto é a fonte de verdade; a pintura nunca muda o texto).
+- Roteiro aberto = "modo documento" (body.modo-doc): tela estilo Google Docs, ESCURA por padrão (Ver › Tema claro = classe .claro, localStorage `ep-prep-tema`); o cabeçalho do programa some e o `[data-estudio-conta]` é movido para `.dh-conta` (modoDoc() devolve ao sair).
+- BOLINHA DO PERSONAGEM: sempre `ava()` do app.js. Ela é um <span>: NUNCA escreva regra genérica tipo `.lista button span{flex:1}` — use `>span` ou uma classe. A `.ava` tem tamanho blindado com !important no fim do css/app.css.
