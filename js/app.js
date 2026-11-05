@@ -41,7 +41,9 @@ const pode = c => { try { return window.EstudioPerm?.pode?.('preparativos.' + c)
 /* ---------- banco deste navegador: rascunhos e áudios que ainda não foram para a nuvem ---------- */
 const DB = {
   _db: null,
-  abre() { return this._db || (this._db = new Promise((ok, no) => { const r = indexedDB.open('ep-preparativos', 2); r.onupgradeneeded = () => { for (const l of ['rasc', 'aud', 'th']) if (!r.result.objectStoreNames.contains(l)) r.result.createObjectStore(l); }; r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); },
+  // abre SEM pedir versão (pedir uma versão nova trava enquanto outra aba do Preparativos estiver aberta); cada aba fecha quando outra precisar
+  abre() { return this._db || (this._db = new Promise((ok, no) => { const r = indexedDB.open('ep-preparativos'); r.onupgradeneeded = () => { for (const l of ['rasc', 'aud']) if (!r.result.objectStoreNames.contains(l)) r.result.createObjectStore(l); };
+    r.onsuccess = () => { const db = r.result; db.onversionchange = () => { db.close(); this._db = null; }; ok(db); }; r.onerror = () => { this._db = null; no(r.error); }; r.onblocked = () => { this._db = null; no(new Error('banco ocupado')); }; })); },
   async op(loja, modo, f) { const db = await this.abre(); return new Promise((ok, no) => { const tx = db.transaction(loja, modo), st = tx.objectStore(loja), r = f(st); tx.oncomplete = () => ok(r?.result); tx.onerror = () => no(tx.error); }); },
   get(l, k) { return this.op(l, 'readonly', s => s.get(k)); }, put(l, k, v) { return this.op(l, 'readwrite', s => s.put(v, k)); }, del(l, k) { return this.op(l, 'readwrite', s => s.delete(k)); },
   async todos(l) { const db = await this.abre(); return new Promise((ok, no) => { const out = [], tx = db.transaction(l, 'readonly'), c = tx.objectStore(l).openCursor(); c.onsuccess = () => { const x = c.result; if (x) { out.push([x.key, x.value]); x.continue(); } }; tx.oncomplete = () => ok(out); tx.onerror = () => no(tx.error); }); },
@@ -610,13 +612,17 @@ async function atelie(novo) {
   return l;
 }
 
+const TH = { _db: null, abre() { return this._db || (this._db = new Promise((ok, no) => { const r = indexedDB.open('ep-preparativos-miniaturas', 1); r.onupgradeneeded = () => r.result.createObjectStore('th');
+    r.onsuccess = () => { const db = r.result; db.onversionchange = () => { db.close(); this._db = null; }; ok(db); }; r.onerror = () => { this._db = null; no(r.error); }; r.onblocked = () => { this._db = null; no(new Error('banco ocupado')); }; })); },
+  async op(modo, f) { const db = await this.abre(); return new Promise((ok, no) => { const tx = db.transaction('th', modo), r = f(tx.objectStore('th')); tx.oncomplete = () => ok(r?.result); tx.onerror = () => no(tx.error); }); },
+  get(k) { return this.op('readonly', s => s.get(k)); }, put(k, v) { return this.op('readwrite', s => s.put(v, k)); } };
 const thPedidos = new Map(); let thFila = Promise.resolve(), thAtivos = 0; const thEspera = [];
 async function thumbDe(x) {
-  try { const g = await DB.get('th', x.id); if (g && g.mod === x.mod) return g.thumb || null; } catch { }
+  try { const g = await TH.get(x.id); if (g && g.mod === x.mod) return g.thumb || null; } catch { }
   if (thPedidos.has(x.id)) return thPedidos.get(x.id);
   const pr = (async () => { if (thAtivos >= 4) await new Promise(r => thEspera.push(r)); thAtivos++; // no máximo 4 de uma vez
     try { const d = await Nuvem.pede('/personagens/arquivo?k=' + encodeURIComponent(`personagens/${x.id}/personagem.json`)); const th = typeof d?.thumb === 'string' && d.thumb.startsWith('data:image/') ? d.thumb : null;
-      DB.put('th', x.id, { mod: x.mod, thumb: th }).catch(() => { }); return th; }
+      TH.put(x.id, { mod: x.mod, thumb: th }).catch(() => { }); return th; }
     catch { return null; } finally { thAtivos--; thEspera.shift()?.(); thPedidos.delete(x.id); } })();
   thPedidos.set(x.id, pr); return pr;
 }
