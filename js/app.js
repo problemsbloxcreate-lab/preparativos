@@ -123,6 +123,12 @@ function cartao(it, local) {
 }
 
 /* ---------- um preparativo ---------- */
+// para que serve cada etapa (aparece embaixo do cabeçalho e no "title" dos botões)
+const ETAPA_TIT = { rascunho: 'Ainda escrevendo o roteiro', gravando: 'Roteiro fechado: cada pessoa grava as falas do seu personagem', pronto: 'Tudo certo: o programa de destino já pode usar' };
+const ETAPA_DICA = P => { const st = P.status || 'rascunho', d = DESTINOS[P.destino];
+  if (st === 'rascunho') return `<b>Rascunho</b> · escreva e arrume o roteiro. Quando as falas estiverem certas, passe para <b>Gravando</b>.`;
+  if (st === 'gravando') return `<b>Gravando</b> · cada pessoa abre "Falas e gravação", escolhe o seu personagem e grava. Quando tudo estiver gravado, marque <b>Pronto</b>.`;
+  return `<b>Pronto</b> · ${d ? `já aparece para o <b>${esc(d)}</b> usar (as falas, os áudios e as cores das legendas vão juntos).` : 'escolha para qual programa ele vai.'}`; };
 async function abrePrep(P, base) {
   // tem rascunho deste computador mais novo que o da nuvem?
   if (!base && !P.novo) { try { const r = await DB.get('rasc', P.id); if (r?.P && (+r.base?.mod || 0) === (+P.mod || 0) && r.em > (P.mod || 0)) { const usar = await pergunta('Continuar de onde parou?', 'Este computador tem mudanças neste roteiro que ainda não foram para a nuvem.', [['Abrir o da nuvem', false], ['Continuar daqui', true, 'pri']]); if (usar) { base = r.base; P = r.P; } else await DB.del('rasc', P.id); } } catch { } }
@@ -138,17 +144,26 @@ function pintaPrep() {
       <div class="titulo"><input class="nome" value="${esc(P.nome)}" ${pode('roteiro') ? '' : 'readonly'} aria-label="Nome do roteiro"><span class="salvar"></span></div>
       <span class="esp"></span>
       <div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 18)}<span>${esc(n)}</span></button>`).join('')}</div>
-      <div class="etapas" role="group" aria-label="Situação">${PREP_CONFIG.status.map(([v, n], i) => `<button data-status="${v}" class="${i < at ? 'feito' : i === at ? 'on' : ''}" ${pp ? '' : 'disabled'}><i>${i < at ? ic('ok', 12) : i + 1}</i>${esc(n)}</button>`).join('')}</div>
+      <div class="etapas" role="group" aria-label="Situação">${PREP_CONFIG.status.map(([v, n], i) => `<button data-status="${v}" class="${i < at ? 'feito' : i === at ? 'on' : ''}" ${pp ? '' : 'disabled'} title="${esc(ETAPA_TIT[v])}"><i>${i < at ? ic('ok', 12) : i + 1}</i>${esc(n)}</button>`).join('')}</div>
       <span class="enviar"></span>
     </div>
+    <p class="etapa-dica etapa-${esc(P.status || 'rascunho')}">${ETAPA_DICA(P)}</p>
     <nav class="sub">${[['roteiro', 'Roteiro', 'doc'], ['falas', 'Falas e gravação', 'mic'], ['legendas', 'Legendas', 'legenda']].map(([k, n, i]) => `<button data-sub="${k}" class="${S.sub === k ? 'on' : ''}">${ic(i, 15)} ${n}</button>`).join('')}</nav>
     <div class="corpo"></div></section>`;
   $('[data-volta]', el).onclick = sairDoPrep;
   const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); marcaSujo(); };
   const mudaMarca = async (campo, v) => {
+    if (campo === 'status' && v === P.status) return;
+    if (campo === 'status' && v === 'pronto') { // pronto = vai para um programa: precisa do destino e avisa o que falta gravar
+      if (!P.destino) { const d = await pergunta('Vai para qual programa?', 'Escolha onde este roteiro vai ser usado. Ele passa a aparecer lá como pronto.', [...PREP_CONFIG.destinos.map(([k, n]) => [n, k]), ['Cancelar', null]]); if (!d) return; P.destino = d; }
+      const falta = P.partes.reduce((s, p) => s + p.falas.filter(f => !f.audio).length, 0);
+      if (falta && !await pergunta('Ainda faltam gravações', `${falta} fala${falta === 1 ? ' está' : 's estão'} sem áudio. Marcar como pronto mesmo assim?`, [['Voltar', false], ['Marcar pronto', true, 'pri']])) return;
+    }
     P[campo] = v || null; if (campo === 'status') P.status = v || 'rascunho';
-    if (P.novo || S.sujo) { marcaSujo(); return pintaPrep(); } // vai junto quando mandar para a nuvem
-    try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, [campo]: P[campo] }); P.mod = r.mod || P.mod; S.base.mod = P.mod; aviso(campo === 'status' && v === 'pronto' ? `Pronto${P.destino ? ' para o ' + (DESTINOS[P.destino] || P.destino) : ''}!` : 'Salvo na nuvem.', 'ok'); S.lista = null; }
+    const dest = DESTINOS[P.destino] || P.destino, msg = campo !== 'status' ? (P.destino ? `Vai para o ${dest}.` : 'Sem destino.') : v === 'pronto' ? `Pronto! Já aparece para o ${dest} usar.` : v === 'gravando' ? 'Hora de gravar: cada pessoa escolhe o seu personagem e grava as falas dele.' : 'Voltou para rascunho: ainda está sendo escrito.';
+    if (campo === 'status' && v === 'gravando') S.sub = 'falas';
+    if (P.novo || S.sujo) { marcaSujo(); aviso(msg + ' (vai junto quando mandar para a nuvem)', 'info', 5500); return pintaPrep(); } // vai junto quando mandar para a nuvem
+    try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, destino: P.destino, status: P.status }); P.mod = r.mod || P.mod; S.base.mod = P.mod; aviso(msg, 'ok', 5500); S.lista = null; }
     catch (e) { aviso(e.message, 'erro'); }
     pintaPrep();
   };
