@@ -33,7 +33,7 @@ const Editor = (() => {
       if (bloco && !out.endsWith('\n')) out += '\n';
     };
     anda(doc.body, false);
-    return out.replace(/ /g, ' ').replace(/\*(\s*)\*/g, '$1').replace(/\n{3,}/g, '\n\n').replace(/\n$/, '');
+    return out.replace(/ /g, ' ').replace(/\*([ \t]*)\*/g, '$1').replace(/\n{3,}/g, '\n\n').replace(/\n$/, '');
   }
 
   function cria(raiz, o = {}) {
