@@ -7,24 +7,32 @@ do Animador) também moram aqui.
 Endereço: https://estudio.problemsraiz.workers.dev/preparativos/ (só pelo login do menu; esta cópia do GitHub Pages é a origem
 que o porteiro serve e redireciona para o endereço único).
 
-## Como escrever o roteiro
+## Como escrever o roteiro (leia antes de escrever ou ler um roteiro — vale para gente e para o Claude)
+
+O roteiro é TEXTO simples, escrito na folha estilo Google Docs da aba Roteiro. O que aparece na folha é exatamente o texto
+guardado em `prep.json → roteiro`; as cores são só pintura em cima. Cada linha é uma destas:
 
 ```
-## Episódio 1 parte 1
-PROBLEMS: Oi, gente!
-CLARA: (rindo) Oi, Problems.
-[a câmera se aproxima]          ← indicação de cena (não vira fala)
-// anotação                     ← comentário (não vira fala)
-
-## Episódio 1 parte 2
-PROBLEMS: Tchau!
+## Episódio 1 parte 1                 ← PARTE: "## Nome" (ou uma linha só com "Parte 2", "Episódio 3…", "Cena 4…")
+Problems: Oi, gente!                  ← FALA: "Nome: o que ele fala" — o nome antes dos dois-pontos (até 4 palavras)
+Clara: *rindo* Oi, Problems!          ← *itálico* dentro da fala = como falar / o que ele faz → vira "nota" (fora da legenda e do áudio)
+Clara (sussurrando): Vem cá.          ← "(nota)" logo depois do nome também é nota
+e continua aqui.                      ← linha colada embaixo de uma fala (sem linha em branco) continua a MESMA fala
+*Problems abre a porta devagar.*      ← linha inteira em itálico = AÇÃO / explicação da cena (não vira fala)
+[a câmera se aproxima]                ← colchetes = cena (não vira fala)
+// anotação para a equipe             ← comentário (não vira fala)
 ```
 
-- `## Nome` (ou uma linha só com "Parte 2", "Episódio 3…", "Cena 4…") começa uma parte.
-- `NOME: texto` é uma fala (nome com até 4 palavras). Linha seguida sem linha em branco continua a fala.
-- `(nota)` no começo da fala = como falar; não entra na legenda.
-- O botão **Organizar** arruma um texto solto nesse formato. Ao editar o texto, a fala igual continua com o áudio; a fala que mudou
+- Maiúscula e minúscula no nome tanto faz: "Problems", "PROBLEMS" e "problems" são o mesmo personagem (mesma cor).
+- Linha solta que não é nada disso = narração (não vira fala). Para um narrador falar, escreva `Narrador: …`.
+- Deixe uma linha em branco entre uma fala e um texto solto, senão o texto solto vira continuação da fala.
+- Na folha: o NOME de cada personagem fica pintado na cor dele, o itálico fica cinza (os `*` aparecem clarinhos), as partes viram título
+  e aparecem na lateral ("Partes" e "Personagens"). Selecionar um trecho (ou clique direito nele) abre o menu: **É o nome do personagem**
+  (`Problems Oi` → `Problems: Oi`; nome sozinho numa linha + fala na de baixo → junta), **É ação / explicação da cena** (`*…*`),
+  **É o título de uma parte** (`## …`), **Texto normal**. Ctrl+I = itálico. Colar do Google Docs: o itálico de lá vira `*…*` e os títulos viram `## `.
+- O botão **Organizar** reescreve um texto solto neste formato. Ao editar o texto, a fala igual continua com o áudio; a fala que mudou
   no mesmo lugar fica com o áudio e a marca "regravar".
+- Quem lê o roteiro por código usa `Roteiro.classifica(texto)` (o que é cada linha) e `Roteiro.separa(texto)` (partes → falas), em `js/roteiro.js`.
 
 ## Navegador (nada vai para a nuvem sem a pessoa mandar)
 
