@@ -631,7 +631,8 @@ body:not(.modo-doc) .cartao,body:not(.modo-doc) .pcard2,body:not(.modo-doc) .pai
 body:not(.modo-doc){--m-azul:#1ba1e2;--m-ciano:#00aba9;--m-verde:#60a917;--m-laranja:#fa6800;--m-magenta:#d80073;--m-roxo:#a200ff;--m-verm:#e51400;--m-amarelo:#f0a30a;--m-cinza:#3d3d3d;
   --bg:#1b1b1b;--panel:#262626;--panel-2:#2f2f2f;--panel-3:#3a3a3a;--line:#3a3a3a;--text:#ffffff;--muted:#b4b4b4;--accent:var(--m-azul);
   font-family:'Segoe UI','Segoe UI Web','Selawik','Open Sans',system-ui,sans-serif;background:#1b1b1b!important}
-body:not(.modo-doc) *{border-radius:0!important}
+/* cantos retos só nas partes do Preparativos (o botão da conta do Estúdio, com a bolinha roxa de novidade, fica como é) */
+body:not(.modo-doc) main *,body:not(.modo-doc) .abas,body:not(.modo-doc) .abas *,body:not(.modo-doc) .modal *,body:not(.modo-doc) #avisos *,body:not(.modo-doc) .dh-menu,body:not(.modo-doc) .dh-menu *,body:not(.modo-doc) .lista-pers,body:not(.modo-doc) .sel-menu{border-radius:0!important}
 body:not(.modo-doc) .ava,body:not(.modo-doc) .pava,body:not(.modo-doc) .anel,body:not(.modo-doc) .w10 i::before,body:not(.modo-doc) .cor,body:not(.modo-doc) .trilho,body:not(.modo-doc) .trilho i{border-radius:50%!important}
 body:not(.modo-doc) .trilho{border-radius:99px!important}
 /* topo: barra chapada, abas como texto grande com bloco de cor na aba aberta */
