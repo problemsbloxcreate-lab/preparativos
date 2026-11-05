@@ -865,7 +865,7 @@ body.modo-doc .corpo.corpo-falas,body.modo-doc .corpo.corpo-legendas,body.modo-d
 
 /* Legendas: escolher o trecho da prévia */
 .lg-barra .bt[hidden]{display:none}
-.lg-trecho{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:10px 0}
+.lg-trecho{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:12px 0 6px}
 .lg-trecho .lg-f{flex:1 1 220px;min-width:0}.lg-trecho select{width:100%}
 .lg-nav{display:flex;align-items:center;gap:6px}.lg-num{min-width:64px;text-align:center;color:var(--muted);font-size:13px}
 .lg-falas{flex:1 1 100%;display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px}
