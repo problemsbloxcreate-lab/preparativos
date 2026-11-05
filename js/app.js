@@ -190,6 +190,8 @@ function menus(nav, def) {
   addEventListener('keydown', e => { if (e.key === 'Escape') fecha(); });
 }
 const GUIAS = [['roteiro', 'Roteiro', 'doc'], ['falas', 'Falas e gravação', 'mic'], ['legendas', 'Legendas', 'legenda']];
+// com destino = Animador aparece a guia do ELENCO: qual personagem do Ateliê é cada nome do roteiro (prep.animador.pers)
+const guiasDe = P => P?.destino === 'animador' ? [...GUIAS, ['elenco', 'Elenco no Animador', 'pessoa']] : GUIAS;
 function irGuia(k) { S.sub = k; $$('.guias [data-sub]').forEach(x => x.classList.toggle('on', x.dataset.sub === k)); pintaCorpo(); }
 function baixaTexto() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([S.P.roteiro || ''], { type: 'text/plain;charset=utf-8' })); a.download = (S.P.nome || 'roteiro').replace(/[^\w\- ]+/g, '_') + '.txt'; a.click(); }
 function mostraComo() { const m = h(`<div class="modal"><div class="caixa larga">${COMO}<div class="bts"><button class="bt pri">Entendi</button></div></div></div>`); $('button', m).onclick = () => m.remove(); m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
@@ -213,7 +215,7 @@ function pintaPrep() {
     <div class="dh-barra"></div></div>
     <div class="dh-area">
       <aside class="guias"><div class="g-tit">Guias do roteiro</div>
-        ${GUIAS.map(([k, n, i]) => `<button data-sub="${k}" class="${S.sub === k ? 'on' : ''}">${ic(i, 16)} ${n}</button>`).join('')}
+        ${guiasDe(P).map(([k, n, i]) => `<button data-sub="${k}" class="${S.sub === k ? 'on' : ''}">${ic(i, 16)} ${n}</button>`).join('')}
         <p class="etapa-dica etapa-${esc(P.status || 'rascunho')}">${ETAPA_DICA(P)}</p>
         <div class="g-roteiro"></div></aside>
       <div class="corpo"></div>
@@ -256,7 +258,7 @@ function pintaPrep() {
       '-', [`${ic('luz', 15)} Ideias`, '', async () => { if (await sairDoPrep()) trocaAba('ideias'); }],
       [`${ic('pessoa', 15)} Personagens`, '', async () => { if (await sairDoPrep()) trocaAba('personagens'); }]]],
     ['Editar', () => [[`${ic('desfazer', 15)} Desfazer`, 'Ctrl+Z', () => E()?.desfaz(), !E()], [`${ic('refazer', 15)} Refazer`, 'Ctrl+Y', () => E()?.refaz(), !E()], '-', ['Selecionar tudo', 'Ctrl+A', () => E()?.tudo(), !E()]]],
-    ['Ver', () => [...GUIAS.map(([k, n, i]) => [`${ic(i, 15)} ${n}`, S.sub === k ? '✓' : '', () => irGuia(k)]), '-', ['Mostrar as guias do lado', document.body.classList.contains('sem-guias') ? '' : '✓', () => document.body.classList.toggle('sem-guias')],
+    ['Ver', () => [...guiasDe(P).map(([k, n, i]) => [`${ic(i, 15)} ${n}`, S.sub === k ? '✓' : '', () => irGuia(k)]), '-', ['Mostrar as guias do lado', document.body.classList.contains('sem-guias') ? '' : '✓', () => document.body.classList.toggle('sem-guias')],
       ['Tema claro', document.body.classList.contains('claro') ? '✓' : '', () => { const c = document.body.classList.toggle('claro'); try { localStorage.setItem('ep-prep-tema', c ? 'claro' : 'escuro'); } catch { } }]]],
     ['Inserir', () => [[`${ic('titulo', 15)} Capítulo novo`, '', naFolha(e => e.novaLinha('# Capítulo', { espaco: true })), !edita], [`${ic('titulo', 15)} Parte nova`, '', naFolha(e => e.novaLinha(`## ${Roteiro.norm(P.nome)} parte ${P.partes.length + 1}`, { espaco: true })), !edita],
       ...Roteiro.personagens(P.partes).map(p => [`${ava(p.nome, coresDoRoteiro().get(p.chave), 'p')} Fala de ${esc(p.nome)}`, '', naFolha(e => e.novaLinha(p.nome + ': ')), !edita]),
@@ -306,9 +308,10 @@ function pintaCorpo() {
   const c = $('.prep .corpo'); if (!c) return; if (S.sub !== 'roteiro') S.ed = null;
   const barra = $('.prep .dh-barra'), gr = $('.prep .g-roteiro'); if (gr) gr.innerHTML = '';
   c.className = 'corpo corpo-' + S.sub;
-  if (S.sub !== 'roteiro' && barra) barra.innerHTML = `<div class="db-pilula"><span class="db-tit">${ic(S.sub === 'falas' ? 'mic' : 'legenda', 16)} ${S.sub === 'falas' ? 'Falas e gravação' : 'Legendas'}</span><span class="esp"></span><button class="bt" data-volta-rot>${ic('doc', 15)} Voltar ao roteiro</button></div>`;
+  if (S.sub !== 'roteiro' && barra) barra.innerHTML = `<div class="db-pilula"><span class="db-tit">${ic({ falas: 'mic', legendas: 'legenda', elenco: 'pessoa' }[S.sub] || 'doc', 16)} ${{ falas: 'Falas e gravação', legendas: 'Legendas', elenco: 'Elenco no Animador' }[S.sub] || ''}</span><span class="esp"></span><button class="bt" data-volta-rot>${ic('doc', 15)} Voltar ao roteiro</button></div>`;
   $('[data-volta-rot]', barra || document)?.addEventListener('click', () => irGuia('roteiro'));
-  if (S.sub === 'falas') return Falas.pinta(c); if (S.sub === 'legendas') return pintaLegendas(c); return pintaRoteiro(c);
+  if (S.sub === 'elenco' && S.P.destino !== 'animador') S.sub = 'roteiro';
+  if (S.sub === 'falas') return Falas.pinta(c); if (S.sub === 'legendas') return pintaLegendas(c); if (S.sub === 'elenco') return pintaElenco(c); return pintaRoteiro(c);
 }
 // cor de cada personagem do roteiro aberto (na ordem em que aparecem)
 function coresDoRoteiro() { const m = new Map(); Roteiro.personagens(S.P?.partes).forEach((p, i) => m.set(p.chave, corOuPadrao(p.nome, i))); return m; }
@@ -591,6 +594,42 @@ const Falas = {
     this.pinta(this.c);
   },
 };
+
+
+/* ---------- guia ELENCO NO ANIMADOR (destino = Animador): cada nome do roteiro → um personagem do Ateliê ----------
+   Fica em prep.animador.pers = { "<Roteiro.chave(nome)>": { id, nome } | null }. null = nenhum; sem entrada = o Animador procura um
+   personagem da equipe com o MESMO nome. A lista do Ateliê sai do GET /personagens (só a lista: nome vem da metadata do personagem.json,
+   sem abrir cada personagem — poupa a nuvem) e fica 10 min guardada nesta aba. */
+async function atelie(novo) {
+  try { const g = JSON.parse(sessionStorage.getItem('ep-prep-atelie') || 'null'); if (!novo && g && Date.now() - g.t < 600e3) return g.l; } catch { }
+  const j = await Nuvem.pede('/personagens'), l = [];
+  for (const x of j.itens || []) { const m = String(x.k || '').match(/^personagens\/([a-z0-9][a-z0-9-]{1,40})\/personagem\.json$/); if (m) l.push({ id: m[1], nome: x.nome || m[1].replace(/-/g, ' ').replace(/^./, c => c.toUpperCase()) }); }
+  l.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  try { sessionStorage.setItem('ep-prep-atelie', JSON.stringify({ t: Date.now(), l })); } catch { }
+  return l;
+}
+async function pintaElenco(c) {
+  const P = S.P, ps = Roteiro.personagens(P.partes), ed = pode('roteiro') || pode('organizar'), cs = coresDoRoteiro();
+  c.innerHTML = `<div class="elenco-an"><div class="explica">${ic('pessoa', 20)}<div><b>Quem é quem no Animador</b>
+    <p>Escolha qual personagem do Ateliê faz cada nome do roteiro. Fica salvo neste roteiro e dá para trocar depois. Em <b>Automático</b>, o Animador usa o personagem do Ateliê com o mesmo nome (se tiver); <b>Nenhum</b> = essa voz entra sem personagem na cena.</p></div></div>
+    <div class="el-lista"><div class="vazio">Carregando os personagens do Ateliê…</div></div>
+    <div class="el-pe"><button class="bt" data-at>${ic('atualizar', 15)} Buscar a lista do Ateliê de novo</button></div></div>`;
+  let L; try { L = await atelie(); } catch (e) { $('.el-lista', c).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
+  $('[data-at]', c).onclick = async () => { sessionStorage.removeItem('ep-prep-atelie'); pintaElenco(c); };
+  const porNome = new Map(L.map(x => [Roteiro.chave(x.nome), x])), mapa = () => (P.animador?.pers || {});
+  const pinta = () => { const M = mapa();
+    $('.el-lista', c).innerHTML = ps.length ? ps.map(p => { const v = M[p.chave], auto = porNome.get(p.chave), sel = v === null ? '-' : v?.id || '';
+      const quem = v === null ? 'sem personagem na cena' : v?.id ? `vai ser <b>${esc(v.nome || v.id)}</b>` : auto ? `automático: <b>${esc(auto.nome)}</b> (mesmo nome)` : '<span class="aten">automático: nenhum personagem do Ateliê com este nome</span>';
+      return `<div class="el-lin">${ava(p.nome, cs.get(p.chave), 'p')}<b>${esc(p.nome)}</b><small>${p.n} fala${p.n === 1 ? '' : 's'}</small><span class="el-seta">${ic('voltar', 14)}</span>
+        <select data-k="${esc(p.chave)}" ${ed ? '' : 'disabled'}><option value="" ${sel === '' ? 'selected' : ''}>Automático (mesmo nome)</option><option value="-" ${sel === '-' ? 'selected' : ''}>Nenhum</option>
+        <optgroup label="Personagens do Ateliê">${L.map(x => `<option value="${esc(x.id)}" ${sel === x.id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</optgroup>
+        ${v?.id && !L.some(x => x.id === v.id) ? `<option value="${esc(v.id)}" selected>${esc(v.nome || v.id)} (não está mais no Ateliê)</option>` : ''}</select>
+        <small class="el-quem">${quem}</small></div>`; }).join('') : '<div class="vazio">Ainda não há falas no roteiro.</div>';
+    $$('select[data-k]', c).forEach(sl => sl.onchange = () => { const k = sl.dataset.k, v = sl.value, pers = { ...mapa() };
+      if (v === '') delete pers[k]; else if (v === '-') pers[k] = null; else { const x = L.find(y => y.id === v); pers[k] = { id: v, nome: x?.nome || v }; }
+      P.animador = { ...(P.animador || {}), pers }; marcaSujo(); pinta(); }); };
+  pinta();
+}
 
 /* ---------- aba Legendas (do roteiro aberto) ---------- */
 const PALETA = ['#19f0f0', '#ffb04a', '#ff6b93', '#a796ff', '#4fe08f', '#ffd36b', '#7fd1ff', '#ff8f6b', '#ffffff', '#c9ff6b'];

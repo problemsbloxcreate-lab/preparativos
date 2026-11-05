@@ -88,6 +88,7 @@ das outras rotas). Chaves na nuvem da equipe:
   "pagina": { "ml": 96, "mr": 96, "mt": 96, "mb": 96 },        // opcional: margens da folha (px)
   "org": { "propria": true, "grupos": { "juca": "Secundários" } }, // opcional: pastas dos personagens só deste roteiro
   "junto": false,                                              // opcional: "Trabalhar junto" (manda sozinho)
+  "animador": { "pers": { "clara": { "id": "<id no Ateliê>", "nome": "Clara" }, "juca": null } }, // opcional (destino Animador): quem é quem
   "usadoPor": [ { "programa": "animador", "projeto": "<id da animação>", "quando": "2026-11-05T18:10:00.000Z" } ],
   "criado": 1793900000000,
   "mod": 1793901008021                   // versão (o servidor põe a cada gravação)
@@ -96,6 +97,10 @@ das outras rotas). Chaves na nuvem da equipe:
 
 **LEGENDA NO PROGRAMA DE DESTINO:** mostre só o `texto` da fala (nunca a `nota`), na cor do personagem. O **nome de quem fala só aparece
 se `legenda.mostrarNome === true`** (aí "Nome: texto"). `legenda.ativa === false` = sem legendas.
+
+**ELENCO NO ANIMADOR** (guia "Elenco no Animador", aparece com destino = Animador): `prep.animador.pers[Roteiro.chave(nome)]` =
+`{ id, nome }` (personagem do Ateliê, `personagens/<id>/personagem.json`) | `null` (nenhum personagem na cena). Sem entrada = o Animador
+procura um personagem da equipe com o MESMO nome. A lista do Ateliê vem do `GET /personagens` (nome = metadata do `personagem.json`).
 
 Cor de um personagem: `prep.legenda.cores[nome.toLowerCase()]` → senão `personagens.json[nome.toLowerCase()].cor` → senão
 `cores.json[nome.toLowerCase()]` → senão a cor padrão do programa. Foto (opcional): `personagens.json[…].foto` (chave do WEBP).
