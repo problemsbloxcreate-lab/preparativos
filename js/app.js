@@ -172,8 +172,9 @@ function quemHtml(autor, edicoes, curto) {
 
 /* ======================= telas ======================= */
 const tela = () => $('#tela');
-function trocaAba(a) { S.aba = a; S.P = null; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === a)); history.replaceState(null, '', a === 'roteiros' ? './' : './?aba=' + a); pinta(); }
-async function sairDoPrep() { if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; AoVivo.sai(); AoVivo.atual = null; history.replaceState(null, '', './'); pinta(); return true; }
+function trocaAba(a, semHist) { S.aba = a; S.P = null; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === a)); const alvo = a === 'roteiros' ? '' : '?aba=' + a;
+  if (location.search !== alvo) history[semHist ? 'replaceState' : 'pushState'](null, '', './' + alvo); pinta(); }
+async function sairDoPrep(semHist) { if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; AoVivo.sai(); AoVivo.atual = null; if (!semHist) history.pushState(null, '', S.aba && S.aba !== 'roteiros' ? './?aba=' + S.aba : './'); pinta(); return true; }
 function pinta() { if (S.P) return pintaPrep(); modoDoc(false); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
 // bolinha com as iniciais do personagem, na cor dele; com foto, a foto (carrega sozinha quando a bolinha aparece)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
@@ -188,9 +189,13 @@ const anel = (pct, tam = 44) => { const r = 16, L = 2 * Math.PI * r; return `<sv
 // ONDE: neste computador · na nuvem · em uso (um programa já usou) — e a SITUAÇÃO (rascunho, gravando, pronto); filtros com ícones
 let filtro = 'todos', filtroOnde = 'tudo';
 const ST_IC = { todos: 'grade', rascunho: 'lapis', gravando: 'mic', pronto: 'ok' };
+// monta a tela nova FORA da página e troca de uma vez só, sem piscar; se demorar mais de 0,35 s, mostra o carregando no lugar
+function telaNova() { const alvo = tela(), el = document.createElement('div'); el.className = 'tela-in';
+  const t = setTimeout(() => { if (!el.isConnected) alvo.replaceChildren(h(`<div class="tela-in">${giroBloco()}</div>`)); }, 350);
+  return { el, mostra: () => { clearTimeout(t); if (!el.isConnected) alvo.replaceChildren(el); } }; }
 async function pintaInicio(novo) {
   const ONDES = [['tudo', 'Tudo', 'grade'], ['pc', 'Neste computador', 'pc'], ['nuvem', 'Na nuvem', 'nuvem'], ['uso', 'Em uso', 'play']];
-  const el = tela(); el.innerHTML = `<section class="inicio">
+  const T = telaNova(), el = T.el; el.innerHTML = `<section class="inicio">
     <div class="cab topo-ini"><span class="cab-ic t-rot">${ic('doc', 24)}</span><div class="cab-txt"><h1>Roteiros</h1><p>Escreva, separe as falas de cada personagem e grave.</p></div><span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button>${pode('roteiro') ? `<button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
     <div class="filtros-ini">
       <div class="seg" role="group" aria-label="Onde">${ONDES.map(([k, n, i]) => `<button data-onde="${k}" class="${filtroOnde === k ? 'on' : ''}">${ic(i, 15)} ${n}<b class="n" data-n="${k}"></b></button>`).join('')}</div>
@@ -209,6 +214,7 @@ async function pintaInicio(novo) {
   const passa = it => filtro === 'todos' || (it.status || 'rascunho') === filtro, G = { pc: [], nuvem: [], uso: [] };
   try { for (const r of (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id).sort((a, b) => b.em - a.em)) G.pc.push({ it: r.P, onde: r.P.novo || !r.base?.mod ? 'pc' : 'mudou', abre: () => abrePrep(r.P, r.base) }); } catch { }
   try { if (!S.lista || novo) S.lista = (await Nuvem.lista()).itens || []; } catch (e) { $('[data-g="nuvem"]', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; }
+  T.mostra();
   for (const it of (S.lista || []).sort((a, b) => (b.mod || 0) - (a.mod || 0))) (it.uso?.length ? G.uso : G.nuvem).push({ it, onde: it.uso?.length ? 'uso' : 'nuvem', abre: () => Nuvem.abre(it.id).then(abrePrep) });
   for (const k of ['pc', 'nuvem', 'uso']) {
     const L = G[k].filter(x => passa(x.it)), sec = $(`[data-sec="${k}"]`, el), g = $(`[data-g="${k}"]`, el); $(`[data-n="${k}"]`, el).textContent = G[k].length || '';
@@ -246,13 +252,13 @@ const ETAPA_DICA = P => { const st = P.status || 'rascunho', d = DESTINOS[P.dest
   if (st === 'rascunho') return `<b>Rascunho</b> · escreva e arrume o roteiro. Quando as falas estiverem certas, passe para <b>Gravando</b>.`;
   if (st === 'gravando') return `<b>Gravando</b> · cada pessoa abre "Falas e gravação", escolhe o seu personagem e grava. Quando tudo estiver gravado, marque <b>Pronto</b>.`;
   return `<b>Pronto</b> · ${d ? `já aparece para o <b>${esc(d)}</b> usar (as falas, os áudios e as cores das legendas vão juntos).` : 'escolha para qual programa ele vai.'}`; };
-async function abrePrep(P, base) {
+async function abrePrep(P, base, semHist) {
   // tem rascunho deste computador mais novo que o da nuvem?
   if (!base && !P.novo) { try { const r = await DB.get('rasc', P.id); if (r?.P && (+r.base?.mod || 0) === (+P.mod || 0) && r.em > (P.mod || 0)) { const usar = await pergunta('Continuar de onde parou?', 'Este computador tem mudanças neste roteiro que ainda não foram para a nuvem.', [['Abrir o da nuvem', false], ['Continuar daqui', true, 'pri']]); if (usar) { base = r.base; P = r.P; } else await DB.del('rasc', P.id); } } catch { } }
   S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.sub = pode('roteiro') || pode('organizar') ? (S.sub || 'roteiro') : 'falas'; S.ed = null;
   if (!S.pers) carregaPers().then(() => { if (S.P) { S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } }).catch(() => { S.pers = {}; });
   if (!S.nomeEu) window.EstudioLogin?.perfil?.().then(p => { S.nomeEu = String(p?.nome || '').split(' ')[0]; }).catch(() => { });
-  history.replaceState(null, '', './?id=' + encodeURIComponent(P.id)); pintaPrep();
+  { const u = './?id=' + encodeURIComponent(P.id); if (new URLSearchParams(location.search).get('id') !== P.id) history[semHist ? 'replaceState' : 'pushState'](null, '', u); } pintaPrep();
 }
 // MODO DOCUMENTO (pedido da dona, 05/11/2026): com um roteiro aberto a tela inteira vira um editor de documento, com UM cabeçalho só
 // (o do Preparativos some e o botão da conta /estudio-conta.js vem para o canto deste)
@@ -964,14 +970,14 @@ const num = n => { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(1).replace('
 const Ideias = {
   S: null, formato: 'todos', aFormato: 'short', aCanal: '',
   async pinta(novo) {
-    const el = tela(); el.innerHTML = `<section class="inicio ideias">
+    const T = telaNova(), el = T.el; el.innerHTML = `<section class="inicio ideias">
       <div class="cab"><span class="cab-ic t-ideia">${ic('luz', 24)}</span><div class="cab-txt"><h1>Ideias</h1><p>O que está funcionando nos canais e ideias para o nosso.</p></div><span class="esp"></span>${pode('ideias') ? `<button class="bt" data-canais>${ic('play', 15)} Canais</button><button class="bt" data-an title="Pede de novo a análise dos canais de referência">${ic('atualizar')} Atualizar análise</button><button class="bt" data-nova>${ic('mais')} Escrever ideia</button><button class="bt pri" data-sug>${ic('luz')} Sugerir ideias</button>` : ''}</div>
       <div class="analise-box">${giroBloco('Carregando a análise')}</div>
       <h2 class="ids-tit">${ic('luz', 16)} Ideias para o nosso canal</h2>
       <div class="filtros">${[['todos', 'Todas', 'grade'], ['short', 'Shorts', 'celular'], ['longo', 'Vídeos longos', 'filme']].map(([k, n, i]) => `<button data-fo="${k}" class="${this.formato === k ? 'on' : ''}">${ic(i, 14)} ${n}</button>`).join('')}</div>
       <div class="ids grade">${giroBloco()}</div></section>`;
-    try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { $('.ids', el).innerHTML = $('.analise-box', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
-    const A = this.S.analise, I = this.S.ideias || { lista: [] };
+    try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { T.mostra(); $('.ids', el).innerHTML = $('.analise-box', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
+    T.mostra(); const A = this.S.analise, I = this.S.ideias || { lista: [] };
     this.pintaAnalise($('.analise-box', el), A, I);
     $('[data-canais]', el)?.addEventListener('click', () => this.canais());
     $('[data-an]', el)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r = await Nuvem.json('/ideias', 'POST', { acao: 'atualizar', canais: this.S.canais || [] }); aviso(r.ja ? 'A análise já foi pedida há pouco.' : 'Análise pedida. Ela chega em alguns minutos.', 'ok'); } catch (er) { aviso(er.message, 'erro'); } });
@@ -1079,7 +1085,15 @@ Metade shorts e metade longos; formatos variados (mistério, conversa com o púb
 };
 
 /* ======================= começo ======================= */
-$$('[data-aba]').forEach(b => b.onclick = async () => { if (S.P && !await sairDoPrep()) return; trocaAba(b.dataset.aba); });
+// o botão VOLTAR/AVANÇAR do navegador anda entre as telas (roteiro aberto, abas); com mudança não mandada, pergunta antes de sair
+addEventListener('popstate', async () => {
+  const q = new URLSearchParams(location.search), id = q.get('id'), aba = q.get('aba') || 'roteiros';
+  if (S.P && S.P.id === id) return;
+  if (S.P && !await sairDoPrep(true)) { history.pushState(null, '', './?id=' + encodeURIComponent(S.P.id)); return; }
+  if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { const r = await DB.get('rasc', id).catch(() => null); try { return abrePrep(r?.P && !r.base?.mod ? r.P : await Nuvem.abre(id), r?.P && !r.base?.mod ? r.base : undefined, true); } catch (e) { if (r?.P) return abrePrep(r.P, r.base, true); aviso(e.message, 'erro'); } }
+  trocaAba(['ideias', 'personagens'].includes(aba) ? aba : 'roteiros', true);
+});
+$$('[data-aba]').forEach(b => b.onclick = async () => { if (S.P && !await sairDoPrep(true)) return; trocaAba(b.dataset.aba); });
 addEventListener('beforeunload', e => { if (S.sujo) { e.preventDefault(); e.returnValue = ''; } });
 addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registrar?.({
   programa: 'Preparativos',
@@ -1095,7 +1109,7 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
   if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));
   try { await window.EstudioPerm?.pronto; } catch { }
   const q = new URLSearchParams(location.search), id = q.get('id'), aba = q.get('aba');
-  if (aba === 'ideias') return trocaAba(aba); if (aba === 'personagens' || aba === 'cores') return trocaAba('personagens');
-  if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { try { return abrePrep(await Nuvem.abre(id)); } catch { const r = await DB.get('rasc', id).catch(() => null); if (r?.P) return abrePrep(r.P, r.base); } }
+  if (aba === 'ideias') return trocaAba(aba, true); if (aba === 'personagens' || aba === 'cores') return trocaAba('personagens', true);
+  if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { try { return abrePrep(await Nuvem.abre(id), undefined, true); } catch { const r = await DB.get('rasc', id).catch(() => null); if (r?.P) return abrePrep(r.P, r.base, true); } }
   pintaInicio();
 })();

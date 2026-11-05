@@ -792,3 +792,8 @@ body:not(.modo-doc) .pcard2 .ap-th.p{width:30px;height:30px}
 .ap-th.sem-th{background:none!important}
 body:not(.modo-doc) .pcard2 .link{color:rgba(0,0,0,.7);font-weight:600}
 body:not(.modo-doc) .pcards{grid-template-columns:repeat(auto-fill,minmax(310px,1fr))!important;gap:10px!important}
+/* consertos: foto do tile alinhada com o nome, "No Animador" à esquerda, ícone do programa alinhado no cartão */
+body:not(.modo-doc) .pcard2 .foto{top:auto!important;left:auto!important}
+body:not(.modo-doc) .pcard2 .pc-sec.pc-an{flex-direction:column;align-items:flex-start;flex-wrap:nowrap}
+.cartao .mt{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.cartao .mt svg{display:block;flex:none}
+.tela-in{display:contents}
