@@ -85,7 +85,9 @@ function carregaPers(novo) {
 }
 const persDe = nome => S.pers?.[Roteiro.chave(nome)] || null;
 const corDe = (nome, P = S.P) => { const k = Roteiro.chave(nome); return P?.legenda?.cores?.[k] || S.pers?.[k]?.cor || S.cores?.[k] || null; };
-const corOuPadrao = (nome, i) => corDe(nome) || coresPadrao[i % coresPadrao.length];
+// cor padrão (sem cor salva): sai do NOME, então é a mesma em todas as telas e computadores; Problems = ciano (pedido da dona)
+const corPadrao = nome => { const k = Roteiro.chave(nome); if (k === 'problems') return '#19f0f0'; let h = 0; for (const ch of k) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return coresPadrao[1 + h % (coresPadrao.length - 1)]; };
+const corOuPadrao = nome => corDe(nome) || corPadrao(nome);
 // pasta do personagem: a organização da equipe, ou a própria do roteiro aberto (se ele usa uma)
 const grupoDe = (nome, P = S.P) => { const k = Roteiro.chave(nome); return (P?.org?.propria ? P.org.grupos?.[k] : S.pers?.[k]?.grupo) || ''; };
 const GRUPOS_BASE = ['Principais', 'Secundários'];
@@ -146,7 +148,7 @@ function cartao(it, onde) {
   const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · mudanças só aqui`, nuvem: `${ic('nuvem', 13)} Na nuvem` };
   return h(`<button class="cartao ${esc(st)}"><div class="topo"><span class="st">${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
     <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div>${anel(pct)}</div>
-    <div class="elenco">${pers.slice(0, 6).map((p, i) => ava(p, corDe(p) || coresPadrao[i % coresPadrao.length], 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
+    <div class="elenco">${pers.slice(0, 6).map((p, i) => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
     <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${onde === 'nuvem' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
 }
 
@@ -403,7 +405,7 @@ function pintaRoteiro(c) {
   const cores = () => coresDoRoteiro();
   let t = 0, tPg = 0; const repagina = () => { cancelAnimationFrame(tPg); tPg = requestAnimationFrame(() => pagina(c)); };
   const E = S.ed = Editor.cria($('.folha', c), { texto: P.roteiro || '', somenteLer: !ed,
-    cor: n => cores().get(Roteiro.chave(n)) || corOuPadrao(n, Roteiro.personagens(P.partes).length),
+    cor: n => cores().get(Roteiro.chave(n)) || corOuPadrao(n),
     aoMudar: tx => { P.roteiro = tx; marcaSujo(); clearTimeout(t); t = setTimeout(() => { const antes = [...cores().keys()].join(); P.partes = Roteiro.separa(P.roteiro, P.partes); lado(); if ([...cores().keys()].join() !== antes) E.repinta(); }, 200); },
     aoMover: () => { const s = $('[data-estilo]', barra), l = E.linhas(), tp = E.tipoAtual(); if (s && tp) s.value = tp === 'h' ? (E.nivelAtual() === 1 ? 'capitulo' : 'parte') : ESTILO_DE[tp] || 'normal'; },
     aoPintar: repagina,
@@ -650,9 +652,9 @@ async function pintaPersonagens() {
   const pintaL = () => {
     const E = Object.entries(todos).sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')), pastas = [...new Set([...GRUPOS_BASE, ...E.map(([, v]) => v.grupo).filter(Boolean)])];
     const grupos = [...pastas, ''].map(g => [g, E.filter(([, v]) => (v.grupo || '') === g)]).filter(([g, l]) => l.length || GRUPOS_BASE.includes(g));
-    $('.pers-grade', el).innerHTML = E.length ? grupos.map(([g, l]) => `<div class="pasta-g"><h3>${ic('pasta', 14)} ${g ? esc(g) : 'Sem pasta'} <small>${l.length}</small></h3><div class="pcards">${l.map(([k, v], i) => { const cor = v.cor || coresPadrao[i % coresPadrao.length];
+    $('.pers-grade', el).innerHTML = E.length ? grupos.map(([g, l]) => `<div class="pasta-g"><h3>${ic('pasta', 14)} ${g ? esc(g) : 'Sem pasta'} <small>${l.length}</small></h3><div class="pcards">${l.map(([k, v], i) => { const cor = v.cor || corPadrao(v.nome);
       return `<div class="pcard2" data-k="${esc(k)}" style="--c:${cor}"><button class="foto" ${ed ? '' : 'disabled'} title="${v.foto ? 'Trocar a foto' : 'Pôr uma foto'}">${ava(v.nome, cor, 'g')}<span class="cam">${ic('camera', 14)}</span></button>
-        <div class="pc-meio"><b>${esc(v.nome)}</b>${v._fora ? '<small class="dica">ainda não está na nuvem</small>' : ''}
+        <div class="pc-meio"><b>${esc(v.nome)}</b>
           <select data-grupo ${ed ? '' : 'disabled'}>${['', ...pastas].map(x => `<option value="${esc(x)}" ${x === (v.grupo || '') ? 'selected' : ''}>${x ? esc(x) : 'Sem pasta'}</option>`).join('')}<option value="+">+ Pasta nova…</option></select>
           <div class="paleta">${PALETA.map(x => `<button class="cor ${x === cor ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'}></button>`).join('')}<input type="color" value="${cor}" ${ed ? '' : 'disabled'} title="Outra cor"></div>
           <span class="leg-mini" style="color:${cor}">Exemplo de legenda</span>
@@ -693,7 +695,7 @@ const Ideias = {
     for (const x of L) {
       const c = h(`<div class="cartao ideia ${x.formato === 'longo' ? 'longo' : 'short'}"><div class="topo"><span class="st">${x.formato === 'longo' ? 'Vídeo longo' : 'Short'}</span>${x.esforco ? `<span class="dica">esforço ${esc(x.esforco)}</span>` : ''}</div>
         <b>${esc(x.titulo)}</b>${x.gancho ? `<p class="gancho">“${esc(x.gancho)}”</p>` : ''}<small>${esc(x.resumo || '')}</small>
-        ${x.porque ? `<small class="pq">${ic('luz', 12)} ${esc(x.porque)}</small>` : ''}${x.personagens?.length ? `<div class="elenco">${x.personagens.slice(0, 5).map((p, i) => ava(p, corDe(p) || coresPadrao[i % coresPadrao.length], 'p')).join('')}</div>` : ''}
+        ${x.porque ? `<small class="pq">${ic('luz', 12)} ${esc(x.porque)}</small>` : ''}${x.personagens?.length ? `<div class="elenco">${x.personagens.slice(0, 5).map((p, i) => ava(p, corOuPadrao(p), 'p')).join('')}</div>` : ''}
         <div class="bts">${pode('roteiro') ? `<button class="bt pri" data-rot>${ic('doc', 14)} Virar roteiro</button>` : ''}${pode('ideias') ? `<button class="bt" data-ed>Editar</button><button class="bt ic" data-del title="Tirar esta ideia">${ic('lixo', 14)}</button>` : ''}</div></div>`);
       $('[data-rot]', c)?.addEventListener('click', () => this.viraRoteiro(x, I));
       $('[data-ed]', c)?.addEventListener('click', () => this.edita(x));
