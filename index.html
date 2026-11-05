@@ -30,6 +30,9 @@ if (location.hostname === 'problemsbloxcreate-lab.github.io') location.replace('
 <script src="js/roteiro.js"></script>
 <script src="js/editor.js"></script>
 <script src="js/app.js"></script>
+<script>/* botão da conta: o círculo da NUVEM (espaço já usado na nuvem da equipe), igual no Animador */
+window.ESTUDIO_CONTA = { nuvem: true, token: () => window.EstudioLogin?.token?.(), aoMudarNuvem: () => { try { if (!S.P && S.aba === 'roteiros') pintaInicio(true); } catch { } } };
+</script>
 <script src="/estudio-conta.js" defer></script>
 </body>
 </html>

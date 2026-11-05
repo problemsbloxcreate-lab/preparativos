@@ -987,8 +987,6 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
     return out; },
 }));
 (async () => {
-  { const conta = document.querySelector('.top [data-estudio-conta]'); if (conta) { const b = h(`<button class="nuvem-top" title="O Preparativos usa a nuvem da equipe: o que está na nuvem a equipe toda vê. Clique para ver os roteiros na nuvem.">${ic('nuvem', 18)}<span>Nuvem</span></button>`);
-    b.onclick = async () => { if (S.P && !await sairDoPrep()) return; filtroOnde = 'nuvem'; trocaAba('roteiros'); }; conta.before(b); } }
   try { S.eu = await window.EstudioLogin?.pronto; } catch { }
   // níveis de acesso: o /estudio-conta.js (defer) cria o EstudioPerm depois deste arquivo; espera ele antes de desenhar os botões
   if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));
