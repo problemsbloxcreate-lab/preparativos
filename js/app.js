@@ -335,7 +335,7 @@ function pintaPrep() {
       ${eds.length ? `<hr><div class="hp-tit">Quem editou</div>${eds.map(x => `<div class="hp-l">${pava(x)}<div><b>${esc(x.nome)}</b><small>${esc(quando(x.em))}</small></div></div>`).join('')}` : ''}</div>`);
     document.body.appendChild(pop); const r = b.getBoundingClientRect(); pop.style.left = Math.max(8, r.right - pop.offsetWidth) + 'px'; pop.style.top = r.bottom + 6 + 'px';
     setTimeout(() => addEventListener('mousedown', function f(ev) { if (!ev.target.closest('.hist-pop')) { pop.remove(); removeEventListener('mousedown', f); } }), 0); };
-  $('[data-volta]', el).onclick = sairDoPrep;
+  $('[data-volta]', el).onclick = () => sairDoPrep();
   const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); nm.size = Math.max(8, Math.min(40, nm.value.length + 1)); marcaSujo(); };
   nm.onkeydown = e => { if (e.key === 'Enter') { nm.blur(); S.ed?.foca(); } };
   const mudaMarca = async (campo, v) => {
