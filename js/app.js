@@ -99,6 +99,7 @@ function carregaPers(novo) {
   if (S.pers && !novo) return Promise.resolve(S.pers);
   return carregandoPers || (carregandoPers = Promise.all([Nuvem.personagens().catch(() => ({})), Nuvem.cores().catch(() => ({}))]).then(([p, c]) => {
     S.cores = c || {}; S.pers = p || {}; for (const [k, v] of Object.entries(S.cores)) { if (!S.pers[k]) S.pers[k] = { nome: k, cor: v }; else if (!S.pers[k].cor) S.pers[k].cor = v; }
+    Roteiro.usaConhecidos(Object.values(S.pers).map(x => x.nome)); if (S.P) S.P.partes = Roteiro.separa(S.P.roteiro || '', S.P.partes);
     return S.pers; }).finally(() => { carregandoPers = null; }));
 }
 const persDe = nome => S.pers?.[Roteiro.chave(nome)] || null;
@@ -756,7 +757,7 @@ const Dub = {
         : `<small class="dica">Nenhum link ligado. ${pode('links') ? 'Crie um para mandar a quem vai dublar (a pessoa não precisa de conta).' : ''}</small>`}`;
     $$('.dp-item', corpo).forEach(it => { const k = it.dataset.k, x = pend.find(y => y.k === k);
       $('[data-ouve]', it).onclick = async e => { const b = e.currentTarget; try { if (S.tocando) { S.tocando.pause(); S.tocando = null; } const a = new Audio(URL.createObjectURL(await Nuvem.audio(k))); S.tocando = a; a.play(); b.innerHTML = ic('parar', 15); a.onended = a.onpause = () => { b.innerHTML = ic('play', 15); }; } catch (er) { aviso(er.message, 'erro'); } };
-      $('[data-aceita]', it)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r2 = await Nuvem.acao({ acao: 'dublar', op: 'aceita', id: S.P.id, k }); const f = this.nomeFala(x.fala); if (f) { f.audio = r2.audio; f.duracao = r2.duracao; delete f.regravar; }
+      $('[data-aceita]', it)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r2 = await Nuvem.acao({ acao: 'dublar', op: 'aceita', id: S.P.id, k }); const f = this.nomeFala(x.fala); if (f) { if (r2.de) f.audios = { ...(f.audios || {}), [r2.de]: { audio: r2.audio, duracao: r2.duracao } }; else { f.audio = r2.audio; f.duracao = r2.duracao; delete f.regravar; } }
         if (!S.sujo && r2.mod) { S.P.mod = r2.mod; S.base.mod = r2.mod; } S.lista = null; aviso('Gravação aceita: agora é o áudio da fala.', 'ok'); Falas.pinta(Falas.c); } catch (er) { aviso(er.message, 'erro'); e.currentTarget.disabled = false; } });
       $('[data-recusa]', it)?.addEventListener('click', async () => { if (!await pergunta('Recusar esta gravação?', 'Ela é apagada da nuvem. A fala continua como estava.', [['Cancelar', false], ['Recusar', true, 'perigo']])) return; try { this.mostra(box, await Nuvem.acao({ acao: 'dublar', op: 'recusa', id: S.P.id, k })); } catch (er) { aviso(er.message, 'erro'); } }); });
     $$('.dp-link', corpo).forEach(it => $('[data-encerra]', it)?.addEventListener('click', async () => { if (!await pergunta('Encerrar este link?', 'Ele para de funcionar na hora. O que já foi enviado continua aqui esperando aprovação.', [['Cancelar', false], ['Encerrar', true, 'perigo']])) return;
@@ -784,8 +785,8 @@ const Dub = {
       <div class="dn-rod"><button class="bt" data-n>Cancelar</button><button class="bt pri" data-s>${ic('enviar', 14)} Criar link</button></div></div></div>`);
     let prazo = 'hora';
     const fecha = () => m.remove(), alc = () => $('input[name=alc]:checked', m).value;
-    const escolhidas = () => { const so = $('[data-sem]', m).checked, l = alc() === 'fala' ? todas.filter(f => f.id === $('[data-fala]', m).value) : alc() === 'pers' ? todas.filter(f => Roteiro.chave(f.personagem) === $('[data-pers]', m).value) : todas; return alc() === 'fala' ? l : l.filter(f => !so || !f.audio); };
-    const explica = () => { const a = alc(), l = escolhidas(), varios = new Set(l.map(f => Roteiro.chave(f.personagem))).size > 1;
+    const escolhidas = () => { const so = $('[data-sem]', m).checked, l = alc() === 'fala' ? todas.filter(f => f.id === $('[data-fala]', m).value) : alc() === 'pers' ? todas.filter(f => Roteiro.quem(f).includes($('[data-pers]', m).value)) : todas; return alc() === 'fala' ? l : l.filter(f => !so || !f.audio); };
+    const explica = () => { const a = alc(), l = escolhidas(), varios = new Set(l.flatMap(f => Roteiro.quem(f))).size > 1;
       $$('[data-campo]', m).forEach(c => { c.hidden = c.dataset.campo !== a; }); $('[data-so]', m).hidden = a === 'fala';
       $('[data-quem-fecha]', m).textContent = `${l.length} fala${l.length === 1 ? '' : 's'}. ` + (prazo === 'hora' ? 'Vale 1 hora e depois é apagado. ' : 'Sem prazo. ') + (varios ? 'Vários personagens: acaba quando VOCÊ encerrar.' : 'Morre quando a pessoa clicar em "Terminei".');
       const rot = $('[data-rot]', m); if (!rot.dataset.mexeu) rot.value = a === 'todas' ? 'Todas as falas' : a === 'pers' ? (ps.find(p => p.chave === $('[data-pers]', m).value)?.nome || '') : 'Uma fala'; };
@@ -794,7 +795,7 @@ const Dub = {
     explica();
     $('[data-n]', m).onclick = fecha; m.onclick = e => { if (e.target === m) fecha(); }; m.onkeydown = e => { if (e.key === 'Escape') fecha(); };
     $('[data-s]', m).onclick = async e => { const l = escolhidas(); if (!l.length) return aviso('Nenhuma fala com essa escolha (todas já têm áudio?).', 'info'); const b = e.currentTarget; b.disabled = true; b.innerHTML = giro('Criando');
-      try { const r = await Nuvem.acao({ acao: 'dublar', op: 'novo', id: P.id, falas: l.map(f => f.id), rotulo: $('[data-rot]', m).value, prazo });
+      try { const r = await Nuvem.acao({ acao: 'dublar', op: 'novo', id: P.id, falas: l.map(f => f.id), rotulo: $('[data-rot]', m).value, prazo, ...(alc() === 'pers' ? { de: $('[data-pers]', m).value } : {}) });
         const url = location.origin + '/dublar/#t=' + r.token; fecha(); this.mostra(box, r); this.mostraLink(url); } catch (er) { aviso(er.message, 'erro'); b.disabled = false; b.innerHTML = `${ic('enviar', 14)} Criar link`; } };
     document.body.appendChild(m); $('input[name=alc]:checked', m).focus(); },
   mostraLink(url) {
@@ -810,7 +811,7 @@ const Falas = {
     try { this.quem = this.quem ?? localStorage.getItem('ep-prep-quem') ?? ''; } catch { this.quem = this.quem || ''; }
     if (this.quem && !ps.some(p => p.chave === this.quem)) this.quem = '';
     const locais = await this.locais(); let num = 0;
-    const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.map(f => ({ f, n: ++num })).filter(({ f }) => !this.quem || Roteiro.chave(f.personagem) === this.quem) })).filter(p => p.falas.length);
+    const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.map(f => ({ f, n: ++num })).filter(({ f }) => !this.quem || Roteiro.quem(f).includes(this.quem)) })).filter(p => p.falas.length);
     const total = P.partes.reduce((s, p) => s + p.falas.length, 0), feitas = P.partes.reduce((s, p) => s + p.falas.filter(f => f.audio).length, 0);
     c.innerHTML = `<div class="falas">
       ${pode('gravar') ? '<div class="mic-painel"></div>' : ''}
@@ -823,12 +824,12 @@ const Falas = {
       <div class="env"></div>
       ${P.novo || S.sujo && !P.mod ? `<p class="aviso-linha">${ic('alerta', 15)} Mande o roteiro para a nuvem antes de enviar as gravações (elas ficam guardadas aqui enquanto isso).</p>` : ''}
       ${!ps.length ? '<div class="vazio">Ainda não há falas. Escreva o roteiro como <b>Nome: fala</b>.</div>' : ''}
-      ${visiveis.map(p => `<div class="parte"><h3>${esc(p.nome)}</h3>${p.falas.map(({ f, n }) => this.linha(f, n, locais.get(f.id), cs)).join('')}</div>`).join('')}</div>`;
+      ${visiveis.map(p => `<div class="parte"><h3>${esc(p.nome)}</h3>${p.falas.map(({ f, n }) => this.linha(f, n, locais.get(f.id + this.suf(f)), cs)).join('')}</div>`).join('')}</div>`;
     $$('[data-grava]', c).forEach(b => b.onclick = () => { this.quem = b.dataset.grava; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } this.pinta(c); });
     $$('.fala', c).forEach(el => { const f = this.acha(el.dataset.f); if (!f) return;
       $('[data-gravar]', el)?.addEventListener('click', () => this.grava(f, el));
       $('[data-ouvir]', el)?.addEventListener('click', e => this.ouve(f, e.currentTarget));
-      $('[data-tirar]', el)?.addEventListener('click', async () => { await DB.del('aud', P.id + '/' + f.id); this.pinta(c); });
+      $('[data-tirar]', el)?.addEventListener('click', async () => { await DB.del('aud', this.chaveL(f)); this.pinta(c); });
       $('[data-subir]', el)?.addEventListener('click', () => this.sobe(f));
       // ANDAR PELO ÁUDIO: clicar/arrastar na onda vai para aquele ponto (tocando ou não)
       const bx = $('.onda-box', el); bx.onpointerdown = ev => { ev.preventDefault(); const fr = e2 => { const r = bx.getBoundingClientRect(); return Math.max(0, Math.min(1, (e2.clientX - r.left) / r.width)); };
@@ -838,21 +839,31 @@ const Falas = {
     this.pintaEnvio(locais);
     Mic.pinta($('.mic-painel', c)); Dub.pinta($('.dub-painel', c));
     // a onda das gravações deste computador (e das da nuvem que já foram ouvidas nesta aba)
-    for (const el of $$('.fala', c)) { const f = this.acha(el.dataset.f), l = locais.get(el.dataset.f), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f'; if (!f) continue;
-      const k = l ? `l:${P.id}/${f.id}:${l.em}` : f.audio ? 'n:' + f.audio : null; if (!k) continue;
+    for (const el of $$('.fala', c)) { const f = this.acha(el.dataset.f); if (!f) continue; const l = locais.get(f.id + this.suf(f)), au = this.audioDe(f), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f';
+      const k = l ? `l:${this.chaveL(f)}:${l.em}` : au ? 'n:' + au : null; if (!k) continue;
       if (l) Onda.picos(k, l.blob).then(pk => { const bx = $('.onda-box', el); bx.hidden = false; Onda.desenha($('.onda', el), pk, cor); }).catch(() => { });
       else if (Onda.cache.has(k)) { const bx = $('.onda-box', el); bx.hidden = false; Onda.desenha($('.onda', el), Onda.cache.get(k), cor); } }
   },
-  acha(id) { for (const p of S.P.partes) for (const f of p.falas) if (f.id === id) return f; return null; },
+  acha(id) { id = String(id).split('@')[0]; for (const p of S.P.partes) for (const f of p.falas) if (f.id === id) return f; return null; },
+  // FALA DE VÁRIOS: com um personagem escolhido em "Quem vai gravar?", grava a VERSÃO DELE (audios[chave]); no "Todos", a de todos juntos (audio)
+  varios: f => Array.isArray(f?.personagens) && f.personagens.length > 1,
+  vez(f) { return this.varios(f) && this.quem && Roteiro.quem(f).includes(this.quem) ? this.quem : ''; },
+  suf(f) { const v = this.vez(f); return v ? '@' + v : ''; },
+  chaveL(f) { return S.P.id + '/' + f.id + this.suf(f); },
+  audioDe(f) { const v = this.vez(f); return v ? f.audios?.[v]?.audio || null : f.audio; },
+  durDe(f) { const v = this.vez(f); return v ? f.audios?.[v]?.duracao || 0 : f.duracao; },
   async locais() { const m = new Map(); try { for (const [k, v] of await DB.todos('aud')) if (String(k).startsWith(S.P.id + '/')) m.set(String(k).slice(S.P.id.length + 1), v); } catch { } return m; },
   linha(f, n, local, cs) {
-    const cor = cs.get(Roteiro.chave(f.personagem)), gravar = pode('gravar');
-    const st = local ? `<span class="st aqui">${ic('alerta', 12)} gravada aqui · falta enviar · ${tempo(local.duracao)}</span>` : f.audio ? `<span class="st nuvem">${f.regravar ? `<span class="aten">${ic('alerta', 12)} o texto mudou, regravar</span>` : `${ic('ok', 12)} na nuvem`} · ${tempo(f.duracao)}</span>` : '<span class="st sem">sem áudio</span>';
-    return `<div class="fala ${local ? 'local' : f.audio ? 'tem' : ''}" data-f="${esc(f.id)}" style="--c:${cor}"><span class="num">${n}</span>
-      <div class="quem">${ava(f.personagem, cor, 'p')}<b>${esc(f.personagem)}</b></div>
+    const vz = this.vez(f), varios = this.varios(f), au = this.audioDe(f), cor = varios ? (vz ? cs.get(vz) : '#9aa0ab') : cs.get(Roteiro.chave(f.personagem)), gravar = pode('gravar');
+    const st = local ? `<span class="st aqui">${ic('alerta', 12)} gravada aqui · falta enviar · ${tempo(local.duracao)}</span>` : au ? `<span class="st nuvem">${f.regravar && !vz ? `<span class="aten">${ic('alerta', 12)} o texto mudou, regravar</span>` : `${ic('ok', 12)} na nuvem`} · ${tempo(this.durDe(f))}</span>` : '<span class="st sem">sem áudio</span>';
+    const quemH = varios ? `<div class="quem varios"><span class="avs">${f.personagens.map(p => ava(p, cs.get(Roteiro.chave(p)) || corOuPadrao(p), 'p')).join('')}</span><b>${esc(f.personagens.join(' + '))}</b><small>${vz ? `versão de ${esc(f.personagens.find(p => Roteiro.chave(p) === vz) || vz)}` : 'todos juntos'}</small></div>`
+      : `<div class="quem">${ava(f.personagem, cor, 'p')}<b>${esc(f.personagem)}</b></div>`;
+    const dicaV = varios && !vz ? `<small class="dica-v">Fala de ${f.personagens.length}: aqui é a gravação de todos juntos. Para cada um gravar a sua versão, escolha o personagem em "Quem vai gravar?".</small>` : '';
+    return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}" data-f="${esc(f.id)}" style="--c:${cor}"><span class="num">${n}</span>
+      ${quemH}${dicaV}
       <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
-      <div class="bts">${local || f.audio ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
-      ${gravar ? `<button class="redondo gravar ${local || f.audio ? 'de-novo' : ''}" data-gravar title="${local || f.audio ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
+      <div class="bts">${local || au ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
+      ${gravar ? `<button class="redondo gravar ${local || au ? 'de-novo' : ''}" data-gravar title="${local || au ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
       ${gravar ? `<button class="redondo subir" data-subir title="Usar um áudio já gravado (mp3, wav, ogg, m4a, webm)">${ic('baixo', 16)}</button>` : ''}
       ${local ? `<button class="redondo" data-tirar title="Jogar fora esta gravação">${ic('lixo', 15)}</button>` : ''}</div></div>`;
   },
@@ -873,7 +884,7 @@ const Falas = {
     mr.onstop = async () => { clearInterval(cron); cancelAnimationFrame(raf); m.fecha(); this.rec = null; const dur = (performance.now() - t0) / 1000;
       if (dur < 0.4) { aviso('Gravação curta demais.', 'info'); return this.pinta(this.c); }
       const blob = new Blob(pedacos, { type: mr.mimeType || tipo || 'audio/webm' });
-      try { await DB.put('aud', S.P.id + '/' + f.id, { blob, duracao: Math.round(dur * 100) / 100, em: Date.now() }); } catch (e) { aviso('Não consegui guardar a gravação neste computador: ' + (e.message || e), 'erro'); }
+      try { await DB.put('aud', this.chaveL(f), { blob, duracao: Math.round(dur * 100) / 100, em: Date.now() }); } catch (e) { aviso('Não consegui guardar a gravação neste computador: ' + (e.message || e), 'erro'); }
       this.pinta(this.c); };
     mr.start(250); this.rec = { f, parar: () => { try { mr.stop(); } catch { } } };
   },
@@ -881,7 +892,7 @@ const Falas = {
     if (S.tocando) { S.tocando.pause(); const era = S.tocando._f === f.id; S.tocando._fim?.(); S.tocando = null; $$('.tocando').forEach(x => x.classList.remove('tocando')); if (era && desde == null) return; }
     if (!bt) return;
     const el = bt.closest('.fala'), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f';
-    try { const l = await DB.get('aud', S.P.id + '/' + f.id), blob = l?.blob || await Nuvem.audio(f.audio), k = l ? `l:${S.P.id}/${f.id}:${l.em}` : 'n:' + f.audio;
+    try { const l = await DB.get('aud', this.chaveL(f)), au = this.audioDe(f), blob = l?.blob || await Nuvem.audio(au), k = l ? `l:${this.chaveL(f)}:${l.em}` : 'n:' + au;
       const pk = await Onda.picos(k, blob).catch(() => null), bx = $('.onda-box', el), cv = $('.onda', el); if (pk) { bx.hidden = false; Onda.desenha(cv, pk, cor); }
       const a = new Audio(URL.createObjectURL(blob)); a._f = f.id; S.tocando = a; bt.classList.add('tocando'); bt.innerHTML = ic('parar', 16);
       const tt = $('.onda-t', el); let raf; const anda = () => { if (a.duration && isFinite(a.duration)) { if (pk) Onda.desenha(cv, pk, cor, a.currentTime / a.duration); if (tt) tt.textContent = tempo(a.currentTime) + ' / ' + tempo(a.duration); } raf = requestAnimationFrame(anda); };
@@ -899,7 +910,7 @@ const Falas = {
       catch { return aviso('Não consegui ler esse arquivo como áudio. Use mp3, wav, ogg, m4a ou webm.', 'erro'); }
       if (dur > PREP_CONFIG.audioMaxSeg + 1) return aviso(`Esse áudio tem ${tempo(dur)}. Cada fala pode ter até ${tempo(PREP_CONFIG.audioMaxSeg)}.`, 'erro');
       const tipo = Falas.tipoDe(arq), blob = new Blob([arq], { type: tipo });
-      try { await DB.put('aud', S.P.id + '/' + f.id, { blob, duracao: Math.round(dur * 100) / 100, em: Date.now(), arquivo: String(arq.name || '').slice(0, 80) }); } catch (e) { return aviso('Não consegui guardar: ' + (e.message || e), 'erro'); }
+      try { await DB.put('aud', this.chaveL(f), { blob, duracao: Math.round(dur * 100) / 100, em: Date.now(), arquivo: String(arq.name || '').slice(0, 80) }); } catch (e) { return aviso('Não consegui guardar: ' + (e.message || e), 'erro'); }
       aviso('Áudio colocado na fala. Falta enviar para a nuvem.', 'ok'); this.pinta(this.c); };
     inp.click();
   },
@@ -916,12 +927,12 @@ const Falas = {
     bt.disabled = true; const lista = [...locais.entries()].filter(([id]) => this.acha(id)); const feitas = [];
     try {
       for (const [i, [id, l]] of lista.entries()) { bt.innerHTML = giro(`Enviando ${i + 1} de ${lista.length}`);
-        const ext = /mpeg/.test(l.blob.type) ? 'mp3' : /wav/.test(l.blob.type) ? 'wav' : /mp4/.test(l.blob.type) ? 'm4a' : /ogg/.test(l.blob.type) ? 'ogg' : 'webm', k = `preparativos/${P.id}/aud/${id}-${Date.now().toString(36)}.${ext}`;
+        const fidK = id.split('@')[0], ext = /mpeg/.test(l.blob.type) ? 'mp3' : /wav/.test(l.blob.type) ? 'wav' : /mp4/.test(l.blob.type) ? 'm4a' : /ogg/.test(l.blob.type) ? 'ogg' : 'webm', k = `preparativos/${P.id}/aud/${fidK}-${Date.now().toString(36)}.${ext}`;
         await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(k), { method: 'POST', headers: { 'content-type': l.blob.type || 'audio/webm' }, body: l.blob });
-        feitas.push({ id, audio: k, duracao: l.duracao }); }
+        const [fid, de] = id.split('@'); feitas.push({ id: fid, ...(de ? { de } : {}), audio: k, duracao: l.duracao, _loc: id }); }
     } catch (e) { aviso(e.message, 'erro'); }
-    if (feitas.length) { try { const r = await Nuvem.acao({ acao: 'falas', id: P.id, falas: feitas }); // uma gravação do prep.json para todas
-        for (const x of feitas) { const f = this.acha(x.id); if (f) { f.audio = x.audio; f.duracao = x.duracao; delete f.regravar; } await DB.del('aud', P.id + '/' + x.id).catch(() => { }); }
+    if (feitas.length) { try { const r = await Nuvem.acao({ acao: 'falas', id: P.id, falas: feitas.map(({ _loc, ...x }) => x) }); // uma gravação do prep.json para todas
+        for (const x of feitas) { const f = this.acha(x.id); if (f) { if (x.de) f.audios = { ...(f.audios || {}), [x.de]: { audio: x.audio, duracao: x.duracao } }; else { f.audio = x.audio; f.duracao = x.duracao; delete f.regravar; } } await DB.del('aud', P.id + '/' + x._loc).catch(() => { }); }
         if (!S.sujo) { P.mod = r.mod || P.mod; S.base.mod = P.mod; } S.lista = null; aviso(`${feitas.length} gravaç${feitas.length === 1 ? 'ão enviada' : 'ões enviadas'}.`, 'ok'); pintaBarraPrep(); }
       catch (e) { aviso(e.message, 'erro'); } }
     this.pinta(this.c);
@@ -1054,6 +1065,7 @@ function pintaLegendas(c) {
     </div>
     <div class="lg-prev"><div class="lg-barra"><b>Prévia</b><span class="esp"></span><button class="bt" data-img>${ic('camera', 14)} Imagem de fundo</button><button class="bt" data-sem-img hidden>${ic('lixo', 14)} Tirar</button><button class="bt" data-centra title="Voltar a legenda para o lugar padrão">${ic('atualizar', 14)} Posição padrão</button></div>
       <div class="lg-moldura"><div class="quadro" style="aspect-ratio:${Q.w} / ${Q.h};--ar:${Q.w / Q.h}"><img class="q-img" alt="" hidden><div class="q-leg" tabindex="0"><span class="q-txt"></span><i class="q-alca e"></i><i class="q-alca d"></i></div></div></div>
+      <div class="lg-cor-fala" hidden><small>Fala de vários personagens: a legenda usa a cor neutra. Cor só desta fala:</small><input type="color" value="#ffffff" ${ed ? '' : 'disabled'}><button class="link" data-cor-fala-tira>voltar para a neutra</button></div>
       <div class="lg-trecho"><label class="lg-f"><small>Parte</small><select data-parte>${P.partes.map((x, i) => `<option value="${i}" ${i === pi ? 'selected' : ''}>${esc(nomeParte(x, i))} (${x.falas.length})</option>`).join('') || '<option>Sem partes ainda</option>'}</select></label>
         <div class="lg-nav"><button class="bt ic" data-ant title="Fala anterior">${ic('voltar', 15)}</button><span class="lg-num"></span><button class="bt ic" data-prox title="Próxima fala" style="transform:scaleX(-1)">${ic('voltar', 15)}</button></div>
         <div class="lg-falas"></div></div>
@@ -1063,11 +1075,12 @@ function pintaLegendas(c) {
   // ---- aplica o estilo na prévia (em unidades do quadro: cqh = 1% da altura do quadro) ----
   const aplica = () => { const e = E, h = v => `calc(${v * 100} * 1cqh)`, p = ps.find(x => x.chave === foco);
     leg.style.left = e.x * 100 + '%'; leg.style.top = e.y * 100 + '%'; leg.style.width = e.largura * 100 + '%'; leg.hidden = !P.legenda.ativa;
-    const fa = P.partes[pi]?.falas[fi], k = fa ? Roteiro.chave(fa.personagem) : foco, pn = fa ? fa.personagem : p?.nome;
+    const fa = P.partes[pi]?.falas[fi], k = fa ? Roteiro.chave(fa.personagem) : foco, pn = fa ? fa.personagem : p?.nome, vrs = fa && Array.isArray(fa.personagens) && fa.personagens.length > 1;
+    const corF = fa?.cor || (vrs ? '#ffffff' : escolha[k] || '#ffffff'); const cf = $('.lg-cor-fala', c); if (cf) { cf.hidden = !vrs; if (vrs) { $('input', cf).value = fa.cor || '#ffffff'; $('[data-cor-fala-tira]', cf).hidden = !fa.cor; } }
     txt.textContent = (P.legenda.mostrarNome && pn ? pn + ': ' : '') + (fa ? fa.texto : foco ? exemplo(foco) : 'Exemplo de legenda');
     const fs = P.partes[pi]?.falas || []; $('.lg-num', c).textContent = fs.length ? `${fi + 1} de ${fs.length}` : '—'; $('[data-ant]', c).disabled = fi <= 0; $('[data-prox]', c).disabled = fi >= fs.length - 1;
     $$('.lg-falas .lf', c).forEach((b, i) => b.classList.toggle('on', i === fi));
-    Object.assign(txt.style, { fontFamily: `'${e.fonte}', sans-serif`, fontSize: h(e.tamanho), fontWeight: e.peso, textAlign: e.alinhar, textTransform: e.maiusculas ? 'uppercase' : 'none', color: escolha[k] || '#ffffff',
+    Object.assign(txt.style, { fontFamily: `'${e.fonte}', sans-serif`, fontSize: h(e.tamanho), fontWeight: e.peso, textAlign: e.alinhar, textTransform: e.maiusculas ? 'uppercase' : 'none', color: corF,
       textShadow: e.sombra.ativa ? `${h(e.sombra.x)} ${h(e.sombra.y)} ${h(e.sombra.desfoque)} ${rgba(e.sombra.cor, e.sombra.opacidade)}` : 'none',
       webkitTextStroke: e.contorno.ativo ? `${h(e.contorno.largura)} ${e.contorno.cor}` : '0', paintOrder: 'stroke fill',
       background: e.fundo.ativo ? rgba(e.fundo.cor, e.fundo.opacidade) : 'transparent', padding: e.fundo.ativo ? `${h(.006)} ${h(.012)}` : '0' });
@@ -1084,14 +1097,16 @@ function pintaLegendas(c) {
   const muda = (w, h) => { Q.w = Math.round(w); Q.h = Math.round(h); qd.style.aspectRatio = `${Q.w} / ${Q.h}`; qd.style.setProperty('--ar', Q.w / Q.h); aplica(); guarda(); };
   $('[data-quadro]', c).onchange = e => { const v = e.target.value, wh = $('.lg-wh', c); wh.hidden = v !== 'outro'; if (v !== 'outro') { const [w, h] = v.split('x').map(Number); muda(w, h); $('[data-w]', c).value = w; $('[data-h]', c).value = h; } };
   $('[data-w]', c).onchange = $('[data-h]', c).onchange = () => muda(Math.max(160, Math.min(7680, +$('[data-w]', c).value || 1080)), Math.max(160, Math.min(7680, +$('[data-h]', c).value || 1920)));
-  const pintaFalas = () => { const fs = P.partes[pi]?.falas || []; $('.lg-falas', c).innerHTML = fs.map((f, i) => `<button class="lf" data-i="${i}" style="--c:${escolha[Roteiro.chave(f.personagem)] || '#fff'}"><b>${esc(f.personagem)}</b> ${esc(f.texto.slice(0, 90))}</button>`).join('') || '<div class="vazio">Nenhuma fala nesta parte.</div>';
+  { const cf = $('.lg-cor-fala', c); $('input', cf).oninput = e => { const fa = P.partes[pi]?.falas[fi]; if (!fa) return; fa.cor = e.target.value; aplica(); marcaSujo(); };
+    $('[data-cor-fala-tira]', cf).onclick = () => { const fa = P.partes[pi]?.falas[fi]; if (!fa) return; delete fa.cor; aplica(); marcaSujo(); }; }
+  const pintaFalas = () => { const fs = P.partes[pi]?.falas || []; $('.lg-falas', c).innerHTML = fs.map((f, i) => `<button class="lf" data-i="${i}" style="--c:${f.cor || (f.personagens?.length > 1 ? '#fff' : escolha[Roteiro.chave(f.personagem)] || '#fff')}"><b>${esc(f.personagem)}</b> ${esc(f.texto.slice(0, 90))}</button>`).join('') || '<div class="vazio">Nenhuma fala nesta parte.</div>';
     $$('.lg-falas .lf', c).forEach(b => b.onclick = () => { fi = +b.dataset.i; aplica(); }); };
   $('[data-parte]', c).onchange = e => { pi = +e.target.value; fi = 0; pintaFalas(); aplica(); };
   $('[data-ant]', c).onclick = () => { if (fi > 0) { fi--; aplica(); $('.lg-falas .lf.on', c)?.scrollIntoView({ block: 'nearest' }); } };
   $('[data-prox]', c).onclick = () => { if (fi < (P.partes[pi]?.falas.length || 0) - 1) { fi++; aplica(); $('.lg-falas .lf.on', c)?.scrollIntoView({ block: 'nearest' }); } };
   pintaFalas();
   // cores dos personagens (clicar no nome = pula para a primeira fala dele na parte escolhida)
-  const pulaPara = k => { const i = (P.partes[pi]?.falas || []).findIndex(f => Roteiro.chave(f.personagem) === k); if (i >= 0) fi = i; };
+  const pulaPara = k => { const i = (P.partes[pi]?.falas || []).findIndex(f => Roteiro.quem(f).includes(k)); if (i >= 0) fi = i; };
   $$('.lg-cfg .lin', c).forEach(l => { const k = l.dataset.k, troca = v => { escolha[k] = v; $$('.cor', l).forEach(b => b.classList.toggle('on', b.dataset.corP === v)); $('.ava', l).style.setProperty('--c', v); $('input[type=color]', l).value = v; foco = k; pulaPara(k); pintaFalas(); aplica(); guarda(); };
     l.onclick = e => { if (!e.target.closest('button,input,label')) { foco = k; pulaPara(k); aplica(); } };
     $$('.cor', l).forEach(b => b.onclick = () => troca(b.dataset.corP)); $('input[type=color]', l).oninput = e => troca(e.target.value); });

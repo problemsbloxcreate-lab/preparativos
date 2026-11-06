@@ -13,6 +13,13 @@
      [a câmera se aproxima]                ← colchetes = indicação de cena: não vira fala
      // anotação para a equipe             ← comentário: não vira fala
      ---                                   ← quebra de página: o que vem depois começa numa página nova (só visual)
+     Stick e Problems (juntos): CLARA!     ← FALA DE VÁRIOS: nomes separados por "e", "," "+" ou "&" ("Stick, Problems e Clara: …").
+                                             Só vira fala de vários quando CADA nome já existe como personagem (fala sozinho em
+                                             outra linha do roteiro, ou está na aba Personagens), para não quebrar nomes compostos
+                                             como "Aluno Vermelho". A fala ganha personagens: ['Stick','Problems'] (o "personagem"
+                                             continua o texto inteiro "Stick e Problems"). Cada um pode gravar a sua versão
+                                             (audios: { '<nome minúsculo>': { audio, duracao } }) e "audio" é o de todos juntos.
+                                             Na legenda ela usa a cor NEUTRA do estilo, a não ser que a fala tenha "cor" própria.
 
    Qualquer outra linha solta é narração/descrição e não vira fala (para um narrador falar, escreva "Narrador: …").
    O editor pinta na hora: o NOME de cada personagem na cor dele, a ação com marca-texto amarelo (sem mostrar os *) e os títulos.
@@ -33,6 +40,11 @@ const Roteiro = (() => {
   const ACAO = /^(\*[^*]+\*|_[^_]+_|\[.*\]|\(.*\))$/;
   // trechos em itálico (*…*) e (…) dentro da fala: viram nota
   const NOTAS = /\*([^*\n]+)\*|\(([^)\n]{1,120})\)/g;
+  // FALA DE VÁRIOS: separadores entre os nomes; CONHECIDOS = personagens da aba Personagens (o app avisa com usaConhecidos)
+  const SEP = /\s*(?:,|\+|&|\s+e\s+)\s*/i; let CONHECIDOS = new Set();
+  const usaConhecidos = l => { CONHECIDOS = new Set([...(l || [])].map(x => chave(x))); };
+  // quem fala numa fala: a lista (fala de vários) ou só o personagem
+  const quem = f => (Array.isArray(f?.personagens) && f.personagens.length > 1 ? f.personagens : [f?.personagem]).map(chave).filter(Boolean);
 
   // o que é cada linha: { t: 'v' vazia | 'c' comentário | 'q' quebra de página | 'a' ação | 'h' título (nivel 1 capítulo, 2 parte) | 'f' fala | 'f2' continuação | 'n' narração, … }
   function classifica(texto) {
@@ -49,6 +61,10 @@ const Roteiro = (() => {
         else o = { t: naFala ? 'f2' : 'n' }; }
       naFala = o.t === 'f' || o.t === 'f2'; o.linha = bruta; out.push(o);
     }
+    // fala de vários: só quando CADA nome existe sozinho no roteiro ou na lista da equipe
+    const sozinhos = new Set(out.filter(o => o.t === 'f').map(o => chave(o.nome)));
+    for (const o of out) if (o.t === 'f' && SEP.test(o.nome.trim())) { const ns = o.nome.trim().split(SEP).map(norm).filter(Boolean);
+      if (ns.length >= 2 && new Set(ns.map(chave)).size === ns.length && ns.every(n => sozinhos.has(chave(n)) || CONHECIDOS.has(chave(n)))) o.nomes = ns; }
     return out;
   }
   // tira as notas (*itálico* e (…)) do texto falado
@@ -65,12 +81,15 @@ const Roteiro = (() => {
       fecha();
       if (o.t === 'h' && o.nivel === 1) { cap = norm(o.nome).slice(0, 80); parte = null; }
       else if (o.t === 'h') novaParte(o.nome);
-      else if (o.t === 'f') { if (!parte) novaParte(cap || 'Parte 1'); fala = { id: null, personagem: norm(o.nome).slice(0, 40), texto: '', nota: '', audio: null, duracao: 0, _bruto: o.resto, _notas: o.notaNome ? [norm(o.notaNome)] : [] }; parte.falas.push(fala); }
+      else if (o.t === 'f') { if (!parte) novaParte(cap || 'Parte 1'); fala = { id: null, personagem: norm(o.nome).slice(0, 40), ...(o.nomes ? { personagens: o.nomes.map(n => n.slice(0, 40)) } : {}), texto: '', nota: '', audio: null, duracao: 0, _bruto: o.resto, _notas: o.notaNome ? [norm(o.notaNome)] : [] }; parte.falas.push(fala); }
     }
     fecha();
     return casa(partes.filter(p => p.falas.length || partes.length === 1), anterior);
   }
 
+  // o que a fala antiga leva para a nova: versões de cada um (fala de vários), cor própria na legenda e a dublagem aceita
+  function guardaExtras(f, v) { if (v.audios && f.personagens) { const ks = new Set(f.personagens.map(chave)), a = {}; for (const [k, x] of Object.entries(v.audios)) if (ks.has(k)) a[k] = x; if (Object.keys(a).length) f.audios = a; }
+    if (v.cor) f.cor = v.cor; if (v.dub) f.dub = v.dub; }
   // liga as falas novas às antigas (ids e áudios)
   function casa(partes, anterior) {
     const velhas = (anterior || []).flatMap(p => (p.falas || []).map(f => ({ ...f, _p: chave(p.nome) })));
@@ -81,12 +100,12 @@ const Roteiro = (() => {
       const pv = partesVelhas.get(chave(p.nome)); p.id = pv?.id || uid('p');
       // 1) mesmo personagem e mesmo texto
       for (const f of p.falas) { const l = porTexto.get(chave(f.personagem) + '|' + chave(f.texto)) || [], v = l.find(x => !usadas.has(x.id) && x._p === chave(p.nome)) || l.find(x => !usadas.has(x.id));
-        if (v) { usadas.add(v.id); f.id = v.id; f.audio = v.audio || null; f.duracao = v.duracao || 0; if (v.regravar) f.regravar = true; if (v.por) f.por = v.por; if (v.em) f.em = v.em; } }
+        if (v) { usadas.add(v.id); f.id = v.id; f.audio = v.audio || null; f.duracao = v.duracao || 0; if (v.regravar) f.regravar = true; if (v.por) f.por = v.por; if (v.em) f.em = v.em; guardaExtras(f, v); } }
       // 2) mesmo lugar (n-ésima fala daquele personagem na mesma parte), texto mudou
       if (pv) { const conta = {}, contaV = {}, lugarV = new Map();
         for (const v of pv.falas || []) { const c = chave(v.personagem); contaV[c] = (contaV[c] || 0) + 1; lugarV.set(c + '#' + contaV[c], v); }
         for (const f of p.falas) { const c = chave(f.personagem); conta[c] = (conta[c] || 0) + 1; if (f.id) continue; const v = lugarV.get(c + '#' + conta[c]);
-          if (v && !usadas.has(v.id)) { usadas.add(v.id); f.id = v.id; if (v.audio) { f.audio = v.audio; f.duracao = v.duracao || 0; f.regravar = true; if (v.por) f.por = v.por; if (v.em) f.em = v.em; } } } }
+          if (v && !usadas.has(v.id)) { usadas.add(v.id); f.id = v.id; guardaExtras(f, v); if (v.audio) { f.audio = v.audio; f.duracao = v.duracao || 0; f.regravar = true; if (v.por) f.por = v.por; if (v.em) f.em = v.em; } } } }
       for (const f of p.falas) if (!f.id) f.id = uid('f');
     }
     return partes;
@@ -100,11 +119,12 @@ const Roteiro = (() => {
 
   // personagens do roteiro (na ordem em que aparecem), sem repetir por maiúscula/minúscula
   function personagens(partes) {
-    const m = new Map(); for (const p of partes || []) for (const f of p.falas || []) { const k = chave(f.personagem); if (!k) continue; const o = m.get(k) || { nome: f.personagem, n: 0, g: 0 }; o.n++; if (f.audio) o.g++; m.set(k, o); }
+    const m = new Map(); for (const p of partes || []) for (const f of p.falas || []) { const nomes = Array.isArray(f.personagens) && f.personagens.length > 1 ? f.personagens : [f.personagem];
+      for (const nm of nomes) { const k = chave(nm); if (!k) continue; const o = m.get(k) || { nome: nm, n: 0, g: 0 }; o.n++; if (f.audio || f.audios?.[k]?.audio) o.g++; m.set(k, o); } }
     return [...m.entries()].map(([k, o]) => ({ chave: k, ...o }));
   }
 
-  return { separa, classifica, limpa, escreve, personagens, chave, norm, uid };
+  return { separa, classifica, limpa, escreve, personagens, chave, norm, uid, quem, usaConhecidos, SEP };
 })();
 if (typeof module !== 'undefined') module.exports = Roteiro;
 
@@ -117,4 +137,5 @@ if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.m
   const b = Roteiro.separa(t.replace('Oi, gente!', 'Olá, gente!'), a);
   console.log('mantém id:', b[0].falas[0].id === a[0].falas[0].id, 'regravar:', b[0].falas[0].regravar, 'personagens:', JSON.stringify(Roteiro.personagens(b)));
   console.log(Roteiro.escreve(b));
+  const v = Roteiro.separa('## P\nStick: oi\nProblems: oi\nStick e Problems (juntos): CLARA!\nAluno Vermelho: olá'); console.log('vários:', JSON.stringify(v[0].falas.map(f => [f.personagem, f.personagens || null, f.nota])), JSON.stringify(Roteiro.personagens(v)));
 }

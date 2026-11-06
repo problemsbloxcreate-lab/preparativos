@@ -15,6 +15,8 @@ const Editor = (() => {
     const L = o.linha;
     if (o.t === 'v') return L ? `<div class="l v">${esc(L)}</div>` : '<div class="l v"><br></div>';
     if (o.t === 'h') { const m = L.match(/^(\s*#{1,6}\s*)(.*)$/); return `<div class="l h h${o.nivel || 2}">${m ? `<span class="mk">${esc(m[1])}</span>${esc(m[2])}` : esc(L)}</div>`; }
+    if (o.t === 'f' && o.nomes) { const pedacos = o.nome.split(/(\s*(?:,|\+|&|\s+e\s+)\s*)/i).map((x, i) => i % 2 ? `<span class="nm-sep">${esc(x)}</span>` : x ? `<span class="nm" style="--c:${cor(x.trim())}">${esc(x)}</span>` : '').join('');
+      return `<div class="l f varios" style="--c:${cor(o.nomes[0])}">${esc(o.pre)}${pedacos}<span class="dp">${inline(o.meio)}</span>${inline(o.resto)}</div>`; }
     if (o.t === 'f') return `<div class="l f" style="--c:${cor(o.nome)}">${esc(o.pre)}<span class="nm">${esc(o.nome)}</span><span class="dp">${inline(o.meio)}</span>${inline(o.resto)}</div>`;
     if (o.t === 'f2') return `<div class="l f2">${inline(L)}</div>`;
     if (o.t === 'a') { const m = L.match(/^(\s*)\*(.+)\*(\s*)$/); if (m) return `<div class="l a">${esc(m[1])}<span class="ac"><span class="mk">*</span>${esc(m[2])}<span class="mk">*</span></span>${esc(m[3])}</div>`; }

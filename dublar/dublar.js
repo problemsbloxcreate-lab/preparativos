@@ -57,7 +57,7 @@
     if (loc) c.classList.add('local'); else if (env) c.classList.add('enviada');
     if (f.parte) c.append(el('div', 'parte', f.parte));
     if (f.antes) { const a = el('div', 'antes'); a.append(el('b', null, f.antes.personagem + ': '), f.antes.texto); c.append(a); }
-    c.append(el('div', 'quem', f.personagem)); if (f.nota) c.append(el('div', 'nota', f.nota)); c.append(el('div', 'texto', f.texto));
+    c.append(el('div', 'quem', f.personagem)); if (f.voce) c.append(el('div', 'nota', 'Fala de vários: grave só a parte de ' + f.voce + '.')); if (f.nota) c.append(el('div', 'nota', f.nota)); c.append(el('div', 'texto', f.texto));
     c.append(el('div', 'st ' + (loc ? 'aq' : env ? 'ok' : ''), loc ? `Gravada aqui (${tempo(loc.dur)}) · falta enviar` : env ? `Enviada (${tempo(env.dur)}) · esperando a equipe aprovar` : 'Ainda não gravada'));
     if (loc) c.append(player(loc));
     const l = el('div', 'linha'), gr = bt(S.rec?.f === f.id ? 'Parar' : loc || env ? 'Regravar' : 'Gravar', 'rec' + (S.rec?.f === f.id ? ' on' : ''), () => grava(f, gr));
