@@ -878,3 +878,7 @@ body:not(.modo-doc) .filtros-ini .seg button:active,body:not(.modo-doc) .chips-s
 body:not(.modo-doc) .filtros-ini .seg button.on,body:not(.modo-doc) .chips-st button.on{border-color:transparent!important}
 body:not(.modo-doc) .filtros-ini .seg{gap:6px}
 body:not(.modo-doc) .filtros-ini .seg button:not(.on){background:#26282d!important}
+
+/* andar pelo áudio + subir arquivo pronto (06/11) */
+.onda-box{cursor:pointer;touch-action:none}.onda-t{position:absolute;right:4px;top:-16px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;pointer-events:none}
+.redondo.subir svg{transform:rotate(180deg)}

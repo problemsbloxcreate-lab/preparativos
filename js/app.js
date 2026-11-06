@@ -707,7 +707,13 @@ const Falas = {
     $$('.fala', c).forEach(el => { const f = this.acha(el.dataset.f); if (!f) return;
       $('[data-gravar]', el)?.addEventListener('click', () => this.grava(f, el));
       $('[data-ouvir]', el)?.addEventListener('click', e => this.ouve(f, e.currentTarget));
-      $('[data-tirar]', el)?.addEventListener('click', async () => { await DB.del('aud', P.id + '/' + f.id); this.pinta(c); }); });
+      $('[data-tirar]', el)?.addEventListener('click', async () => { await DB.del('aud', P.id + '/' + f.id); this.pinta(c); });
+      $('[data-subir]', el)?.addEventListener('click', () => this.sobe(f));
+      // ANDAR PELO ÁUDIO: clicar/arrastar na onda vai para aquele ponto (tocando ou não)
+      const bx = $('.onda-box', el); bx.onpointerdown = ev => { ev.preventDefault(); const fr = e2 => { const r = bx.getBoundingClientRect(); return Math.max(0, Math.min(1, (e2.clientX - r.left) / r.width)); };
+        const vai = e2 => { const a = S.tocando; if (a && a._f === f.id && a.duration) a.currentTime = fr(e2) * a.duration; };
+        if (S.tocando?._f === f.id) vai(ev); else this.ouve(f, $('[data-ouvir]', el), fr(ev));
+        const mv = e2 => vai(e2), fim = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', fim); }; addEventListener('pointermove', mv); addEventListener('pointerup', fim); }; });
     this.pintaEnvio(locais);
     Mic.pinta($('.mic-painel', c));
     // a onda das gravações deste computador (e das da nuvem que já foram ouvidas nesta aba)
@@ -723,9 +729,10 @@ const Falas = {
     const st = local ? `<span class="st aqui">${ic('alerta', 12)} gravada aqui · falta enviar · ${tempo(local.duracao)}</span>` : f.audio ? `<span class="st nuvem">${f.regravar ? `<span class="aten">${ic('alerta', 12)} o texto mudou, regravar</span>` : `${ic('ok', 12)} na nuvem`} · ${tempo(f.duracao)}</span>` : '<span class="st sem">sem áudio</span>';
     return `<div class="fala ${local ? 'local' : f.audio ? 'tem' : ''}" data-f="${esc(f.id)}" style="--c:${cor}"><span class="num">${n}</span>
       <div class="quem">${ava(f.personagem, cor, 'p')}<b>${esc(f.personagem)}</b></div>
-      <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}<div class="onda-box" hidden><canvas class="onda"></canvas><i class="onda-pos"></i></div></div>
+      <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
       <div class="bts">${local || f.audio ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
       ${gravar ? `<button class="redondo gravar ${local || f.audio ? 'de-novo' : ''}" data-gravar title="${local || f.audio ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
+      ${gravar ? `<button class="redondo subir" data-subir title="Usar um áudio já gravado (mp3, wav, ogg, m4a, webm)">${ic('baixo', 16)}</button>` : ''}
       ${local ? `<button class="redondo" data-tirar title="Jogar fora esta gravação">${ic('lixo', 15)}</button>` : ''}</div></div>`;
   },
   async grava(f, el) {
@@ -749,17 +756,35 @@ const Falas = {
       this.pinta(this.c); };
     mr.start(250); this.rec = { f, parar: () => { try { mr.stop(); } catch { } } };
   },
-  async ouve(f, bt) {
-    if (S.tocando) { S.tocando.pause(); const era = S.tocando._f === f.id; S.tocando._fim?.(); S.tocando = null; $$('.tocando').forEach(x => x.classList.remove('tocando')); if (era) return; }
+  async ouve(f, bt, desde) {
+    if (S.tocando) { S.tocando.pause(); const era = S.tocando._f === f.id; S.tocando._fim?.(); S.tocando = null; $$('.tocando').forEach(x => x.classList.remove('tocando')); if (era && desde == null) return; }
+    if (!bt) return;
     const el = bt.closest('.fala'), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f';
     try { const l = await DB.get('aud', S.P.id + '/' + f.id), blob = l?.blob || await Nuvem.audio(f.audio), k = l ? `l:${S.P.id}/${f.id}:${l.em}` : 'n:' + f.audio;
       const pk = await Onda.picos(k, blob).catch(() => null), bx = $('.onda-box', el), cv = $('.onda', el); if (pk) { bx.hidden = false; Onda.desenha(cv, pk, cor); }
       const a = new Audio(URL.createObjectURL(blob)); a._f = f.id; S.tocando = a; bt.classList.add('tocando'); bt.innerHTML = ic('parar', 16);
-      let raf; const anda = () => { if (pk && a.duration) Onda.desenha(cv, pk, cor, a.currentTime / a.duration); raf = requestAnimationFrame(anda); };
-      a._fim = () => { cancelAnimationFrame(raf); bt.classList.remove('tocando'); bt.innerHTML = ic('play', 16); if (pk) Onda.desenha(cv, pk, cor); };
-      a.onended = () => { a._fim(); S.tocando = null; URL.revokeObjectURL(a.src); }; await a.play(); anda(); }
+      const tt = $('.onda-t', el); let raf; const anda = () => { if (a.duration && isFinite(a.duration)) { if (pk) Onda.desenha(cv, pk, cor, a.currentTime / a.duration); if (tt) tt.textContent = tempo(a.currentTime) + ' / ' + tempo(a.duration); } raf = requestAnimationFrame(anda); };
+      a._fim = () => { cancelAnimationFrame(raf); bt.classList.remove('tocando'); bt.innerHTML = ic('play', 16); if (pk) Onda.desenha(cv, pk, cor); if (tt) tt.textContent = ''; };
+      a.onended = () => { a._fim(); S.tocando = null; URL.revokeObjectURL(a.src); };
+      if (desde != null) await new Promise(ok => { if (a.readyState >= 1) ok(); else { a.onloadedmetadata = ok; setTimeout(ok, 1500); } }).then(() => { if (isFinite(a.duration)) a.currentTime = desde * a.duration; });
+      await a.play(); anda(); }
     catch (e) { aviso('Não consegui tocar: ' + (e.message || e), 'erro'); }
   },
+  sobe(f) {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
+    inp.onchange = async () => { const arq = inp.files[0]; if (!arq) return;
+      if (arq.size > 20 * 1048576) return aviso('Esse áudio passa de 20 MB. Mande um arquivo menor (mp3 ou ogg ficam bem menores que wav).', 'erro');
+      let dur = 0; try { const ac = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 2, 44100); const ab = await ac.decodeAudioData(await arq.arrayBuffer()); dur = ab.duration; }
+      catch { return aviso('Não consegui ler esse arquivo como áudio. Use mp3, wav, ogg, m4a ou webm.', 'erro'); }
+      if (dur > PREP_CONFIG.audioMaxSeg + 1) return aviso(`Esse áudio tem ${tempo(dur)}. Cada fala pode ter até ${tempo(PREP_CONFIG.audioMaxSeg)}.`, 'erro');
+      const tipo = Falas.tipoDe(arq), blob = new Blob([arq], { type: tipo });
+      try { await DB.put('aud', S.P.id + '/' + f.id, { blob, duracao: Math.round(dur * 100) / 100, em: Date.now(), arquivo: String(arq.name || '').slice(0, 80) }); } catch (e) { return aviso('Não consegui guardar: ' + (e.message || e), 'erro'); }
+      aviso('Áudio colocado na fala. Falta enviar para a nuvem.', 'ok'); this.pinta(this.c); };
+    inp.click();
+  },
+  // tipo do arquivo pelo nome/tipo (o servidor confere de novo pelo CONTEÚDO)
+  tipoDe(arq) { const n = String(arq.name || '').toLowerCase(), t = String(arq.type || '');
+    return /\.mp3$/.test(n) || /mpeg|mp3/.test(t) ? 'audio/mpeg' : /\.wav$/.test(n) || /wav/.test(t) ? 'audio/wav' : /\.(m4a|mp4|aac)$/.test(n) || /mp4|aac|m4a/.test(t) ? 'audio/mp4' : /\.(ogg|oga|opus)$/.test(n) || /ogg|opus/.test(t) ? 'audio/ogg' : 'audio/webm'; },
   pintaEnvio(locais) {
     const box = $('.env', this.c); if (!box) return; const n = [...locais.keys()].filter(id => this.acha(id)).length;
     box.innerHTML = n && pode('gravar') ? `<div class="faixa-env">${ic('alerta', 16)}<span><b>${n} gravaç${n === 1 ? 'ão' : 'ões'}</b> esperando envio (estão só neste computador)</span><span class="esp"></span><button class="bt pri" data-envia>${ic('enviar', 15)} Enviar agora</button></div>` : '';
@@ -770,7 +795,7 @@ const Falas = {
     bt.disabled = true; const lista = [...locais.entries()].filter(([id]) => this.acha(id)); const feitas = [];
     try {
       for (const [i, [id, l]] of lista.entries()) { bt.innerHTML = giro(`Enviando ${i + 1} de ${lista.length}`);
-        const ext = /mp4/.test(l.blob.type) ? 'm4a' : /ogg/.test(l.blob.type) ? 'ogg' : 'webm', k = `preparativos/${P.id}/aud/${id}-${Date.now().toString(36)}.${ext}`;
+        const ext = /mpeg/.test(l.blob.type) ? 'mp3' : /wav/.test(l.blob.type) ? 'wav' : /mp4/.test(l.blob.type) ? 'm4a' : /ogg/.test(l.blob.type) ? 'ogg' : 'webm', k = `preparativos/${P.id}/aud/${id}-${Date.now().toString(36)}.${ext}`;
         await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(k), { method: 'POST', headers: { 'content-type': l.blob.type || 'audio/webm' }, body: l.blob });
         feitas.push({ id, audio: k, duracao: l.duracao }); }
     } catch (e) { aviso(e.message, 'erro'); }
