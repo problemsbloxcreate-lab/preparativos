@@ -945,7 +945,7 @@ const Falas = {
       const esc0 = await this.escolheFalas(arq.name); if (!esc0) return; this.quem = esc0.quem; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } // a versão certa (fala de vários) é a do personagem escolhido
       const fs = esc0.falas; aviso('Abrindo o áudio…', 'info', 2500);
       try { const A = await Cortes.decodifica(arq), marcas = Cortes.silencios(A, fs.length);
-        await Cortes.revisao({ dados: A, blob: arq, falas: fs.map(f => this.paraCortes(f)), marcas, titulo: `Separar "${arq.name}" em ${fs.length} fala(s)${esc0.quem ? ' de ' + (fs[0] ? (this.paraCortes(fs[0]).rotulo) : '') : ''}`, aviso: esc0.transcrever ? 'Transcrevendo para achar cada fala pelo texto… enquanto isso, os cortes são pelas pausas.' : Cortes.avisoPausas(marcas, fs.length) + ' Ou use "Transcrever para acertar".', transcrever: this.transcritor(), autoTranscrever: esc0.transcrever,
+        await Cortes.revisao({ dados: A, blob: arq, falas: fs.map(f => this.paraCortes(f)), extras: S.P.partes.flatMap(p => p.falas).filter(f => !fs.includes(f)).map(f => this.paraCortes(f)), marcas, titulo: `Separar "${arq.name}" em ${fs.length} fala(s)${esc0.quem ? ' de ' + (fs[0] ? (this.paraCortes(fs[0]).rotulo) : '') : ''}`, aviso: esc0.transcrever ? 'Transcrevendo para achar cada fala pelo texto… enquanto isso, os cortes são pelas pausas.' : Cortes.avisoPausas(marcas, fs.length) + ' Ou use "Transcrever para acertar".', transcrever: this.transcritor(), autoTranscrever: esc0.transcrever,
           aoSalvar: ps => this.guardaPedacos(ps), aoFechar: () => this.pinta(this.c) }); }
       catch (e) { aviso(e.message, 'erro'); } };
     inp.click(); },

@@ -70,149 +70,196 @@ const Cortes = (() => {
     return falas.map((_, k) => { const idx = []; for (let x = 0; x < n; x++) if (dono[x] === k && par[x] >= 0) idx.push(par[x]); return idx.length ? { ini: W[Math.min(...idx)].s, fim: W[Math.max(...idx)].e } : null; }); }
   // ---------- CSS (uma vez) ----------
   function css() { if ($('#ct-css')) return; const s = el('style'); s.id = 'ct-css'; s.textContent = `
-.ct-fundo{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:12px}
-.ct-jan{background:#1d1f23;color:#eceef2;border:1px solid #3a3d44;width:min(1100px,100%);max-height:calc(100vh - 24px);display:flex;flex-direction:column;font:14px/1.4 "Segoe UI",system-ui,sans-serif}
-.ct-cab{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #3a3d44}.ct-cab b{font-size:16px}.ct-cab small{color:#9aa0ab}.ct-esp{flex:1}
-.ct-barra{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 16px;border-bottom:1px solid #3a3d44}
-.ct-bt{border:1px solid #4a4d55;background:#26282d;color:#eceef2;padding:5px 10px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}.ct-bt:hover:not(:disabled){border-color:#6a6e78}.ct-bt:disabled{opacity:.4;cursor:default}
-.ct-bt.pri{background:#ffd36b;border-color:#ffd36b;color:#2a1f05;font-weight:600}.ct-bt.rec{background:#ff4d5e;border-color:#ff4d5e;color:#fff;font-weight:600}.ct-bt kbd{font:11px ui-monospace,monospace;opacity:.75;border:1px solid currentColor;padding:0 3px}
-.ct-sep{width:1px;height:22px;background:#3a3d44;margin:0 4px}
-.ct-tempo{font:12.5px ui-monospace,Consolas,monospace;color:#c9cdd4;margin-left:auto}
-.ct-onda{position:relative;margin:10px 16px 0;height:190px;background:#141518;border:1px solid #3a3d44;cursor:text;touch-action:none}.ct-onda canvas{width:100%;height:100%;display:block}
-.ct-atalhos{margin:6px 16px 0;color:#9aa0ab;font-size:11.5px;line-height:1.55}.ct-num{min-width:22px;text-align:center;color:#ffd36b;font-size:14px}
-.ct-rol{margin:4px 16px 0;width:calc(100% - 32px);accent-color:#ffd36b}
-.ct-lista{overflow:auto;padding:8px 16px;display:flex;flex-direction:column;gap:4px;min-height:60px}
-.ct-ped{display:flex;align-items:center;gap:8px;padding:5px 8px;background:#26282d;border-left:4px solid var(--c,#888);font-size:13px}.ct-ped select{background:#141518;color:#eceef2;border:1px solid #4a4d55;padding:3px;max-width:340px;flex:1}.ct-ped small{color:#9aa0ab;min-width:70px}
-.ct-ped.falta{opacity:.7;border-left-color:#ff4d5e}.ct-ped.sobra{border-left-color:#ffb04a}
-.ct-rod{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid #3a3d44}.ct-aviso{color:#ffb04a;font-size:12.5px;flex:1 1 260px}
+.ct-fundo{position:fixed;inset:0;z-index:200;background:rgba(8,9,11,.72);display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(2px)}
+.ct-jan{background:#191a1e;color:#eceef2;border:1px solid #33363d;box-shadow:0 20px 60px rgba(0,0,0,.6);width:min(1120px,100%);max-height:calc(100vh - 28px);display:flex;flex-direction:column;font:14px/1.4 "Segoe UI",system-ui,sans-serif;overflow:hidden}
+.ct-cab{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #2c2f35;background:#1d1f24}.ct-cab .ct-ic{width:34px;height:34px;display:grid;place-items:center;background:#ffd36b;color:#2a1f05;font-size:17px;flex:none}
+.ct-cab b{font-size:16px;font-weight:600;display:block;line-height:1.2}.ct-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}.ct-chip{font-size:11.5px;color:#c9cdd4;background:#2a2c32;padding:1px 8px}.ct-esp{flex:1}
+.ct-x{border:0;background:none;color:#9aa0ab;font-size:20px;width:34px;height:34px;cursor:pointer}.ct-x:hover{color:#fff;background:#2a2c32}
+.ct-barra{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:flex-end;padding:10px 18px;border-bottom:1px solid #2c2f35}
+.ct-grp{display:flex;flex-direction:column;gap:3px}.ct-grp>small{font-size:10.5px;color:#8b909a;text-transform:uppercase;letter-spacing:.6px}.ct-grp>div{display:flex;gap:4px;flex-wrap:wrap}
+.ct-bt{border:1px solid #42454d;background:#25272c;color:#eceef2;padding:5px 10px;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;height:30px}.ct-bt:hover:not(:disabled){border-color:#ffd36b;background:#2c2e34}.ct-bt:disabled{opacity:.38;cursor:default}
+.ct-bt.on{border-color:#ffd36b;color:#ffd36b}.ct-bt.pri{background:#ffd36b;border-color:#ffd36b;color:#2a1f05;font-weight:600}.ct-bt.rec{background:#ff4d5e;border-color:#ff4d5e;color:#fff;font-weight:600}.ct-bt kbd{font:10.5px ui-monospace,monospace;opacity:.7;border:1px solid currentColor;padding:0 3px}
+.ct-bt.mini{height:26px;padding:3px 8px;font-size:12px}
+.ct-sil{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 18px;background:#202227;border-bottom:1px solid #2c2f35;font-size:13px}.ct-sil[hidden]{display:none}
+.ct-sil label{display:inline-flex;align-items:center;gap:6px;color:#c9cdd4}.ct-sil input{width:72px;height:28px;background:#141518;color:#eceef2;border:1px solid #42454d;padding:0 6px}
+.ct-area{padding:12px 18px 0}
+.ct-onda{position:relative;height:200px;background:#111215;border:1px solid #2c2f35;cursor:crosshair;touch-action:none}.ct-onda canvas{width:100%;height:100%;display:block}
+.ct-status{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding:6px 0 0;font:12.5px ui-monospace,Consolas,monospace;color:#c9cdd4}.ct-status b{color:#ffd36b;font-weight:600}.ct-status .ct-st-corte{color:#ff8fab}
+.ct-rol{width:100%;margin:6px 0 0;accent-color:#ffd36b}
+.ct-atalhos{margin:6px 0 0;color:#80858f;font-size:11px;line-height:1.55}
+.ct-lista{overflow:auto;padding:10px 18px;display:flex;flex-direction:column;gap:5px;min-height:60px}
+.ct-lt{font-size:10.5px;color:#8b909a;text-transform:uppercase;letter-spacing:.6px;margin:2px 0}
+.ct-ped{display:grid;grid-template-columns:30px 1fr auto auto;align-items:center;gap:8px;padding:6px 8px;background:#212328;border:1px solid #2c2f35;border-left:4px solid var(--c,#ffd36b)}
+.ct-ped .ct-n{width:26px;height:26px;display:grid;place-items:center;background:var(--c,#ffd36b);color:#1a1405;font-weight:700;font-size:13px}
+.ct-ped select{background:#141518;color:#eceef2;border:1px solid #42454d;padding:4px 6px;min-width:0;width:100%;height:30px}
+.ct-ped .ct-d{font:12px ui-monospace,monospace;color:#9aa0ab}.ct-ped .ct-bts{display:flex;gap:4px}
+.ct-ped.sobra{--c:#ffb04a}.ct-ped.nao{--c:#5a5d66}
+.ct-falta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px dashed #ff6b81;background:rgba(255,77,94,.06);font-size:13px}.ct-falta .ct-n{width:26px;height:26px;display:grid;place-items:center;background:#ff4d5e;color:#fff;font-weight:700}.ct-falta span{flex:1 1 220px}
+.ct-extra{display:flex;gap:8px;align-items:center;margin-top:4px}.ct-extra select{flex:1;background:#141518;color:#eceef2;border:1px solid #42454d;padding:4px 6px;height:30px}
+.ct-rod{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid #2c2f35;background:#1d1f24}.ct-aviso{color:#ffb04a;font-size:12.5px;flex:1 1 280px}
 .ct-seq{width:min(760px,100%)}.ct-seq .ct-atual{padding:26px 22px 10px;text-align:center}.ct-seq .ct-quem{color:#ffd36b;font-weight:700;font-size:15px}.ct-seq .ct-nota{color:#e6d28a;font-style:italic}
 .ct-seq .ct-txt{font:600 30px/1.3 Rubik,"Segoe UI",sans-serif;margin:8px 0}.ct-seq .ct-junto{color:#ffb04a;font-size:13px}.ct-seq .ct-prox{padding:8px 22px 14px;color:#9aa0ab;text-align:center;border-top:1px dashed #3a3d44;font-size:14px}
 .ct-seq .ct-st{display:flex;gap:12px;justify-content:center;align-items:center;padding:6px;color:#c9cdd4;font:13px ui-monospace,monospace}.ct-seq .ct-rec{width:12px;height:12px;border-radius:50%;background:#ff4d5e;animation:ct-p 1s infinite}.ct-seq .ct-rec.pausa{animation:none;background:#9aa0ab}
 @keyframes ct-p{50%{opacity:.35}}
 .ct-seq .ct-ctl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:10px 16px 16px}
-@media (max-width:600px){.ct-seq .ct-txt{font-size:22px}.ct-onda{height:150px}}`; document.head.appendChild(s); }
+@media (max-width:700px){.ct-seq .ct-txt{font-size:22px}.ct-onda{height:150px}.ct-ped{grid-template-columns:30px 1fr;}.ct-ped .ct-d,.ct-ped .ct-bts{grid-column:2}}`; document.head.appendChild(s); }
 
   /* ================= REVISÃO / EDIÇÃO FINA ================= */
   const pilha = []; // janelas abertas (a de cima recebe as teclas)
+  const prefSil = () => { try { return { min: 400, margem: 150, ...JSON.parse(localStorage.getItem('ct-sil') || '{}') }; } catch { return { min: 400, margem: 150 }; } };
   async function revisao(o) {
     css(); let A; try { A = o.dados || await decodifica(o.blob); } catch { throw new Error('Não consegui ler esse arquivo como áudio (use mp3, wav, ogg, m4a ou webm).'); }
-    const ORIG = { d: A.d.slice(), marcas: [...(o.marcas || [])] }, uma = !!o.uma, falas = o.falas || [];
-    let marcas = [...(o.marcas || [])].sort((a, b) => a - b), dono = o.dono ? [...o.dono] : null, sel = null, cab = 0, zoom = 1, ini = 0, tocando = null, hist = [], fut = [], aviso = o.aviso || '';
-    const dur = () => A.d.length / A.sr;
+    const ORIG = { d: A.d.slice(), marcas: [...(o.marcas || [])], dono: o.dono ? [...o.dono] : null }, uma = !!o.uma, falas = o.falas || [], extras = [...(o.extras || [])];
+    let marcas = [...(o.marcas || [])].sort((a, b) => a - b), dono = o.dono ? [...o.dono] : null, sel = null, selM = -1, cab = 0, zoom = 1, ini = 0, tocando = null, hist = [], fut = [], aviso = o.aviso || '';
+    const dur = () => A.d.length / A.sr, bordas = () => [0, ...marcas, dur()];
+    const donoDe = k => dono ? (dono[k] ?? null) : (k < falas.length ? k : -1);
+    const materializa = () => { if (!dono) dono = bordas().slice(0, -1).map((_, k) => donoDe(k)); };
+    const segDe = t => { const bs = bordas(); let k = 0; while (k < bs.length - 2 && t >= bs[k + 1]) k++; return k; };
+    // ---- janela ----
     const f = el('div', 'ct-fundo'), j = el('div', 'ct-jan'); f.append(j);
-    const c1 = el('div', 'ct-cab'); c1.append(el('b', null, o.titulo || (uma ? 'Editar o áudio' : 'Separar o áudio nas falas'))); const info = el('small'); c1.append(info, el('span', 'ct-esp')); c1.append(bt('Fechar', '', () => fecha())); j.append(c1);
+    const c1 = el('div', 'ct-cab'), cabTxt = el('div'), chips = el('div', 'ct-chips'); c1.append(el('span', 'ct-ic', uma ? '✎' : '✂')); cabTxt.append(el('b', null, o.titulo || (uma ? 'Editar o áudio' : 'Separar o áudio nas falas')), chips); c1.append(cabTxt, el('span', 'ct-esp'));
+    const bx = bt('✕', 'ct-x', () => fecha(), 'Fechar (Esc)'); bx.className = 'ct-x'; c1.append(bx); j.append(c1);
     const barra = el('div', 'ct-barra'); j.append(barra);
-    const onda = el('div', 'ct-onda'), cv = el('canvas'); onda.append(cv); j.append(onda); const rol = el('input', 'ct-rol'); rol.type = 'range'; rol.min = 0; rol.max = 1000; rol.value = 0; rol.hidden = true; j.append(rol);
-    const dica = el('div', 'ct-atalhos'); dica.textContent = (uma ? '' : 'C ou M cortar aqui · Enter ouvir o pedaço do cursor · Ctrl+←/→ corte anterior/seguinte · ') + 'Espaço tocar/parar · clique = cursor · arrastar = selecionar · Delete apaga a seleção' + (uma ? '' : ' (ou o corte no cursor)') + ' · [ aparar até aqui · ] aparar daqui · Home/End começo/fim · ←/→ andar 0,1 s (Shift 1 s, Alt 0,01 s) · + − 0 zoom · rodinha zoom, Shift+rodinha rolar · Ctrl+Z / Ctrl+Y';
-    j.append(dica);
+    const silP = el('div', 'ct-sil'); silP.hidden = true; j.append(silP);
+    const area = el('div', 'ct-area'), onda = el('div', 'ct-onda'), cv = el('canvas'); onda.append(cv); area.append(onda);
+    const rol = el('input', 'ct-rol'); rol.type = 'range'; rol.min = 0; rol.max = 1000; rol.value = 0; rol.hidden = true; area.append(rol);
+    const status = el('div', 'ct-status'); area.append(status);
+    const dica = el('div', 'ct-atalhos'); dica.textContent = (uma ? '' : 'C cortar aqui · clique na linha vermelha + Delete tira o corte · arrastar a linha move o corte · Enter ouve o pedaço · Ctrl+←/→ corte anterior/seguinte · ')
+      + 'Espaço tocar/parar · clique = cursor · arrastar = selecionar · Delete apaga a seleção · [ aparar até aqui · ] aparar daqui · Home/End · ←/→ 0,1 s (Shift 1 s, Alt 0,01 s) · + − 0 zoom (ou rodinha; Shift+rodinha rola) · Ctrl+Z / Ctrl+Y';
+    area.append(dica); j.append(area);
     const lista = el('div', 'ct-lista'); if (!uma) j.append(lista);
     const rod = el('div', 'ct-rod'), av = el('span', 'ct-aviso'); rod.append(av); j.append(rod);
-    const tempo = el('span', 'ct-tempo');
-    const B = {}; const add = (k, txt, fn, title, cls) => { B[k] = bt(txt, cls, fn, title); barra.append(B[k]); return B[k]; }, sep = () => barra.append(el('span', 'ct-sep'));
-    add('play', '▶ Ouvir', () => toca(), 'Espaço'); add('ouveSel', '▶ Seleção', () => sel && toca(sel[0], sel[1]), 'Ouvir só o que está selecionado'); sep();
-    if (!uma) { add('marca', '✂ Cortar aqui', () => { poeMarca(cab); }, 'C ou M (também tocando) · duplo clique na onda: separa duas falas neste ponto'); sep(); }
-    add('ini', '⇤ Aparar até aqui', () => aparaAte(cab), '[ : tira tudo ANTES do cursor'); add('fim', 'Aparar daqui ⇥', () => aparaDesde(cab), '] : tira tudo DEPOIS do cursor');
-    add('sil', '✨ Tirar silêncio das pontas', () => tiraPontas(), 'Tira o silêncio do começo e do fim (deixa uma folguinha)'); sep();
-    add('apaga', '🗑 Apagar seleção', () => apagaSel(), 'Delete: tira o trecho selecionado (arraste na onda para selecionar)'); add('apara', 'Ficar só com a seleção', () => apara(), 'Tira tudo fora da seleção'); sep();
-    add('menos', '🔉 −', () => ganho(1 / 1.18), 'Volume mais baixo (na seleção ou em tudo)'); add('mais', '🔊 +', () => ganho(1.18), 'Volume mais alto (na seleção ou em tudo)'); sep();
-    add('desf', '↶ Desfazer', () => desfaz(), 'Ctrl+Z'); add('ref', '↷ Refazer', () => refaz(), 'Ctrl+Y'); add('orig', 'Voltar ao original', () => { guarda(); A.d = ORIG.d.slice(); marcas = [...ORIG.marcas]; dono = null; sel = null; tudo(); }); sep();
-    add('zm', 'Zoom −', () => fazZoom(zoom / 1.6, cab)); add('zp', 'Zoom +', () => fazZoom(zoom * 1.6, cab)); barra.append(tempo);
-    if (!uma) { if (o.transcrever) rod.append(bt('Transcrever para acertar', '', () => transcreve(), 'Usa a cota de transcrição (só quando você pede; o resultado fica guardado neste navegador)'));
-      rod.append(bt('Separar pelos silêncios', '', () => { guarda(); marcas = silencios(A, falas.length); dono = null; aviso = avisoPausas(marcas, falas.length); tudo(); })); }
+    // ---- barra de ferramentas em grupos ----
+    const B = {}, grupo = (titulo, itens) => { const g = el('div', 'ct-grp'), d = el('div'); g.append(el('small', null, titulo), d); for (const [k, txt, fn, title, cls] of itens) { B[k] = bt(txt, cls || '', fn, title); d.append(B[k]); } barra.append(g); };
+    grupo('Ouvir', [['play', '▶ Tocar', () => toca(), 'Espaço'], ['ouveSel', '▶ Seleção', () => sel && toca(sel[0], sel[1]), 'Ouvir só o trecho selecionado']]);
+    if (!uma) grupo('Cortar entre falas', [['marca', '✂ Cortar aqui', () => poeMarca(cab), 'C · ou duplo clique na onda'], ['tiraM', '✕ Tirar corte', () => tiraMarca(selM), 'Clique na linha vermelha e depois aqui (ou Delete)']]);
+    grupo('Aparar', [['ini', '⇤ Até aqui', () => aparaAte(cab), '[ : tira tudo ANTES do cursor'], ['fim', 'Daqui ⇥', () => aparaDesde(cab), '] : tira tudo DEPOIS do cursor'], ['apara', '◧ Só a seleção', () => apara(), 'Fica só com o trecho selecionado'], ['apaga', '🗑 Apagar seleção', () => apagaSel(), 'Delete: tira o trecho selecionado (os cortes ficam)']]);
+    grupo('Silêncio', [['pontas', 'Tirar das pontas', () => tiraPontas(), 'Tira o silêncio do começo e do fim, deixando a margem'], ['silB', 'Remover silêncios…', () => { silP.hidden = !silP.hidden; B.silB.classList.toggle('on', !silP.hidden); }, 'Encurta as pausas longas, deixando uma margem em volta']]);
+    grupo('Volume', [['menos', '🔉 −', () => ganho(1 / 1.18), 'Mais baixo (na seleção ou em tudo)'], ['mais', '🔊 +', () => ganho(1.18), 'Mais alto (na seleção ou em tudo)']]);
+    grupo('Histórico', [['desf', '↶', () => desfaz(), 'Desfazer (Ctrl+Z)'], ['ref', '↷', () => refaz(), 'Refazer (Ctrl+Y)'], ['orig', 'Original', () => { guarda(); A.d = ORIG.d.slice(); marcas = [...ORIG.marcas]; dono = ORIG.dono && [...ORIG.dono]; sel = null; selM = -1; tudo(); }, 'Voltar ao áudio como chegou']]);
+    grupo('Zoom', [['zm', '−', () => fazZoom(zoom / 1.6, cab), 'Zoom − (tecla −)'], ['zp', '+', () => fazZoom(zoom * 1.6, cab), 'Zoom + (tecla +)'], ['z0', 'Tudo', () => { zoom = 1; ini = 0; desenha(); }, 'Ver o áudio inteiro (tecla 0)']]);
+    // painel "Remover silêncios" (valores ajustáveis, lembrados neste navegador)
+    { const p = prefSil(); silP.append(el('b', null, 'Remover silêncios'));
+      const campo = (rot, k, v, dica) => { const l = el('label'), i = el('input'); i.type = 'number'; i.min = k === 'min' ? 100 : 0; i.max = 5000; i.step = 10; i.value = v; i.dataset.k = k; l.title = dica; l.append(rot, i, 'ms'); return l; };
+      silP.append(campo('pausas a partir de', 'min', p.min, 'Só encurta pausas maiores que isto'), campo('deixar de margem', 'margem', p.margem, 'Quanto de silêncio fica antes e depois de cada fala'));
+      silP.append(bt('Aplicar', 'pri', () => { const v = { min: +$('[data-k=min]', silP).value || 400, margem: +$('[data-k=margem]', silP).value || 0 }; try { localStorage.setItem('ct-sil', JSON.stringify(v)); } catch { } removeSilencios(v.min / 1000, v.margem / 1000); }), bt('Fechar', '', () => { silP.hidden = true; B.silB.classList.remove('on'); }));
+      const ex = el('small'); ex.style.color = '#8b909a'; ex.textContent = 'Vale na seleção (se houver) ou no áudio todo. A margem também é usada no "Tirar das pontas".'; silP.append(ex); }
+    if (!uma) { if (o.transcrever) rod.append(bt('Transcrever para acertar', '', () => transcreve(), 'Usa a cota de transcrição (o resultado fica guardado neste navegador)'));
+      rod.append(bt('Cortar pelas pausas', '', () => { guarda(); marcas = silencios(A, falas.length); dono = null; selM = -1; aviso = avisoPausas(marcas, falas.length); tudo(); }, 'Põe os cortes nas pausas mais longas (uma por fala)')); }
     rod.append(bt('Cancelar', '', () => fecha()), bt(o.cru ? 'Usar este pedaço' : uma ? 'Salvar' : 'Separar nas falas', 'pri', () => salva()));
-    // ---- desenhar ----
-    const px = () => cv.width / (dur() * zoom), xT = t => (t - ini) * px(), tX = x => ini + x / px();
-    function desenha() { const W = cv.width = onda.clientWidth * devicePixelRatio, H = cv.height = onda.clientHeight * devicePixelRatio, g = cv.getContext('2d'), d = A.d, sr = A.sr; g.clearRect(0, 0, W, H);
+    // ---- desenhar (onda, régua de tempo, cortes com o número da fala, seleção, cursor) ----
+    const px = () => cv.width / (dur() * zoom), xT = t => (t - ini) * px(), tX = x => ini + x / px(), DP = () => devicePixelRatio || 1;
+    function desenha() { const W = cv.width = onda.clientWidth * DP(), H = cv.height = onda.clientHeight * DP(), g = cv.getContext('2d'), d = A.d, sr = A.sr, R = 18 * DP(), HW = H - R; g.clearRect(0, 0, W, H);
       const vis = dur() / zoom; ini = Math.max(0, Math.min(dur() - vis, ini));
-      if (sel) { g.fillStyle = 'rgba(255,211,107,.18)'; g.fillRect(xT(sel[0]), 0, xT(sel[1]) - xT(sel[0]), H); }
-      const s0 = ini * sr, por = vis * sr / W; g.fillStyle = '#7fb6ff';
-      for (let x = 0; x < W; x++) { const a = Math.floor(s0 + x * por), b = Math.min(d.length, Math.floor(s0 + (x + 1) * por) + 1); let mn = 0, mx = 0; for (let i = a; i < b; i++) { const v = d[i]; if (v < mn) mn = v; if (v > mx) mx = v; } g.fillRect(x, H / 2 - mx * H / 2, 1, Math.max(1, (mx - mn) * H / 2)); }
-      if (!uma) { const bs = [0, ...marcas, dur()]; g.font = `${12 * devicePixelRatio}px Segoe UI, sans-serif`;
-        g.font = `bold ${13 * devicePixelRatio}px Segoe UI, sans-serif`;
-        for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k), nome = fi == null ? '×' : fi >= 0 && falas[fi] ? String(fi + 1) : '?', x = Math.max(4, xT(bs[k]) + 5);
-          if (x < W && xT(bs[k + 1]) > 0) { const w = g.measureText(nome).width + 8 * devicePixelRatio; g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x - 3 * devicePixelRatio, 3 * devicePixelRatio, w, 18 * devicePixelRatio);
-            g.fillStyle = fi == null || fi < 0 ? '#ffb04a' : '#ffd36b'; g.fillText(nome, x + devicePixelRatio, 17 * devicePixelRatio); } }
-        g.lineWidth = 2 * devicePixelRatio; for (const m of marcas) { const x = xT(m); g.strokeStyle = '#ff6b93'; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); g.fillStyle = '#ff6b93'; g.fillRect(x - 5 * devicePixelRatio, H - 12 * devicePixelRatio, 10 * devicePixelRatio, 12 * devicePixelRatio); } }
-      g.strokeStyle = '#fff'; g.lineWidth = devicePixelRatio; g.beginPath(); g.moveTo(xT(cab), 0); g.lineTo(xT(cab), H); g.stroke();
+      if (!uma) { const bs = bordas(); for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k); if (k % 2) { g.fillStyle = 'rgba(255,255,255,.025)'; g.fillRect(xT(bs[k]), 0, xT(bs[k + 1]) - xT(bs[k]), HW); } if (fi == null) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(xT(bs[k]), 0, xT(bs[k + 1]) - xT(bs[k]), HW); } } }
+      if (sel) { g.fillStyle = 'rgba(255,211,107,.16)'; g.fillRect(xT(sel[0]), 0, xT(sel[1]) - xT(sel[0]), HW); g.fillStyle = '#ffd36b'; g.fillRect(xT(sel[0]), 0, DP(), HW); g.fillRect(xT(sel[1]), 0, DP(), HW); }
+      const s0 = ini * sr, por = vis * sr / W; g.fillStyle = '#6fa8ff';
+      for (let x = 0; x < W; x++) { const a = Math.floor(s0 + x * por), b = Math.min(d.length, Math.floor(s0 + (x + 1) * por) + 1); let mn = 0, mx = 0; for (let i = a; i < b; i++) { const v = d[i]; if (v < mn) mn = v; if (v > mx) mx = v; } g.fillRect(x, HW / 2 - mx * HW / 2, 1, Math.max(1, (mx - mn) * HW / 2)); }
+      // régua
+      g.fillStyle = '#17181c'; g.fillRect(0, HW, W, R); g.fillStyle = '#8b909a'; g.font = `${10 * DP()}px Segoe UI, sans-serif`; const passo = [.05, .1, .25, .5, 1, 2, 5, 10, 30, 60].find(p => p * px() > 60 * DP()) || 60;
+      for (let t = Math.ceil(ini / passo) * passo; t <= ini + vis; t += passo) { const x = xT(t); g.fillRect(x, HW, DP(), 5 * DP()); g.fillText(passo < 1 ? tms(t).replace(/0+$/, '').replace(/,$/, '') : tms(t).replace(/,\d+$/, ''), x + 3 * DP(), H - 4 * DP()); }
+      if (!uma) { const bs = bordas(); g.font = `bold ${12 * DP()}px Segoe UI, sans-serif`;
+        for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k), nome = fi == null ? '×' : fi >= 0 && falas[fi] ? String(fi + 1) : '?', x = Math.max(3 * DP(), xT(bs[k]) + 5 * DP());
+          if (x < W && xT(bs[k + 1]) > 0) { const w = Math.max(20 * DP(), g.measureText(nome).width + 10 * DP()); g.fillStyle = fi == null ? '#5a5d66' : fi >= 0 ? '#ffd36b' : '#ffb04a'; g.fillRect(x, 4 * DP(), w, 18 * DP()); g.fillStyle = '#1a1405'; g.fillText(nome, x + 5 * DP(), 17 * DP()); } }
+        marcas.forEach((m, i) => { const x = xT(m), on = i === selM; g.strokeStyle = on ? '#ffd36b' : '#ff5a7a'; g.lineWidth = (on ? 3 : 2) * DP(); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, HW); g.stroke();
+          g.fillStyle = on ? '#ffd36b' : '#ff5a7a'; g.beginPath(); g.moveTo(x - 7 * DP(), HW); g.lineTo(x + 7 * DP(), HW); g.lineTo(x, HW - 10 * DP()); g.closePath(); g.fill(); }); }
+      g.strokeStyle = '#ffffff'; g.lineWidth = DP(); g.beginPath(); g.moveTo(xT(cab), 0); g.lineTo(xT(cab), HW); g.stroke();
       rol.hidden = zoom <= 1.001; rol.value = Math.round(ini / Math.max(.001, dur() - vis) * 1000) || 0;
-      tempo.textContent = `cursor ${tms(cab)}` + (sel ? ` · seleção ${tms(sel[0])} – ${tms(sel[1])} (${tms(sel[1] - sel[0])})` : '') + ` · total ${tms(dur())}`;
-      for (const k of ['apaga', 'apara', 'ouveSel']) B[k].disabled = !sel; B.desf.disabled = !hist.length; B.ref.disabled = !fut.length; }
-    const donoDe = k => dono ? dono[k] : (k < falas.length ? k : -1);
-    function pintaLista() { if (uma) return; lista.replaceChildren(); const bs = [0, ...marcas, dur()], usados = new Set();
-      for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k), r = el('div', 'ct-ped' + (fi == null ? '' : fi < 0 ? ' sobra' : '')); r.style.setProperty('--c', fi >= 0 ? '#ffd36b' : '#ffb04a');
-        const s = el('select'); s.append(new Option('(não usar este pedaço)', 'x')); falas.forEach((fa, i) => s.append(new Option((i + 1) + '. ' + fa.rotulo + ': ' + String(fa.texto || '').slice(0, 50), i))); s.value = fi == null || fi < 0 ? 'x' : fi; if (fi >= 0) usados.add(fi);
-        s.onchange = () => { dono = dono || [...Array(bs.length - 1)].map((_, q) => donoDe(q)); dono[k] = s.value === 'x' ? null : +s.value; tudo(); };
-        r.append(el('b', 'ct-num', fi == null ? '×' : fi >= 0 ? String(fi + 1) : '?'), el('small', null, tms(bs[k + 1] - bs[k])), bt('▶', '', () => toca(bs[k], bs[k + 1]), 'Ouvir este pedaço'), bt('✎', '', () => editaPedaco(k), 'Editar só este pedaço (aparar, cortar, volume)'), s); lista.append(r); }
-      const faltam = falas.map((fa, i) => i).filter(i => !usados.has(i)); for (const i of faltam) { const r = el('div', 'ct-ped falta'); r.append(el('small', null, 'faltando'), el('span', null, (i + 1) + '. ' + falas[i].rotulo + ': ' + String(falas[i].texto || '').slice(0, 60))); lista.append(r); }
-      const sobra = (bs.length - 1) - falas.length; av.textContent = [aviso, sobra > 0 ? `Sobram ${sobra} pedaço(s): escolha a fala ou deixe "não usar".` : '', faltam.length ? `${faltam.length} fala(s) sem pedaço: ponha mais marcadores (M) ou deixe para gravar depois.` : ''].filter(Boolean).join(' '); }
-    const tudo = () => { desenha(); pintaLista(); };
+      status.replaceChildren(); const sp = (rot, v, cls) => { const s = el('span', cls); s.append(rot + ' '); s.append(el('b', null, v)); status.append(s); };
+      sp('cursor', tms(cab)); if (sel) sp('seleção', `${tms(sel[0])} – ${tms(sel[1])} (${tms(sel[1] - sel[0])})`); sp('total', tms(dur())); if (zoom > 1.001) sp('zoom', Math.round(zoom) + '×');
+      if (selM >= 0) { const s = el('span', 'ct-st-corte', `corte ${selM + 1} selecionado (${tms(marcas[selM])}) — Delete tira`); status.append(s); }
+      for (const k of ['apaga', 'apara', 'ouveSel']) B[k].disabled = !sel; if (B.tiraM) B.tiraM.disabled = selM < 0; B.desf.disabled = !hist.length; B.ref.disabled = !fut.length; }
+    // ---- lista: um cartão por pedaço + as falas faltando (com "adicionar") + falas de fora da lista ----
+    function pintaLista() { if (uma) return; lista.replaceChildren(); const bs = bordas(), usados = new Set(); lista.append(el('div', 'ct-lt', `Pedaços (${bs.length - 1})`));
+      for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k), r = el('div', 'ct-ped' + (fi == null ? ' nao' : fi < 0 ? ' sobra' : '')); if (fi >= 0) usados.add(fi);
+        const s = el('select'); s.append(new Option('— não usar este pedaço —', 'x')); falas.forEach((fa, i) => s.append(new Option((i + 1) + '. ' + fa.rotulo + ': ' + String(fa.texto || '').slice(0, 70), i))); s.value = fi == null || fi < 0 ? 'x' : fi;
+        s.onchange = () => { guarda(); materializa(); dono[k] = s.value === 'x' ? null : +s.value; tudo(); };
+        const bts = el('div', 'ct-bts'); bts.append(bt('▶', 'mini', () => toca(bs[k], bs[k + 1]), 'Ouvir este pedaço'), bt('✎', 'mini', () => editaPedaco(k), 'Editar só este pedaço'));
+        r.append(el('span', 'ct-n', fi == null ? '×' : fi >= 0 ? String(fi + 1) : '?'), s, el('span', 'ct-d', tms(bs[k + 1] - bs[k])), bts); lista.append(r); }
+      const faltam = falas.map((_, i) => i).filter(i => !usados.has(i));
+      if (faltam.length) { lista.append(el('div', 'ct-lt', `Faltando (${faltam.length})`)); for (const i of faltam) { const r = el('div', 'ct-falta'); r.append(el('span', 'ct-n', String(i + 1)), el('span', null, falas[i].rotulo + ': ' + String(falas[i].texto || '').slice(0, 90)));
+        const b1 = bt('Usar a seleção', 'mini', () => daFala(i, 'sel'), 'Corta nas pontas do trecho selecionado e dá esse pedaço para esta fala'); b1.disabled = !sel; r.append(b1, bt('Cortar no cursor', 'mini', () => daFala(i, 'cur'), 'Corta no cursor: o pedaço DEPOIS dele vai para esta fala')); lista.append(r); } }
+      if (extras.length) { const x = el('div', 'ct-extra'), s = el('select'); s.append(new Option('+ Adicionar outra fala do roteiro…', '')); extras.forEach((fa, i) => s.append(new Option(fa.rotulo + ': ' + String(fa.texto || '').slice(0, 80), i)));
+        s.onchange = () => { if (s.value === '') return; const fa = extras.splice(+s.value, 1)[0]; falas.push(fa); materializa(); tudo(); }; x.append(s); lista.append(x); }
+      const sobra = (bs.length - 1) - falas.length; av.textContent = [aviso, sobra > 0 ? `Sobram ${sobra} pedaço(s): escolha a fala ou "não usar".` : '', faltam.length ? `${faltam.length} fala(s) sem pedaço: use "Usar a seleção" ou "Cortar no cursor" nelas.` : ''].filter(Boolean).join(' '); }
+    const tudo = () => { desenha(); pintaLista(); info(); };
+    const info = () => { chips.replaceChildren(); const c = t => chips.append(el('span', 'ct-chip', t)); c(tms(dur()).replace(/,\d+$/, '')); if (o.blob) c(mb(o.blob.size)); if (!uma) { c(`${falas.length} fala(s)`); c(`${marcas.length} corte(s)`); } };
     // ---- edição (com desfazer) ----
-    function guarda() { hist.push({ d: A.d, marcas: [...marcas], dono: dono && [...dono] }); if (hist.length > 30) hist.shift(); fut = []; }
-    function desfaz() { if (!hist.length) return; fut.push({ d: A.d, marcas: [...marcas], dono }); const h = hist.pop(); A.d = h.d; marcas = h.marcas; dono = h.dono; sel = null; tudo(); }
-    function refaz() { if (!fut.length) return; hist.push({ d: A.d, marcas: [...marcas], dono }); const h = fut.pop(); A.d = h.d; marcas = h.marcas; dono = h.dono; sel = null; tudo(); }
-    function apagaSel() { if (!sel) return; guarda(); const [a, b] = sel, ia = Math.round(a * A.sr), ib = Math.round(b * A.sr), d = new Float32Array(A.d.length - (ib - ia)); d.set(A.d.subarray(0, ia)); d.set(A.d.subarray(ib), ia); A.d = d;
-      marcas = marcas.filter(m => m < a || m > b).map(m => m > b ? m - (b - a) : m); cab = a; sel = null; tudo(); }
-    function aparaAte(t) { if (t <= .001) return; guarda(); A.d = A.d.slice(Math.round(t * A.sr)); marcas = marcas.filter(m => m > t).map(m => m - t); cab = 0; sel = null; ini = 0; tudo(); }
-    function aparaDesde(t) { if (t >= dur() - .001) return; guarda(); A.d = A.d.slice(0, Math.round(t * A.sr)); marcas = marcas.filter(m => m < t); sel = null; tudo(); }
-    function tiraPontas() { const { e, q } = energia(A), ord = [...e].sort((a, b) => a - b), piso = ord[Math.floor(ord.length * .1)] || 0, voz = ord[Math.floor(ord.length * .9)] || 0, lim = Math.max(piso + (voz - piso) * .12, .003);
-      const a = e.findIndex(v => v >= lim), b = e.length - 1 - [...e].reverse().findIndex(v => v >= lim); if (a < 0) return; const t0 = Math.max(0, a * q - .12), t1 = Math.min(dur(), (b + 1) * q + .15);
-      if (t0 < .02 && t1 > dur() - .02) return; guarda(); A.d = A.d.slice(Math.round(t0 * A.sr), Math.round(t1 * A.sr)); marcas = marcas.filter(m => m > t0 && m < t1).map(m => m - t0); cab = 0; sel = null; ini = 0; tudo(); }
+    function guarda() { hist.push({ d: A.d, marcas: [...marcas], dono: dono && [...dono] }); if (hist.length > 40) hist.shift(); fut = []; }
+    function desfaz() { if (!hist.length) return; fut.push({ d: A.d, marcas: [...marcas], dono: dono && [...dono] }); const h = hist.pop(); A.d = h.d; marcas = h.marcas; dono = h.dono; sel = null; selM = -1; tudo(); }
+    function refaz() { if (!fut.length) return; hist.push({ d: A.d, marcas: [...marcas], dono: dono && [...dono] }); const h = fut.pop(); A.d = h.d; marcas = h.marcas; dono = h.dono; sel = null; selM = -1; tudo(); }
+    // corta o áudio num ponto: o pedaço novo (à direita) fica com "quem" (ou com o mesmo dono do pedaço cortado)
+    function poeCorte(t, quem) { t = Math.max(.01, Math.min(dur() - .01, t)); if (marcas.some(m => Math.abs(m - t) < .01)) return segDe(t + .001); const k = segDe(t); marcas.push(t); marcas.sort((a, b) => a - b); if (dono) dono.splice(k + 1, 0, quem === undefined ? dono[k] ?? null : quem); return k + 1; }
+    function poeMarca(t) { if (uma) return; guarda(); poeCorte(t, dono ? null : undefined); selM = -1; tudo(); }
+    function tiraMarca(i) { if (i < 0 || i >= marcas.length) return; guarda(); marcas.splice(i, 1); if (dono) dono.splice(i + 1, 1); selM = -1; tudo(); }
+    function daFala(i, como) { guarda(); materializa(); if (como === 'sel' && sel) { poeCorte(sel[0]); const kb = poeCorte(sel[1]); dono[segDe(sel[0] + .001)] = i; void kb; } else { const k = poeCorte(cab, i); dono[k] = i; } sel = null; selM = -1; tudo(); }
+    // trecho que some: os cortes NÃO são apagados (os de dentro vão para a ponta do trecho)
+    function tiraTrecho(a, b) { const ia = Math.round(a * A.sr), ib = Math.round(b * A.sr), d = new Float32Array(A.d.length - (ib - ia)); d.set(A.d.subarray(0, ia)); d.set(A.d.subarray(ib), ia); A.d = d; marcas = marcas.map(m => m >= b ? m - (b - a) : m > a ? a : m); }
+    function apagaSel() { if (!sel) return; guarda(); const [a, b] = sel; tiraTrecho(a, b); cab = a; sel = null; tudo(); }
+    function aparaAte(t) { if (t <= .001) return; guarda(); tiraTrecho(0, t); marcas = marcas.map(m => Math.max(.01, m)); cab = 0; sel = null; ini = 0; tudo(); }
+    function aparaDesde(t) { if (t >= dur() - .001) return; guarda(); tiraTrecho(t, dur()); marcas = marcas.map(m => Math.min(dur() - .01, m)); sel = null; tudo(); }
+    function apara() { if (!sel) return; const [a, b] = sel; guarda(); tiraTrecho(b, dur()); tiraTrecho(0, a); marcas = marcas.map(m => Math.min(dur() - .01, Math.max(.01, m))); cab = 0; sel = null; ini = 0; tudo(); }
+    function limiar() { const { e, q } = energia(A), ord = [...e].sort((a, b) => a - b), piso = ord[Math.floor(ord.length * .1)] || 0, voz = ord[Math.floor(ord.length * .9)] || 0; return { e, q, lim: Math.max(piso + (voz - piso) * .12, .003) }; }
+    function tiraPontas() { const { e, q, lim } = limiar(), mg = prefSil().margem / 1000, a = e.findIndex(v => v >= lim), b = e.length - 1 - [...e].reverse().findIndex(v => v >= lim); if (a < 0) return;
+      const t0 = Math.max(0, a * q - mg), t1 = Math.min(dur(), (b + 1) * q + mg); if (t0 < .02 && t1 > dur() - .02) return; guarda(); if (t1 < dur()) tiraTrecho(t1, dur()); if (t0 > 0) tiraTrecho(0, t0); marcas = marcas.map(m => Math.min(dur() - .01, Math.max(.01, m))); cab = 0; sel = null; ini = 0; tudo(); }
+    // REMOVER SILÊNCIOS: cada pausa maior que "min" fica com só a "margem" de cada lado (na seleção ou em tudo)
+    function removeSilencios(min, mg) { const { e, q, lim } = limiar(), [sa, sb] = sel || [0, dur()], cortes = []; let ini0 = -1;
+      for (let i = 0; i <= e.length; i++) { const sil = i < e.length && e[i] < lim; if (sil && ini0 < 0) ini0 = i; if (!sil && ini0 >= 0) { const a = ini0 * q, b = i * q; if (b - a >= min && b - a > 2 * mg + .02) { const ca = Math.max(a + mg, sa), cb = Math.min(b - mg, sb); if (cb - ca > .01) cortes.push([ca, cb]); } ini0 = -1; } }
+      if (!cortes.length) { aviso = 'Não achei pausas maiores que ' + Math.round(min * 1000) + ' ms.'; return tudo(); }
+      guarda(); let tirado = 0; for (const [a, b] of cortes.reverse()) { tiraTrecho(a, b); tirado += b - a; } sel = null; cab = Math.min(cab, dur()); aviso = `Removi ${cortes.length} pausa(s) (${tms(tirado)} de silêncio), deixando ${Math.round(mg * 1000)} ms de margem.`; tudo(); }
     // editar SÓ um pedaço (no áudio geral): abre o mesmo editor para ele e devolve o resultado no lugar
     async function editaPedaco(k) { para(); const bs = bordas(), a = bs[k], b = bs[k + 1], P0 = pedaco(A, a, b);
       await revisao({ dados: P0, uma: true, titulo: 'Editar o pedaço ' + (donoDe(k) >= 0 ? (donoDe(k) + 1) + ': ' + (falas[donoDe(k)]?.rotulo || '') : k + 1), cru: true,
-        aoSalvar: ([x]) => { guarda(); const n = x.dados.d, d = new Float32Array(A.d.length - (Math.round(b * A.sr) - Math.round(a * A.sr)) + n.length); d.set(A.d.subarray(0, Math.round(a * A.sr))); d.set(n, Math.round(a * A.sr)); d.set(A.d.subarray(Math.round(b * A.sr)), Math.round(a * A.sr) + n.length);
+        aoSalvar: ([x]) => { guarda(); const n = x.dados.d, ia = Math.round(a * A.sr), ib = Math.round(b * A.sr), d = new Float32Array(A.d.length - (ib - ia) + n.length); d.set(A.d.subarray(0, ia)); d.set(n, ia); d.set(A.d.subarray(ib), ia + n.length);
           const dif = n.length / A.sr - (b - a); A.d = d; marcas = marcas.map(m => m > a + .001 ? m + dif : m); tudo(); } }); }
-    function apara() { if (!sel) return; guarda(); const [a, b] = sel; A.d = A.d.slice(Math.round(a * A.sr), Math.round(b * A.sr)); marcas = marcas.filter(m => m > a && m < b).map(m => m - a); cab = 0; sel = null; ini = 0; tudo(); }
     function ganho(k) { guarda(); const d = A.d.slice(), [a, b] = sel || [0, dur()]; for (let i = Math.round(a * A.sr); i < Math.min(d.length, Math.round(b * A.sr)); i++) d[i] = Math.max(-1, Math.min(1, d[i] * k)); A.d = d; tudo(); }
-    function poeMarca(t) { if (uma) return; t = Math.max(.01, Math.min(dur() - .01, t)); guarda(); marcas = [...marcas, t].sort((a, b) => a - b); dono = null; tudo(); }
     function fazZoom(z, foco) { const vis0 = dur() / zoom; zoom = Math.max(1, Math.min(400, z)); const vis = dur() / zoom; ini = foco - (foco - ini) * vis / vis0; desenha(); }
     // ---- tocar ----
-    function para() { try { tocando?.s.stop(); } catch { } tocando = null; B.play.textContent = '▶ Ouvir'; }
+    function para() { try { tocando?.s.stop(); } catch { } tocando = null; B.play.textContent = '▶ Tocar'; }
     function toca(a = cab, b = dur()) { if (tocando) return para(); const x = ac(), buf = x.createBuffer(1, A.d.length, A.sr); buf.copyToChannel(A.d, 0); const s = x.createBufferSource(); s.buffer = buf; s.connect(x.destination);
       const t0 = x.currentTime; s.start(0, a, Math.max(.01, b - a)); tocando = { s }; B.play.textContent = '❚❚ Parar'; s.onended = () => { if (tocando?.s === s) para(); desenha(); };
       const anda = () => { if (tocando?.s !== s) return; cab = a + (x.currentTime - t0); const vis = dur() / zoom; if (cab > ini + vis) ini = cab - vis * .1; desenha(); requestAnimationFrame(anda); }; anda(); }
-    // ---- mouse/teclado na onda ----
+    // ---- mouse na onda: clique na linha vermelha = seleciona o corte (arrastar move); clique no resto = cursor; arrastar = selecionar ----
     let arr = null;
-    onda.onpointerdown = e => { onda.setPointerCapture(e.pointerId); const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * devicePixelRatio, t = tX(x);
-      const mi = uma ? -1 : marcas.findIndex(m => Math.abs(xT(m) - x) < 7 * devicePixelRatio);
-      if (e.button === 2 && mi >= 0) { e.preventDefault(); guarda(); marcas.splice(mi, 1); dono = null; return tudo(); }
-      arr = { x0: e.clientX, t0: t, mi, mexeu: false, antes: mi >= 0 ? (guarda(), true) : false }; };
+    onda.onpointerdown = e => { if (e.button !== 0) return; onda.setPointerCapture(e.pointerId); const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * DP(), t = tX(x);
+      const mi = uma ? -1 : marcas.reduce((best, m, i) => { const dx = Math.abs(xT(m) - x); return dx < 8 * DP() && (best < 0 || dx < Math.abs(xT(marcas[best]) - x)) ? i : best; }, -1);
+      arr = { x0: e.clientX, t0: t, mi, mexeu: false, guardou: false }; if (mi >= 0) { selM = mi; sel = null; desenha(); } };
     onda.oncontextmenu = e => e.preventDefault();
-    onda.onpointermove = e => { if (!arr) return; const r = cv.getBoundingClientRect(), t = Math.max(0, Math.min(dur(), tX((e.clientX - r.left) * devicePixelRatio))); if (Math.abs(e.clientX - arr.x0) > 3) arr.mexeu = true; if (!arr.mexeu) return;
-      if (arr.mi >= 0) { marcas[arr.mi] = t; marcas.sort((a, b) => a - b); arr.mi = marcas.indexOf(t); desenha(); } else { sel = [Math.min(arr.t0, t), Math.max(arr.t0, t)]; desenha(); } };
-    onda.onpointerup = () => { if (!arr) return; if (!arr.mexeu) { if (arr.antes) hist.pop(); if (arr.mi < 0) { cab = arr.t0; sel = null; } } else if (arr.mi >= 0) pintaLista(); arr = null; desenha(); };
-    onda.ondblclick = e => { const r = cv.getBoundingClientRect(); poeMarca(tX((e.clientX - r.left) * devicePixelRatio)); };
-    onda.onwheel = e => { e.preventDefault(); const r = cv.getBoundingClientRect(), t = tX((e.clientX - r.left) * devicePixelRatio); if (e.shiftKey) { ini += (e.deltaY > 0 ? 1 : -1) * dur() / zoom * .15; desenha(); } else fazZoom(zoom * (e.deltaY < 0 ? 1.3 : 1 / 1.3), t); };
+    onda.onpointermove = e => { if (!arr) return; const r = cv.getBoundingClientRect(), t = Math.max(0, Math.min(dur(), tX((e.clientX - r.left) * DP()))); if (Math.abs(e.clientX - arr.x0) > 3) arr.mexeu = true; if (!arr.mexeu) return;
+      if (arr.mi >= 0) { if (!arr.guardou) { guarda(); arr.guardou = true; } const lo = arr.mi > 0 ? marcas[arr.mi - 1] + .02 : .01, hi = arr.mi < marcas.length - 1 ? marcas[arr.mi + 1] - .02 : dur() - .01; marcas[arr.mi] = Math.max(lo, Math.min(hi, t)); desenha(); }
+      else { sel = [Math.min(arr.t0, t), Math.max(arr.t0, t)]; selM = -1; desenha(); } };
+    onda.onpointerup = () => { if (!arr) return; if (!arr.mexeu && arr.mi < 0) { cab = arr.t0; sel = null; selM = -1; } const mexeuCorte = arr.mi >= 0 && arr.mexeu; arr = null; if (mexeuCorte) tudo(); else { desenha(); pintaLista(); } };
+    onda.ondblclick = e => { const r = cv.getBoundingClientRect(); poeMarca(tX((e.clientX - r.left) * DP())); };
+    onda.onwheel = e => { e.preventDefault(); const r = cv.getBoundingClientRect(), t = tX((e.clientX - r.left) * DP()); if (e.shiftKey) { ini += (e.deltaY > 0 ? 1 : -1) * dur() / zoom * .15; desenha(); } else fazZoom(zoom * (e.deltaY < 0 ? 1.3 : 1 / 1.3), t); };
     rol.oninput = () => { ini = rol.value / 1000 * (dur() - dur() / zoom); desenha(); };
-    const bordas = () => [0, ...marcas, dur()], pedacoDe = t => { const bs = bordas(); let k = 0; while (k < bs.length - 2 && t >= bs[k + 1]) k++; return [bs[k], bs[k + 1]]; };
-    const vaiPara = t => { para(); cab = Math.max(0, Math.min(dur(), t)); sel = null; const vis = dur() / zoom; if (cab < ini || cab > ini + vis) ini = cab - vis / 2; desenha(); };
+    const vaiPara = t => { para(); cab = Math.max(0, Math.min(dur(), t)); sel = null; const vis = dur() / zoom; if (cab < ini || cab > ini + vis) ini = cab - vis / 2; desenha(); pintaLista(); };
     const tecla = e => { if (!f.isConnected || pilha[pilha.length - 1] !== f) return; if (e.target.closest?.('select,input')) return; const mod = e.ctrlKey || e.metaKey, k = e.key;
       if (k === 'Home') { e.preventDefault(); vaiPara(0); } else if (k === 'End') { e.preventDefault(); vaiPara(dur()); }
       else if (k === 'ArrowLeft' || k === 'ArrowRight') { e.preventDefault(); const d = k === 'ArrowLeft' ? -1 : 1;
         if (mod) { const bs = bordas(), alvo = d < 0 ? [...bs].reverse().find(b => b < cab - .005) : bs.find(b => b > cab + .005); vaiPara(alvo ?? (d < 0 ? 0 : dur())); }
         else vaiPara(cab + d * (e.shiftKey ? 1 : e.altKey ? .01 : .1)); }
-      else if (k === 'Enter') { e.preventDefault(); const [a, b] = pedacoDe(cab); toca(a, b); }
+      else if (k === 'Enter') { e.preventDefault(); const bs = bordas(), s = segDe(cab); toca(bs[s], bs[s + 1]); }
       else if (k === '[') { e.preventDefault(); aparaAte(cab); } else if (k === ']') { e.preventDefault(); aparaDesde(cab); }
       else if (k === '+' || k === '=') { e.preventDefault(); fazZoom(zoom * 1.6, cab); } else if (k === '-' || k === '_') { e.preventDefault(); fazZoom(zoom / 1.6, cab); } else if (k === '0' && !mod) { e.preventDefault(); zoom = 1; ini = 0; desenha(); }
       else if (k === ' ') { e.preventDefault(); toca(); } else if (/^[mMcC]$/.test(k) && !mod) { e.preventDefault(); poeMarca(cab); }
-      else if (k === 'Delete' || k === 'Backspace') { if (sel) { e.preventDefault(); apagaSel(); } else if (!uma) { const mi = marcas.findIndex(m => Math.abs(m - cab) < .08); if (mi >= 0) { e.preventDefault(); guarda(); marcas.splice(mi, 1); dono = null; tudo(); } } }
-      else if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); desfaz(); } else if (mod && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); refaz(); } else if (e.key === 'Escape') fecha(); };
+      else if (k === 'Delete' || k === 'Backspace') { if (selM >= 0) { e.preventDefault(); tiraMarca(selM); } else if (sel) { e.preventDefault(); apagaSel(); } } // o corte só sai se ele estiver SELECIONADO (clicado)
+      else if (mod && k.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); desfaz(); } else if (mod && (k.toLowerCase() === 'y' || (k.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); refaz(); }
+      else if (k === 'Escape') { if (selM >= 0 || sel) { selM = -1; sel = null; desenha(); pintaLista(); } else fecha(); } };
     pilha.push(f); addEventListener('keydown', tecla); const rz = () => desenha(); addEventListener('resize', rz);
     function fecha(semPerguntar) { if (!semPerguntar && hist.length && !confirm('Fechar sem salvar? As mudanças neste áudio se perdem.')) return; para(); removeEventListener('keydown', tecla); removeEventListener('resize', rz); f.remove(); const pi = pilha.indexOf(f); if (pi >= 0) pilha.splice(pi, 1); o.aoFechar?.(); }
-    // ---- transcrição (só quando a pessoa pede) ----
+    // ---- transcrição ----
     async function transcreve(sozinho) { if (!o.transcrever) return; const bts = $$('button', rod); bts.forEach(b => b.disabled = true); const v = av.textContent; av.textContent = 'Transcrevendo… (pode levar um pouco)';
-      try { energia._c = null; const palavras = await o.transcrever(A); const pos = alinha(palavras, falas); if (!pos.some(Boolean)) throw new Error('Não achei as falas na transcrição. Use os silêncios ou marque à mão.');
+      try { energia._c = null; const palavras = await o.transcrever(A); const pos = alinha(palavras, falas); if (!pos.some(Boolean)) throw new Error('Não achei as falas na transcrição. Use as pausas ou corte à mão.');
         guarda(); const novas = []; for (let k = 1; k < falas.length; k++) { const a = pos[k - 1], b = pos[k]; if (!b) continue; const t = a ? (a.fim + b.ini) / 2 : b.ini - .15; novas.push(quieto(A, t)); }
-        marcas = [...new Set(novas.map(x => Math.round(x * 1000) / 1000))].sort((a, b) => a - b); dono = null; aviso = `Cortes sugeridos pela transcrição (${pos.filter(Boolean).length} de ${falas.length} falas achadas). Confira e arraste se precisar.`; tudo(); }
+        marcas = [...new Set(novas.map(x => Math.round(x * 1000) / 1000))].sort((a, b) => a - b); dono = null; selM = -1; aviso = `Cortes sugeridos pela transcrição (${pos.filter(Boolean).length} de ${falas.length} falas achadas). Confira e arraste se precisar.`; tudo(); }
       catch (e) { if (sozinho) { aviso = 'A transcrição não deu certo (' + e.message + '). Fiquei com os cortes pelas pausas: confira, ou tente "Transcrever para acertar" de novo.'; pintaLista(); } else { av.textContent = v; alert(e.message); } } bts.forEach(b => b.disabled = false); }
-    // ---- salvar: cada pedaço vira o áudio de uma fala (WAV mono 22 kHz) ----
+    // ---- salvar: cada pedaço vira o áudio de uma fala (Opus .ogg; WAV se o navegador não tiver o codificador) ----
     async function salva() { para(); if (o.cru) { o.aoSalvar([{ dados: { sr: A.sr, d: A.d.slice() } }]); return fecha(true); }
-      const bs = uma ? [0, dur()] : [0, ...marcas, dur()], out = [], salvaBt = rod.lastChild; salvaBt.disabled = true; salvaBt.textContent = 'Preparando…';
+      const bs = uma ? [0, dur()] : bordas(), out = [], salvaBt = rod.lastChild; salvaBt.disabled = true; salvaBt.textContent = 'Preparando…';
       try { for (let k = 0; k < bs.length - 1; k++) { const fi = uma ? 0 : donoDe(k); if (!uma && (fi == null || fi < 0)) continue; const p = await reamostra(pedaco(A, Math.max(0, bs[k] - (uma ? 0 : .02)), Math.min(dur(), bs[k + 1] + (uma ? 0 : .02))), 22050);
           if (p.d.length < 2205) continue; let blob = null; try { blob = await opusOgg(p); } catch { } out.push({ fala: uma ? null : falas[fi].id, blob: blob || wav(p), duracao: Math.round(p.d.length / p.sr * 100) / 100 }); }
         if (!out.length) throw new Error('Nenhum pedaço para salvar.'); const ok = await o.aoSalvar(out); if (ok !== false) fecha(true); }
       catch (e) { alert(e.message); salvaBt.disabled = false; salvaBt.textContent = uma ? 'Salvar' : 'Separar nas falas'; } }
-    info.textContent = `${tms(dur())}${o.blob ? ' · ' + mb(o.blob.size) : ''}${uma ? '' : ` · ${falas.length} fala(s)`}`;
     document.body.append(f); requestAnimationFrame(tudo); if (o.autoTranscrever && o.transcrever && !uma) setTimeout(() => transcreve(true), 300); return { fecha };
   }
 
