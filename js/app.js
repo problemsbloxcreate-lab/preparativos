@@ -308,7 +308,7 @@ const ETAPA_DICA = P => { const st = P.status || 'rascunho', d = DESTINOS[P.dest
 async function abrePrep(P, base, semHist) {
   // tem rascunho deste computador mais novo que o da nuvem?
   if (!base && !P.novo) { try { const r = await DB.get('rasc', P.id); if (r?.P && (+r.base?.mod || 0) === (+P.mod || 0) && r.em > (P.mod || 0)) { const usar = await pergunta('Continuar de onde parou?', 'Este computador tem mudanças neste roteiro que ainda não foram para a nuvem.', [['Abrir o da nuvem', false], ['Continuar daqui', true, 'pri']]); if (usar) { base = r.base; P = r.P; } else await DB.del('rasc', P.id); } } catch { } }
-  Varios.usa(P); S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.marco = base ? null : assinatura(P); S.sub = pode('roteiro') || pode('organizar') ? (S.sub || 'roteiro') : 'falas'; S.ed = null;
+  Varios.usa(P); try { P.partes = Roteiro.separa(P.roteiro || '', P.partes); } catch { } S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.marco = base ? null : assinatura(P); S.sub = pode('roteiro') || pode('organizar') ? (S.sub || 'roteiro') : 'falas'; S.ed = null;
   if (!S.pers) carregaPers().then(() => { if (S.P) { S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } }).catch(() => { S.pers = {}; });
   if (!S.nomeEu) window.EstudioLogin?.perfil?.().then(p => { S.nomeEu = String(p?.nome || '').split(' ')[0]; }).catch(() => { });
   { const u = './?id=' + encodeURIComponent(P.id); if (new URLSearchParams(location.search).get('id') !== P.id) history[semHist ? 'replaceState' : 'pushState'](null, '', u); } pintaPrep();
@@ -851,8 +851,9 @@ const Falas = {
     try { this.quem = this.quem ?? localStorage.getItem('ep-prep-quem') ?? ''; } catch { this.quem = this.quem || ''; }
     if (this.quem && !ps.some(p => p.chave === this.quem)) this.quem = '';
     const locais = await this.locais(); this._loc = locais; let num = 0;
-    const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.map(f => ({ f, n: ++num })).filter(({ f }) => !this.quem || Roteiro.quem(f).includes(this.quem)) })).filter(p => p.falas.length);
-    const total = P.partes.reduce((s, p) => s + p.falas.length, 0), feitas = P.partes.reduce((s, p) => s + p.falas.filter(f => f.audio).length, 0);
+    const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.flatMap(f => { const n = ++num; if (this.quem) return Roteiro.quem(f).includes(this.quem) ? [{ f, n }] : [];
+      if (!this.varios(f)) return [{ f, n }]; return [...Roteiro.quem(f).map(k => ({ f: this.versao(f, k), n })), ...(f.audio ? [{ f: this.versao(f, ''), n }] : [])]; }) })).filter(p => p.falas.length);
+    const vagas = P.partes.flatMap(p => p.falas).flatMap(f => this.varios(f) ? Roteiro.quem(f).map(k => !!(f.audios?.[k]?.audio || f.audio)) : [!!f.audio]), total = vagas.length, feitas = vagas.filter(Boolean).length; // cada personagem da fala de vários conta
     const aberto = k => { try { return localStorage.getItem('ep-prep-sec-' + k) === '1'; } catch { return false; } };
     c.innerHTML = `<div class="falas falas2">
       <div class="fl-topo"><div class="fl-prog"><b>Falas e gravação</b><span><b>${feitas}</b> de <b>${total}</b> falas gravadas</span><div class="barra"><i style="width:${total ? feitas / total * 100 : 0}%"></i></div></div>
@@ -869,7 +870,7 @@ const Falas = {
       ${!ps.length ? '<div class="vazio">Ainda não há falas. Escreva o roteiro como <b>Nome: fala</b>.</div>' : ''}
       ${visiveis.map(p => `<div class="parte"><h3>${esc(p.nome)}</h3>${p.falas.map(({ f, n }) => this.linha(f, n, locais.get(f.id + this.suf(f)), cs)).join('')}</div>`).join('')}</div>`;
     $$('[data-grava]', c).forEach(b => b.onclick = () => { this.quem = b.dataset.grava; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } this.pinta(c); });
-    $$('.fala', c).forEach(el => { const f = this.acha(el.dataset.f); if (!f) return;
+    $$('.fala', c).forEach(el => { const f0 = this.acha(el.dataset.f); if (!f0) return; const f = el.dataset.vez != null && this.varios(f0) ? this.versao(f0, el.dataset.vez) : f0;
       $('[data-gravar]', el)?.addEventListener('click', () => this.grava(f, el));
       $('[data-ouvir]', el)?.addEventListener('click', e => this.ouve(f, e.currentTarget));
       $('[data-tirar]', el)?.addEventListener('click', async () => { await DB.del('aud', this.chaveL(f)); this.pinta(c); });
@@ -892,7 +893,7 @@ const Falas = {
       $('[data-seq-rev]', bx).onclick = () => this.revisaSeq(new Blob(sq.chunks, { type: sq.tipo || 'audio/webm' }), sq.trechos || []); $('[data-seq-fora]', bx).onclick = async () => { if (await pergunta('Descartar a gravação em sequência?', 'Ela ainda não foi separada nas falas.', [['Cancelar', false], ['Descartar', true, 'perigo']])) { await DB.del('aud', P.id + '/_seq'); this.pinta(c); } }; }
     Mic.pinta($('.mic-painel', c)); Dub.pinta($('.dub-painel', c));
     // a onda das gravações deste computador (e das da nuvem que já foram ouvidas nesta aba)
-    for (const el of $$('.fala', c)) { const f = this.acha(el.dataset.f); if (!f) continue; const l = locais.get(f.id + this.suf(f)), au = this.audioDe(f), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f';
+    for (const el of $$('.fala', c)) { const f0 = this.acha(el.dataset.f); if (!f0) continue; const f = el.dataset.vez != null && this.varios(f0) ? this.versao(f0, el.dataset.vez) : f0; const l = locais.get(f.id + this.suf(f)), au = this.audioDe(f), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f';
       const k = l ? `l:${this.chaveL(f)}:${l.em}` : au ? 'n:' + au : null; if (!k) continue;
       if (l) Onda.picos(k, l.blob).then(pk => { const bx = $('.onda-box', el); bx.hidden = false; Onda.desenha($('.onda', el), pk, cor); }).catch(() => { });
       else if (Onda.cache.has(k)) { const bx = $('.onda-box', el); bx.hidden = false; Onda.desenha($('.onda', el), Onda.cache.get(k), cor); } }
@@ -900,7 +901,8 @@ const Falas = {
   acha(id) { id = String(id).split('@')[0]; for (const p of S.P.partes) for (const f of p.falas) if (f.id === id) return f; return null; },
   // FALA DE VÁRIOS: com um personagem escolhido em "Quem vai gravar?", grava a VERSÃO DELE (audios[chave]); no "Todos", a de todos juntos (audio)
   varios: f => Array.isArray(f?.personagens) && f.personagens.length > 1,
-  vez(f) { return this.varios(f) && this.quem && Roteiro.quem(f).includes(this.quem) ? this.quem : ''; },
+  vez(f) { if (f && Object.prototype.hasOwnProperty.call(f, '_vz')) return f._vz; return this.varios(f) && this.quem && Roteiro.quem(f).includes(this.quem) ? this.quem : ''; },
+  versao(f, k) { const v = Object.create(f); v._vz = k; return v; },
   suf(f) { const v = this.vez(f); return v ? '@' + v : ''; },
   chaveL(f) { return S.P.id + '/' + f.id + this.suf(f); },
   audioDe(f) { const v = this.vez(f); return v ? f.audios?.[v]?.audio || null : f.audio; },
@@ -998,21 +1000,22 @@ const Falas = {
     try { const R = await Cortes.paraRevisao(blob, trechos, ids);
       await Cortes.revisao({ dados: R.dados, falas: fs.map(f => this.paraCortes(f)), marcas: R.marcas, dono: R.quem.map(id => ids.indexOf(id)), titulo: 'Revisar a gravação em sequência', aviso: 'Os cortes são os Enter que você apertou. Arraste para acertar.', transcrever: this.transcritor(),
         aoSalvar: async ps => { await DB.del('aud', P.id + '/_seq').catch(() => { }); await this.guardaPedacos(ps); } }); } catch (e) { aviso(e.message, 'erro'); } },
-  async editaAudio(f) { const l = await DB.get('aud', this.chaveL(f)).catch(() => null), au = this.audioDe(f);
+  async editaAudio(f) { const KL = this.chaveL(f), au = this.audioDe(f), l = await DB.get('aud', KL).catch(() => null);
     try { const blob = l?.blob || (au ? await Nuvem.audio(au) : null); if (!blob) return; await Cortes.revisao({ blob, uma: true, titulo: `Editar o áudio: ${f.personagem}: "${String(f.texto).slice(0, 40)}"`,
-      aoSalvar: async ([x]) => { await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); aviso('Áudio editado. Ele fica neste computador até você clicar em "Enviar agora".', 'ok', 5000); this.pinta(this.c); } }); }
+      aoSalvar: async ([x]) => { await DB.put('aud', KL, { blob: x.blob, duracao: x.duracao, em: Date.now() }); aviso('Áudio editado. Ele fica neste computador até você clicar em "Enviar agora".', 'ok', 5000); this.pinta(this.c); } }); }
     catch (e) { aviso(e.message, 'erro'); } },
   async locais() { const m = new Map(); try { for (const [k, v] of await DB.todos('aud')) if (String(k).startsWith(S.P.id + '/')) m.set(String(k).slice(S.P.id.length + 1), v); } catch { } return m; },
   linha(f, n, local, cs) {
     const vz = this.vez(f), varios = this.varios(f), au = this.audioDe(f), cor = varios ? (vz ? cs.get(vz) : '#9aa0ab') : cs.get(Roteiro.chave(f.personagem)), gravar = pode('gravar');
     const st = local ? `<span class="st aqui">${ic('alerta', 12)} gravada aqui · falta enviar · ${tempo(local.duracao)}</span>` : au ? `<span class="st nuvem">${f.regravar && !vz ? `<span class="aten">${ic('alerta', 12)} o texto mudou, regravar</span>` : `${ic('ok', 12)} na nuvem`} · ${tempo(this.durDe(f))}</span>` : '<span class="st sem">sem áudio</span>';
-    const quemH = varios ? `<div class="quem varios"><span class="avs">${f.personagens.map(p => ava(p, cs.get(Roteiro.chave(p)) || corOuPadrao(p), 'p')).join('')}</span><b>${esc(f.personagens.join(' + '))}</b><small>${vz ? `versão de ${esc(f.personagens.find(p => Roteiro.chave(p) === vz) || vz)}` : 'todos juntos'}</small></div>`
+    const corP = p => cs.get(Roteiro.chave(p)) || corOuPadrao(p), nomes = f.personagens?.map((p, i, l) => `${i ? `<span class="nm-e">${i === l.length - 1 ? ' e ' : ', '}</span>` : ''}<b style="color:${corP(p)}" class="${vz && Roteiro.chave(p) !== vz ? 'nm-outro' : ''}">${esc(p)}</b>`).join('') || '';
+    const quemH = varios ? `<div class="quem varios">${vz ? ava(f.personagens.find(p => Roteiro.chave(p) === vz) || vz, corP(f.personagens.find(p => Roteiro.chave(p) === vz) || vz), 'p') : `<span class="avs">${f.personagens.map(p => ava(p, corP(p), 'p')).join('')}</span>`}<span class="nm-v">${nomes}</span><small>${vz ? `versão de ${esc(f.personagens.find(p => Roteiro.chave(p) === vz) || vz)}` : 'todos juntos'}</small></div>`
       : `<div class="quem">${ava(f.personagem, cor, 'p')}<b>${esc(f.personagem)}</b></div>`;
     const outros = varios && vz ? f.personagens.filter(p => Roteiro.chave(p) !== vz) : [];
     const juntoH = outros.length ? `<div class="junto-de"><span>${ic('alerta', 13)} Esta fala é dita <b>ao mesmo tempo</b> que:</span>${outros.map(p => { const ko = Roteiro.chave(p), tem = f.audios?.[ko]?.audio || this._loc?.has(f.id + '@' + ko);
         return `<span class="jd-p">${ava(p, cs.get(ko) || corOuPadrao(p), 'p')}<b style="color:${cs.get(ko) || corOuPadrao(p)}">${esc(p)}</b>${tem ? `<button class="bt mini" data-ouve-outro="${esc(ko)}">${ic('play', 12)} Ouvir</button>${pode('gravar') ? `<button class="bt mini" data-grava-ouvindo="${esc(ko)}" title="Toca a gravação de ${esc(p)} enquanto você grava (use fone)">${ic('mic', 12)} Gravar ouvindo ${esc(p)}</button>` : ''}` : '<small>ainda não gravou</small>'}</span>`; }).join('')}</div>` : '';
-    const dicaV = varios && !vz ? `<small class="dica-v">Fala de ${f.personagens.length}: aqui é a gravação de todos juntos. Para cada um gravar a sua versão, escolha o personagem em "Quem vai gravar?".</small>` : '';
-    return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}" data-f="${esc(f.id)}" style="--c:${cor}"><span class="num">${n}</span>
+    const dicaV = varios && !vz ? `<small class="dica-v">Gravação de todos juntos (opcional): cada personagem também tem a sua linha.</small>` : '';
+    return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}" data-f="${esc(f.id)}" ${varios ? `data-vez="${esc(vz)}"` : ''} style="--c:${cor}"><span class="num">${n}</span>
       ${quemH}${dicaV}${juntoH}
       <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
       <div class="bts">${local || au ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
@@ -1023,7 +1026,7 @@ const Falas = {
   },
   // a gravação de OUTRO personagem da mesma fala (deste computador ou da nuvem), para ouvir/gravar junto
   async audioOutro(f, ko) { const l = await DB.get('aud', S.P.id + '/' + f.id + '@' + ko).catch(() => null), k = f.audios?.[ko]?.audio; const b = l?.blob || (k ? await Nuvem.audio(k) : null); if (!b) throw new Error('Esse personagem ainda não gravou esta fala.'); const a = new Audio(URL.createObjectURL(b)); return a; },
-  async grava(f, el, ouvindo) {
+  async grava(f, el, ouvindo) { const KL = this.chaveL(f);
     if (this.rec) { const parar = this.rec.f === f; this.rec.parar(); if (parar) return; }
     let guia = null; if (ouvindo) { try { guia = await this.audioOutro(f, ouvindo); } catch (e) { return aviso(e.message, 'erro'); } aviso('Use fone de ouvido: assim o áudio do outro personagem não entra na sua gravação.', 'info', 5000); }
     Mic.paraTeste($('.mic-painel', this.c));
@@ -1041,7 +1044,7 @@ const Falas = {
     mr.onstop = async () => { clearInterval(cron); cancelAnimationFrame(raf); m.fecha(); this.rec = null; const dur = (performance.now() - t0) / 1000;
       if (dur < 0.4) { aviso('Gravação curta demais.', 'info'); return this.pinta(this.c); }
       const blob = new Blob(pedacos, { type: mr.mimeType || tipo || 'audio/webm' });
-      try { await DB.put('aud', this.chaveL(f), { blob, duracao: Math.round(dur * 100) / 100, em: Date.now() }); } catch (e) { aviso('Não consegui guardar a gravação neste computador: ' + (e.message || e), 'erro'); }
+      try { await DB.put('aud', KL, { blob, duracao: Math.round(dur * 100) / 100, em: Date.now() }); } catch (e) { aviso('Não consegui guardar a gravação neste computador: ' + (e.message || e), 'erro'); }
       this.pinta(this.c); };
     mr.start(250); if (guia) { guia.currentTime = 0; guia.play().catch(() => { }); } // começam JUNTOS (para sincronizar)
     this.rec = { f, parar: () => { try { guia?.pause(); mr.stop(); } catch { } } };
@@ -1050,7 +1053,8 @@ const Falas = {
     if (S.tocando) { S.tocando.pause(); const era = S.tocando._f === f.id; S.tocando._fim?.(); S.tocando = null; $$('.tocando').forEach(x => x.classList.remove('tocando')); if (era && desde == null) return; }
     if (!bt) return;
     const el = bt.closest('.fala'), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f';
-    try { const l = await DB.get('aud', this.chaveL(f)), au = this.audioDe(f), blob = l?.blob || await Nuvem.audio(au), k = l ? `l:${this.chaveL(f)}:${l.em}` : 'n:' + au;
+    const KL = this.chaveL(f), AU = this.audioDe(f);
+    try { const l = await DB.get('aud', KL), au = AU, blob = l?.blob || await Nuvem.audio(au), k = l ? `l:${KL}:${l.em}` : 'n:' + au;
       const pk = await Onda.picos(k, blob).catch(() => null), bx = $('.onda-box', el), cv = $('.onda', el); if (pk) { bx.hidden = false; Onda.desenha(cv, pk, cor); }
       const a = new Audio(URL.createObjectURL(blob)); a._f = f.id; S.tocando = a; bt.classList.add('tocando'); bt.innerHTML = ic('parar', 16);
       const tt = $('.onda-t', el); let raf; const anda = () => { if (a.duration && isFinite(a.duration)) { if (pk) Onda.desenha(cv, pk, cor, a.currentTime / a.duration); if (tt) tt.textContent = tempo(a.currentTime) + ' / ' + tempo(a.duration); } raf = requestAnimationFrame(anda); };
@@ -1060,14 +1064,14 @@ const Falas = {
       await a.play(); anda(); }
     catch (e) { aviso('Não consegui tocar: ' + (e.message || e), 'erro'); }
   },
-  sobe(f) {
+  sobe(f) { const KL = this.chaveL(f);
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,video/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm,.mpeg,.mpg,.mp2,.mpga,.flac,.aac,.wma,.amr,.3gp,.mov,.mp4,.mkv,.avi';
     inp.onchange = async () => { const arq = inp.files[0]; if (!arq) return;
       if (arq.size > 200 * 1048576) return aviso('Esse arquivo passa de 200 MB.', 'erro');
       let A; try { aviso('Lendo o arquivo…', 'info', 2500); A = await Cortes.decodifica(arq); } catch (e) { return aviso('Não consegui ler esse arquivo: ' + (e.message || 'formato desconhecido'), 'erro'); }
       const dur = A.d.length / A.sr; if (dur > PREP_CONFIG.audioMaxSeg + 1) return aviso(`Esse áudio tem ${tempo(dur)}. Cada fala pode ter até ${tempo(PREP_CONFIG.audioMaxSeg)}. Use "Subir áudio(s) com várias falas" para separar.`, 'erro');
       const blob = await Cortes.comprime(A); // converte na hora: qualquer formato vira um áudio leve (Opus)
-      try { await DB.put('aud', this.chaveL(f), { blob, duracao: Math.round(dur * 100) / 100, em: Date.now(), arquivo: String(arq.name || '').slice(0, 80) }); } catch (e) { return aviso('Não consegui guardar: ' + (e.message || e), 'erro'); }
+      try { await DB.put('aud', KL, { blob, duracao: Math.round(dur * 100) / 100, em: Date.now(), arquivo: String(arq.name || '').slice(0, 80) }); } catch (e) { return aviso('Não consegui guardar: ' + (e.message || e), 'erro'); }
       aviso('Áudio colocado na fala. Falta enviar para a nuvem.', 'ok'); this.pinta(this.c); };
     inp.click();
   },

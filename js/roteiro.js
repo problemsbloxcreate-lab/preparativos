@@ -14,8 +14,8 @@
      // anotação para a equipe             ← comentário: não vira fala
      ---                                   ← quebra de página: o que vem depois começa numa página nova (só visual)
      Stick e Problems (juntos): CLARA!     ← FALA DE VÁRIOS: nomes separados por "e", "," "+" ou "&" ("Stick, Problems e Clara: …").
-                                             Só vira fala de vários quando CADA nome já existe como personagem (fala sozinho em
-                                             outra linha do roteiro, ou está na aba Personagens), para não quebrar nomes compostos
+                                             Vira fala de vários quando PELO MENOS UM nome já existe como personagem (fala sozinho em
+                                             outra linha do roteiro, ou está na aba Personagens); sem nenhum, o app pergunta. Nomes compostos
                                              como "Aluno Vermelho". A fala ganha personagens: ['Stick','Problems'] (o "personagem"
                                              continua o texto inteiro "Stick e Problems"). Cada um pode gravar a sua versão
                                              (audios: { '<nome minúsculo>': { audio, duracao } }) e "audio" é o de todos juntos.
@@ -68,7 +68,7 @@ const Roteiro = (() => {
     // fala de vários: só quando CADA nome existe sozinho no roteiro ou na lista da equipe
     const sozinhos = new Set(out.filter(o => o.t === 'f').map(o => chave(o.nome)));
     for (const o of out) if (o.t === 'f' && SEP.test(o.nome.trim())) { const ns = o.nome.trim().split(SEP).map(norm).filter(Boolean), dec = DECISOES[chave(o.nome)];
-      if (ns.length >= 2 && new Set(ns.map(chave)).size === ns.length && dec !== false && (dec === true || ns.every(n => sozinhos.has(chave(n)) || CONHECIDOS.has(chave(n))))) o.nomes = ns; }
+      if (ns.length >= 2 && new Set(ns.map(chave)).size === ns.length && dec !== false && (dec === true || ns.some(n => sozinhos.has(chave(n)) || CONHECIDOS.has(chave(n))))) o.nomes = ns; }
     return out;
   }
   // tira as notas (*itálico* e (…)) do texto falado
