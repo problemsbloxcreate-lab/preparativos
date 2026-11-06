@@ -43,6 +43,10 @@ const Roteiro = (() => {
   // FALA DE VÁRIOS: separadores entre os nomes; CONHECIDOS = personagens da aba Personagens (o app avisa com usaConhecidos)
   const SEP = /\s*(?:,|\+|&|\s+e\s+)\s*/i; let CONHECIDOS = new Set();
   const usaConhecidos = l => { CONHECIDOS = new Set([...(l || [])].map(x => chave(x))); };
+  // a pessoa já respondeu "são personagens diferentes?" para um nome: { '<nome minúsculo>': true (separar) | false (um nome só) }
+  let DECISOES = {}; const usaDecisoes = d => { DECISOES = d && typeof d === 'object' ? { ...d } : {}; };
+  // fala com separador cujo nome ainda não tem resposta e tem parte desconhecida → o app pergunta
+  const duvidas = texto => [...new Set(classifica(texto).filter(o => o.t === 'f' && !o.nomes && SEP.test(o.nome.trim()) && !(chave(o.nome) in DECISOES)).map(o => norm(o.nome)))];
   // quem fala numa fala: a lista (fala de vários) ou só o personagem
   const quem = f => (Array.isArray(f?.personagens) && f.personagens.length > 1 ? f.personagens : [f?.personagem]).map(chave).filter(Boolean);
 
@@ -63,8 +67,8 @@ const Roteiro = (() => {
     }
     // fala de vários: só quando CADA nome existe sozinho no roteiro ou na lista da equipe
     const sozinhos = new Set(out.filter(o => o.t === 'f').map(o => chave(o.nome)));
-    for (const o of out) if (o.t === 'f' && SEP.test(o.nome.trim())) { const ns = o.nome.trim().split(SEP).map(norm).filter(Boolean);
-      if (ns.length >= 2 && new Set(ns.map(chave)).size === ns.length && ns.every(n => sozinhos.has(chave(n)) || CONHECIDOS.has(chave(n)))) o.nomes = ns; }
+    for (const o of out) if (o.t === 'f' && SEP.test(o.nome.trim())) { const ns = o.nome.trim().split(SEP).map(norm).filter(Boolean), dec = DECISOES[chave(o.nome)];
+      if (ns.length >= 2 && new Set(ns.map(chave)).size === ns.length && dec !== false && (dec === true || ns.every(n => sozinhos.has(chave(n)) || CONHECIDOS.has(chave(n))))) o.nomes = ns; }
     return out;
   }
   // tira as notas (*itálico* e (…)) do texto falado
@@ -124,7 +128,7 @@ const Roteiro = (() => {
     return [...m.entries()].map(([k, o]) => ({ chave: k, ...o }));
   }
 
-  return { separa, classifica, limpa, escreve, personagens, chave, norm, uid, quem, usaConhecidos, SEP };
+  return { separa, classifica, limpa, escreve, personagens, chave, norm, uid, quem, usaConhecidos, usaDecisoes, duvidas, SEP };
 })();
 if (typeof module !== 'undefined') module.exports = Roteiro;
 

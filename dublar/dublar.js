@@ -64,7 +64,10 @@
     if (loc) c.classList.add('local'); else if (env) c.classList.add('enviada');
     if (f.parte) c.append(el('div', 'parte', f.parte));
     if (f.antes) { const a = el('div', 'antes'); a.append(el('b', null, f.antes.personagem + ': '), f.antes.texto); c.append(a); }
-    c.append(el('div', 'quem', f.personagem)); if (f.voce) c.append(el('div', 'nota', 'Fala de vários: grave só a parte de ' + f.voce + '.')); if (f.nota) c.append(el('div', 'nota', f.nota)); c.append(el('div', 'texto', f.texto));
+    c.append(el('div', 'quem', f.personagem)); if (f.voce) c.append(el('div', 'nota', 'Fala de vários: grave só a parte de ' + f.voce + '.'));
+    if (f.juntoCom?.length) { const j = el('div', 'junto'); j.append(el('span', null, 'Esta fala é dita AO MESMO TEMPO que: '));
+      for (const o of f.juntoCom) { const p = el('span', 'jp'); p.append(el('b', null, o.nome)); if (o.tem) { p.append(bt('Ouvir', '', async () => { try { const a = await outro(f, o); S.tocando?.pause(); S.tocando = a; a.play(); } catch (e) { faixa(e.message, f.id); } }), bt('Gravar ouvindo ' + o.nome, '', () => grava(f, o))); } else p.append(el('small', null, ' (ainda não tem gravação aceita)')); j.append(p); }
+      c.append(j); } if (f.nota) c.append(el('div', 'nota', f.nota)); c.append(el('div', 'texto', f.texto));
     c.append(el('div', 'st ' + (loc ? 'aq' : env ? 'ok' : ''), loc ? `Gravada aqui (${tempo(loc.dur)}) · falta enviar` : env ? `Enviada (${tempo(env.dur)}) · esperando a equipe aprovar` : 'Ainda não gravada'));
     if (loc) c.append(player(loc));
     const l = el('div', 'linha'), gr = bt(S.rec?.f === f.id ? 'Parar' : loc || env ? 'Regravar' : 'Gravar', 'rec' + (S.rec?.f === f.id ? ' on' : ''), () => grava(f, gr));
@@ -94,8 +97,12 @@
       teste = { para: () => { cancelAnimationFrame(raf); st.getTracks().forEach(x => x.stop()); ac.close(); $('i', niv).style.width = '0'; } }; b.textContent = 'Parar o teste';
     } catch { faixa('Não consegui usar o microfone. Clique no cadeado ao lado do endereço, permita o microfone e tente de novo.'); }
   }
-  async function grava(f) {
+  // a gravação ACEITA do outro personagem desta fala (o servidor só deixa essa, e só por este link)
+  async function outro(f, o) { let r; try { r = await fetch('/dublar/api/ouvir?fala=' + encodeURIComponent(f.id) + '&de=' + encodeURIComponent(o.k), { headers: { 'x-dub-token': tok }, cache: 'no-store' }); } catch { throw new Error('Sem conexão.'); }
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error?.message || 'Não deu para ouvir.'); } return new Audio(URL.createObjectURL(await r.blob())); }
+  async function grava(f, ouvindo) {
     if (S.rec) { const era = S.rec.f === f.id; S.rec.parar(); if (era) return; }
+    let guia = null; if (ouvindo?.k) { try { guia = await outro(f, ouvindo); } catch (e) { return faixa(e.message, f.id); } faixa('Use fone de ouvido: assim o áudio de ' + ouvindo.nome + ' não entra na sua gravação.'); }
     if (teste) { teste.para(); teste = null; }
     let st; try { st = await abreMic(); } catch { return faixa('Não consegui usar o microfone. Clique no cadeado ao lado do endereço, permita o microfone e tente de novo.'); }
     const tipo = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
@@ -104,7 +111,8 @@
     mr.ondataavailable = e => e.data.size && ped.push(e.data);
     mr.onstop = () => { clearTimeout(lim); st.getTracks().forEach(x => x.stop()); S.rec = null; const dur = (performance.now() - t0) / 1000;
       if (dur < 0.4) return pinta(); const blob = new Blob(ped, { type: mr.mimeType || tipo || 'audio/webm' }); poeLocal(f.id, blob, dur); };
-    mr.start(250); S.rec = { f: f.id, parar: () => { try { mr.stop(); } catch { } } }; pinta();
+    mr.start(250); if (guia) { guia.currentTime = 0; guia.play().catch(() => { }); } // começam juntos
+    S.rec = { f: f.id, parar: () => { try { guia?.pause(); mr.stop(); } catch { } } }; pinta();
   }
   const poeLocal = (id, blob, dur) => { const v = S.loc.get(id); if (v) URL.revokeObjectURL(v.url); S.loc.set(id, { blob, dur, url: URL.createObjectURL(blob) }); pinta(); };
   function sobe(f) {

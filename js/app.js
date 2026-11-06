@@ -78,7 +78,7 @@ const Nuvem = {
   json(caminho, metodo, corpo) { return this.pede(caminho, { method: metodo, headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) }); },
   lista() { return this.pede('/preparativos'); },
   async abre(id) { const r = await fetch(SRV + '/preparativos/arquivo?k=' + encodeURIComponent(`preparativos/${id}/prep.json`), { headers: await this.hd(), cache: 'no-store' });
-    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error?.message || 'Não consegui abrir este roteiro da nuvem.'); }
+    if (!r.ok) { const j = await r.json().catch(() => ({})); const e = new Error(r.status === 404 ? 'Esse roteiro não existe mais (foi apagado).' : j.error?.message || 'Não consegui abrir este roteiro da nuvem.'); e.status = r.status; throw e; }
     const P = await r.json(); P.mod = +r.headers.get('x-mod') || P.mod || 0; return P; },
   salva(P, forcar) { return this.pede(`/preparativos/arquivo?k=${encodeURIComponent(`preparativos/${P.id}/prep.json`)}&base=${+P.mod || 0}${forcar ? '&forcar=1' : ''}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(P) }); },
   acao(corpo) { return this.json('/preparativos/acao', 'POST', corpo); },
@@ -244,7 +244,7 @@ async function pintaInicio(novo) {
   const liga = x => { const c = cartao(x.it, x.onde); c.onclick = async () => { c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } };
     if (ed) { c.draggable = true; c.ondragstart = e => { e.dataTransfer.setData('text/rot-prep', x.it.id); e.dataTransfer.effectAllowed = 'move'; c.classList.add('arrastando'); }; c.ondragend = () => c.classList.remove('arrastando'); }
     c.oncontextmenu = e => { if (!ed) return; e.preventDefault(); const atual = pastaDe(x);
-      popMenu(e, [...pastas.map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, atual === g ? '✓' : '', () => mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`), atual === g]),
+      popMenu(e, [...(x.onde === 'nuvem' || x.onde === 'uso' ? [[`${ic('pc', 14)} Tirar da nuvem e manter neste computador…`, '', () => tiraDaNuvem(x.it.id)], '-'] : []),...pastas.map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, atual === g ? '✓' : '', () => mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`), atual === g]),
         [`${ic('pasta', 14)} Tirar da pasta`, !atual ? '✓' : '', () => mudaPastasRot({ mover: { [x.it.id]: null } }, 'Saiu da pasta.'), !atual],
         [`${ic('mais', 14)} Pasta nova com este roteiro…`, '', async () => { const g = await pastaNova(); if (g) mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`); }]]); };
     return c; };
@@ -308,7 +308,7 @@ const ETAPA_DICA = P => { const st = P.status || 'rascunho', d = DESTINOS[P.dest
 async function abrePrep(P, base, semHist) {
   // tem rascunho deste computador mais novo que o da nuvem?
   if (!base && !P.novo) { try { const r = await DB.get('rasc', P.id); if (r?.P && (+r.base?.mod || 0) === (+P.mod || 0) && r.em > (P.mod || 0)) { const usar = await pergunta('Continuar de onde parou?', 'Este computador tem mudanças neste roteiro que ainda não foram para a nuvem.', [['Abrir o da nuvem', false], ['Continuar daqui', true, 'pri']]); if (usar) { base = r.base; P = r.P; } else await DB.del('rasc', P.id); } } catch { } }
-  S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.marco = base ? null : assinatura(P); S.sub = pode('roteiro') || pode('organizar') ? (S.sub || 'roteiro') : 'falas'; S.ed = null;
+  Varios.usa(P); S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.marco = base ? null : assinatura(P); S.sub = pode('roteiro') || pode('organizar') ? (S.sub || 'roteiro') : 'falas'; S.ed = null;
   if (!S.pers) carregaPers().then(() => { if (S.P) { S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } }).catch(() => { S.pers = {}; });
   if (!S.nomeEu) window.EstudioLogin?.perfil?.().then(p => { S.nomeEu = String(p?.nome || '').split(' ')[0]; }).catch(() => { });
   { const u = './?id=' + encodeURIComponent(P.id); if (new URLSearchParams(location.search).get('id') !== P.id) history[semHist ? 'replaceState' : 'pushState'](null, '', u); } pintaPrep();
@@ -411,6 +411,7 @@ function pintaPrep() {
     ['Arquivo', () => [
       [`${ic('mais', 15)} Novo roteiro`, '', async () => { if (await sairDoPrep()) abrePrep(novoPrep()); }, !edita],
       [`${ic('doc', 15)} Abrir roteiros`, '', () => sairDoPrep()],
+      ...(pode('roteiro') && P.mod && !P.novo ? [[`${ic('pc', 15)} Tirar da nuvem e manter neste computador…`, '', () => tiraDaNuvem(P.id)]] : []),
       '-', [`${ic('nuvem', 15)} Mandar para a nuvem`, 'Ctrl+S', () => salvaPrep($('.prep [data-salva]')), !S.sujo],
       [`${ic('enviar', 15)} Baixar como texto (.txt)`, '', baixaTexto],
       '-', [`${ic('luz', 15)} Ideias`, '', async () => { if (await sairDoPrep()) trocaAba('ideias'); }],
@@ -572,7 +573,7 @@ function pintaRoteiro(c) {
   let t = 0, tPg = 0; const repagina = () => { cancelAnimationFrame(tPg); tPg = requestAnimationFrame(() => pagina(c)); };
   const E = S.ed = Editor.cria($('.folha', c), { texto: P.roteiro || '', somenteLer: !ed, atalhos: mostraAtalhos, editaPers: n => editaPersRoteiro(n),
     cor: n => cores().get(Roteiro.chave(n)) || corOuPadrao(n),
-    aoMudar: tx => { P.roteiro = tx; marcaSujo(); clearTimeout(t); t = setTimeout(() => { const antes = [...cores().keys()].join(); P.partes = Roteiro.separa(P.roteiro, P.partes); lado(); if ([...cores().keys()].join() !== antes) E.repinta(); }, 200); },
+    aoMudar: tx => { P.roteiro = tx; marcaSujo(); clearTimeout(t); t = setTimeout(() => { Varios.confere(); const antes = [...cores().keys()].join(); P.partes = Roteiro.separa(P.roteiro, P.partes); lado(); if ([...cores().keys()].join() !== antes) E.repinta(); }, 200); },
     aoMover: () => { const s = $('[data-estilo]', barra), l = E.linhas(), tp = E.tipoAtual(); if (s && tp) s.value = tp === 'h' ? (E.nivelAtual() === 1 ? 'capitulo' : 'parte') : ESTILO_DE[tp] || 'normal'; },
     aoPintar: repagina,
     confirma: (msg, antes, depois) => perguntaMuda(msg, antes, depois),
@@ -804,13 +805,50 @@ const Dub = {
     $('[data-cp]', m).onclick = async () => { try { await navigator.clipboard.writeText(url); aviso('Link copiado.', 'ok'); } catch { $('input', m).select(); document.execCommand('copy'); aviso('Link copiado.', 'ok'); } };
     $('[data-n]', m).onclick = () => m.remove(); document.body.appendChild(m); $('input', m).select(); },
 };
+/* ---------- TIRAR DA NUVEM E MANTER NESTE COMPUTADOR (pedido da dona via Animador, 06/11) ----------
+   Sempre pergunta (avisa se um programa já usou). PRIMEIRO guarda a cópia local com os áudios (rascunho + gravações deste computador,
+   aparece em "Neste computador"); SÓ ENTÃO apaga da nuvem. Se apagar falhar, a cópia local sai (para não ficar duplicado). */
+async function tiraDaNuvem(id) {
+  if (!pode('roteiro')) return aviso('Sua conta não pode mudar roteiros.', 'erro');
+  let P; try { P = S.P?.id === id && S.P.mod && !S.P.novo ? JSON.parse(JSON.stringify(S.P)) : await Nuvem.abre(id); } catch (e) { return aviso(e.message, 'erro'); }
+  const usos = (P.usadoPor || []).map(u => `${DESTINOS[u.programa] || u.programa}${u.projeto ? ' (' + u.projeto + ')' : ''}`);
+  const ok = await confirmaHtml('Tirar da nuvem e manter neste computador?', `<p>"${esc(P.nome || 'Roteiro')}" sai da nuvem: a equipe deixa de ver e gravar. Fica só neste computador, com o texto e os áudios.</p>
+    ${usos.length ? `<p class="aten-box">${ic('alerta', 15)} Já foi usado: <b>${esc(usos.join(', '))}</b>. Esses programas não vão mais achar o roteiro na nuvem.</p>` : ''}`, 'Tirar da nuvem', true);
+  if (!ok) return;
+  const fs = P.partes.flatMap(p => p.falas), guardados = []; let n = 0;
+  aviso('Guardando a cópia neste computador…', 'info', 2500);
+  try {
+    for (const f of fs) { const alvos = [[f.audio, f.id, f.duracao], ...Object.entries(f.audios || {}).map(([k, x]) => [x?.audio, f.id + '@' + k, x?.duracao])];
+      for (const [k, chaveL, dur] of alvos) { if (!k) continue; const blob = await Nuvem.audio(k); await DB.put('aud', P.id + '/' + chaveL, { blob, duracao: dur || 0, em: Date.now() }); guardados.push(P.id + '/' + chaveL); n++; } }
+    const L = JSON.parse(JSON.stringify(P)); for (const f of L.partes.flatMap(p => p.falas)) { f.audio = null; f.duracao = 0; delete f.audios; delete f.regravar; }
+    L.novo = true; L.mod = 0; delete L.usadoPor; await DB.put('rasc', L.id, { P: L, base: { mod: 0, roteiro: L.roteiro || '' }, em: Date.now() });
+  } catch (e) { for (const k of guardados) await DB.del('aud', k).catch(() => { }); return aviso('Não consegui guardar a cópia neste computador, então nada saiu da nuvem: ' + e.message, 'erro'); }
+  try { await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(`preparativos/${P.id}/`), { method: 'DELETE' }); }
+  catch (e) { await DB.del('rasc', P.id).catch(() => { }); for (const k of guardados) await DB.del('aud', k).catch(() => { }); return aviso('A nuvem não deixou tirar (' + e.message + '). Nada mudou.', 'erro'); }
+  S.lista = null; aviso(`Tirado da nuvem. Ficou neste computador${n ? ` com ${n} áudio${n === 1 ? '' : 's'}` : ''}.`, 'ok', 5000);
+  const r = await DB.get('rasc', P.id); if (S.P?.id === P.id) { S.sujo = false; S.P = null; return abrePrep(r.P, r.base, true); } if (!S.P) pintaInicio(true);
+}
+/* ---------- "STICK E PROBLEMS": SÃO PERSONAGENS DIFERENTES? (pedido da dona) ----------
+   Fala com "e", ",", "+" ou "&" no nome em que alguma parte ainda não é personagem conhecido: pergunta UMA vez e lembra a resposta
+   (no roteiro, P.varios, para a equipe toda, e neste computador para os próximos roteiros). */
+const Varios = {
+  _perg: new Set(),
+  locais() { try { return JSON.parse(localStorage.getItem('ep-prep-varios') || '{}') || {}; } catch { return {}; } },
+  usa(P) { Roteiro.usaDecisoes({ ...this.locais(), ...(P?.varios || {}) }); },
+  async confere() { const P = S.P; if (!P || !(pode('roteiro') || pode('organizar'))) return;
+    for (const nome of Roteiro.duvidas(P.roteiro || '')) { const k = Roteiro.chave(nome); if (this._perg.has(k)) continue; this._perg.add(k);
+      const partes = nome.split(Roteiro.SEP).filter(Boolean);
+      const r = await pergunta(`"${nome}" são personagens diferentes?`, `Se sim, a fala fica de ${partes.join(' e ')} falando juntos (cada um grava a sua, ou todos juntos). Se não, "${nome}" é o nome de um personagem só.`, [['Não, é um nome só', false], ['Sim, separar', true, 'pri']]);
+      if (!S.P || S.P !== P) return; P.varios = { ...(P.varios || {}), [k]: r }; try { localStorage.setItem('ep-prep-varios', JSON.stringify({ ...this.locais(), [k]: r })); } catch { }
+      this.usa(P); P.partes = Roteiro.separa(P.roteiro || '', P.partes); marcaSujo(); S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } },
+};
 const Falas = {
   quem: null, rec: null,
   async pinta(c) {
-    const P = S.P, ps = Roteiro.personagens(P.partes), cs = coresDoRoteiro(); this.c = c;
+    const P = S.P; Varios.confere(); const ps = Roteiro.personagens(P.partes), cs = coresDoRoteiro(); this.c = c;
     try { this.quem = this.quem ?? localStorage.getItem('ep-prep-quem') ?? ''; } catch { this.quem = this.quem || ''; }
     if (this.quem && !ps.some(p => p.chave === this.quem)) this.quem = '';
-    const locais = await this.locais(); let num = 0;
+    const locais = await this.locais(); this._loc = locais; let num = 0;
     const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.map(f => ({ f, n: ++num })).filter(({ f }) => !this.quem || Roteiro.quem(f).includes(this.quem)) })).filter(p => p.falas.length);
     const total = P.partes.reduce((s, p) => s + p.falas.length, 0), feitas = P.partes.reduce((s, p) => s + p.falas.filter(f => f.audio).length, 0);
     c.innerHTML = `<div class="falas">
@@ -831,6 +869,8 @@ const Falas = {
       $('[data-ouvir]', el)?.addEventListener('click', e => this.ouve(f, e.currentTarget));
       $('[data-tirar]', el)?.addEventListener('click', async () => { await DB.del('aud', this.chaveL(f)); this.pinta(c); });
       $('[data-subir]', el)?.addEventListener('click', () => this.sobe(f));
+      $$('[data-ouve-outro]', el).forEach(b => b.onclick = async () => { const a = await this.audioOutro(f, b.dataset.ouveOutro).catch(e => { aviso(e.message, 'erro'); return null; }); if (!a) return; if (S.tocando) S.tocando.pause(); S.tocando = a; a.play(); });
+      $$('[data-grava-ouvindo]', el).forEach(b => b.onclick = () => this.grava(f, el, b.dataset.gravaOuvindo));
       // ANDAR PELO ÁUDIO: clicar/arrastar na onda vai para aquele ponto (tocando ou não)
       const bx = $('.onda-box', el); bx.onpointerdown = ev => { ev.preventDefault(); const fr = e2 => { const r = bx.getBoundingClientRect(); return Math.max(0, Math.min(1, (e2.clientX - r.left) / r.width)); };
         const vai = e2 => { const a = S.tocando; if (a && a._f === f.id && a.duration) a.currentTime = fr(e2) * a.duration; };
@@ -858,17 +898,23 @@ const Falas = {
     const st = local ? `<span class="st aqui">${ic('alerta', 12)} gravada aqui · falta enviar · ${tempo(local.duracao)}</span>` : au ? `<span class="st nuvem">${f.regravar && !vz ? `<span class="aten">${ic('alerta', 12)} o texto mudou, regravar</span>` : `${ic('ok', 12)} na nuvem`} · ${tempo(this.durDe(f))}</span>` : '<span class="st sem">sem áudio</span>';
     const quemH = varios ? `<div class="quem varios"><span class="avs">${f.personagens.map(p => ava(p, cs.get(Roteiro.chave(p)) || corOuPadrao(p), 'p')).join('')}</span><b>${esc(f.personagens.join(' + '))}</b><small>${vz ? `versão de ${esc(f.personagens.find(p => Roteiro.chave(p) === vz) || vz)}` : 'todos juntos'}</small></div>`
       : `<div class="quem">${ava(f.personagem, cor, 'p')}<b>${esc(f.personagem)}</b></div>`;
+    const outros = varios && vz ? f.personagens.filter(p => Roteiro.chave(p) !== vz) : [];
+    const juntoH = outros.length ? `<div class="junto-de"><span>${ic('alerta', 13)} Esta fala é dita <b>ao mesmo tempo</b> que:</span>${outros.map(p => { const ko = Roteiro.chave(p), tem = f.audios?.[ko]?.audio || this._loc?.has(f.id + '@' + ko);
+        return `<span class="jd-p">${ava(p, cs.get(ko) || corOuPadrao(p), 'p')}<b style="color:${cs.get(ko) || corOuPadrao(p)}">${esc(p)}</b>${tem ? `<button class="bt mini" data-ouve-outro="${esc(ko)}">${ic('play', 12)} Ouvir</button>${pode('gravar') ? `<button class="bt mini" data-grava-ouvindo="${esc(ko)}" title="Toca a gravação de ${esc(p)} enquanto você grava (use fone)">${ic('mic', 12)} Gravar ouvindo ${esc(p)}</button>` : ''}` : '<small>ainda não gravou</small>'}</span>`; }).join('')}</div>` : '';
     const dicaV = varios && !vz ? `<small class="dica-v">Fala de ${f.personagens.length}: aqui é a gravação de todos juntos. Para cada um gravar a sua versão, escolha o personagem em "Quem vai gravar?".</small>` : '';
     return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}" data-f="${esc(f.id)}" style="--c:${cor}"><span class="num">${n}</span>
-      ${quemH}${dicaV}
+      ${quemH}${dicaV}${juntoH}
       <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
       <div class="bts">${local || au ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
       ${gravar ? `<button class="redondo gravar ${local || au ? 'de-novo' : ''}" data-gravar title="${local || au ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
       ${gravar ? `<button class="redondo subir" data-subir title="Usar um áudio já gravado (mp3, wav, ogg, m4a, webm)">${ic('baixo', 16)}</button>` : ''}
       ${local ? `<button class="redondo" data-tirar title="Jogar fora esta gravação">${ic('lixo', 15)}</button>` : ''}</div></div>`;
   },
-  async grava(f, el) {
+  // a gravação de OUTRO personagem da mesma fala (deste computador ou da nuvem), para ouvir/gravar junto
+  async audioOutro(f, ko) { const l = await DB.get('aud', S.P.id + '/' + f.id + '@' + ko).catch(() => null), k = f.audios?.[ko]?.audio; const b = l?.blob || (k ? await Nuvem.audio(k) : null); if (!b) throw new Error('Esse personagem ainda não gravou esta fala.'); const a = new Audio(URL.createObjectURL(b)); return a; },
+  async grava(f, el, ouvindo) {
     if (this.rec) { const parar = this.rec.f === f; this.rec.parar(); if (parar) return; }
+    let guia = null; if (ouvindo) { try { guia = await this.audioOutro(f, ouvindo); } catch (e) { return aviso(e.message, 'erro'); } aviso('Use fone de ouvido: assim o áudio do outro personagem não entra na sua gravação.', 'info', 5000); }
     Mic.paraTeste($('.mic-painel', this.c));
     let m; try { m = await Mic.abre(); } catch { Mic.pinta($('.mic-painel', this.c)); return aviso('Não consegui usar o microfone. Veja o quadro "Microfone" lá em cima.', 'erro'); }
     const tipo = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
@@ -886,7 +932,8 @@ const Falas = {
       const blob = new Blob(pedacos, { type: mr.mimeType || tipo || 'audio/webm' });
       try { await DB.put('aud', this.chaveL(f), { blob, duracao: Math.round(dur * 100) / 100, em: Date.now() }); } catch (e) { aviso('Não consegui guardar a gravação neste computador: ' + (e.message || e), 'erro'); }
       this.pinta(this.c); };
-    mr.start(250); this.rec = { f, parar: () => { try { mr.stop(); } catch { } } };
+    mr.start(250); if (guia) { guia.currentTime = 0; guia.play().catch(() => { }); } // começam JUNTOS (para sincronizar)
+    this.rec = { f, parar: () => { try { guia?.pause(); mr.stop(); } catch { } } };
   },
   async ouve(f, bt, desde) {
     if (S.tocando) { S.tocando.pause(); const era = S.tocando._f === f.id; S.tocando._fim?.(); S.tocando = null; $$('.tocando').forEach(x => x.classList.remove('tocando')); if (era && desde == null) return; }
@@ -1539,7 +1586,7 @@ addEventListener('popstate', async () => {
   const q = new URLSearchParams(location.search), id = q.get('id'), aba = q.get('aba') || 'roteiros';
   if (S.P && S.P.id === id) return;
   if (S.P && !await sairDoPrep(true)) { history.pushState(null, '', './?id=' + encodeURIComponent(S.P.id)); return; }
-  if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { const r = await DB.get('rasc', id).catch(() => null); try { return abrePrep(r?.P && !r.base?.mod ? r.P : await Nuvem.abre(id), r?.P && !r.base?.mod ? r.base : undefined, true); } catch (e) { if (r?.P) return abrePrep(r.P, r.base, true); aviso(e.message, 'erro'); } }
+  if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { const r = await DB.get('rasc', id).catch(() => null); try { return abrePrep(r?.P && !r.base?.mod ? r.P : await Nuvem.abre(id), r?.P && !r.base?.mod ? r.base : undefined, true); } catch (e) { if (r?.P) return abrePrep(r.P, r.base, true); aviso(e.status === 404 ? 'Esse roteiro não existe mais (foi apagado).' : e.message, 'erro'); } }
   trocaAba(['ideias', 'personagens'].includes(aba) ? aba : 'roteiros', true);
 });
 $$('[data-aba]').forEach(b => b.onclick = async () => { if (S.P && !await sairDoPrep(true)) return; trocaAba(b.dataset.aba); });
@@ -1559,6 +1606,10 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
   try { await window.EstudioPerm?.pronto; } catch { }
   const q = new URLSearchParams(location.search), id = q.get('id'), aba = q.get('aba');
   if (aba === 'ideias') return trocaAba(aba, true); if (aba === 'personagens' || aba === 'cores') return trocaAba('personagens', true);
-  if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { try { return abrePrep(await Nuvem.abre(id), undefined, true); } catch { const r = await DB.get('rasc', id).catch(() => null); if (r?.P) return abrePrep(r.P, r.base, true); } }
+  if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { tela().innerHTML = giroBloco(); let msg = '';
+    try { await abrePrep(await Nuvem.abre(id), undefined, true);
+      if (q.get('acao') === 'tirar-nuvem') { history.replaceState(null, '', './?id=' + encodeURIComponent(id)); if (pode('roteiro')) tiraDaNuvem(id); } return; }
+    catch (e) { const r = await DB.get('rasc', id).catch(() => null); if (r?.P) { history.replaceState(null, '', './?id=' + encodeURIComponent(id)); return abrePrep(r.P, r.base, true); } msg = e.status === 404 ? 'Esse roteiro não existe mais (foi apagado).' : e.message; }
+    history.replaceState(null, '', './'); pintaInicio(); return aviso(msg, 'erro', 7000); }
   pintaInicio();
 })();
