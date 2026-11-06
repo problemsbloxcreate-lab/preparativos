@@ -4,7 +4,7 @@
      → janela com a ONDA inteira: marcadores entre as falas (arrastar, duplo clique = novo, M = marcar tocando, botão direito = tirar),
        seleção (arrastar), apagar trecho, cortar fora da seleção, volume +/−, zoom (rodinha, + e −), desfazer/refazer, voltar ao original,
        tempo exato do cursor e da seleção (0:01,250), ouvir cada pedaço, trocar qual fala é qual, "Separar pelos silêncios" e
-       "Transcrever para acertar" (quando quem chamou deixa). aoSalvar recebe [{ fala, blob, duracao }] (WAV mono 22 kHz).
+       "Transcrever para acertar" (quando quem chamou deixa). aoSalvar recebe [{ fala, blob, duracao }] (Opus em .ogg; WAV mono 22 kHz se o navegador não tiver o codificador).
    Cortes.revisao({ ..., uma: true }) → o mesmo editor para UM áudio (sem marcadores): aoSalvar([{ blob, duracao }]).
    Cortes.sequencia({ falas, abreMic, guarda, aoTerminar }) → GRAVAR TUDO EM SEQUÊNCIA: fala atual grande + próxima; Enter = próxima
      (marca o corte), Espaço = pausa, Backspace = volta e regrava a anterior, "Refazer esta fala", Esc = cancelar. aoTerminar(blob, trechos).
@@ -26,6 +26,26 @@ const Cortes = (() => {
   function wav(A) { const n = A.d.length, b = new ArrayBuffer(44 + n * 2), v = new DataView(b), w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
     w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, A.sr, true); v.setUint32(28, A.sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
     for (let i = 0; i < n; i++) { const x = Math.max(-1, Math.min(1, A.d[i])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7fff, true); } return new Blob([b], { type: 'audio/wav' }); }
+  // OPUS NUM .OGG (WebCodecs AudioEncoder, mais rápido que o tempo real; ~6 KB/s em vez de ~44 KB/s do WAV). Sem suporte → null (fica WAV)
+  const CRC = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++) { let r = i << 24; for (let k = 0; k < 8; k++) r = r & 0x80000000 ? (r << 1) ^ 0x04c11db7 : r << 1; t[i] = r >>> 0; } return t; })();
+  const crc = b => { let c = 0; for (let i = 0; i < b.length; i++) c = ((c << 8) ^ CRC[((c >>> 24) ^ b[i]) & 255]) >>> 0; return c; };
+  function oggPagina(pacotes, granulo, serie, seq, tipo) { const segs = []; for (const p of pacotes) { let n = p.length; while (n >= 255) { segs.push(255); n -= 255; } segs.push(n); }
+    const tam = pacotes.reduce((s, p) => s + p.length, 0), b = new Uint8Array(27 + segs.length + tam), v = new DataView(b.buffer); b.set([79, 103, 103, 83], 0); b[4] = 0; b[5] = tipo;
+    v.setUint32(6, granulo % 4294967296, true); v.setUint32(10, Math.floor(granulo / 4294967296), true); v.setUint32(14, serie, true); v.setUint32(18, seq, true); b[26] = segs.length; b.set(segs, 27);
+    let o = 27 + segs.length; for (const p of pacotes) { b.set(p, o); o += p.length; } v.setUint32(22, crc(b), true); return b; }
+  async function opusOgg(A) {
+    if (typeof AudioEncoder === 'undefined' || typeof AudioData === 'undefined') return null; const cfg = { codec: 'opus', sampleRate: 48000, numberOfChannels: 1, bitrate: 48000 };
+    try { if (!(await AudioEncoder.isConfigSupported(cfg)).supported) return null; } catch { return null; }
+    const R = await reamostra(A, 48000), pk = []; let erro = null;
+    const enc = new AudioEncoder({ output: ch => { const b = new Uint8Array(ch.byteLength); ch.copyTo(b); pk.push({ b, n: Math.round((ch.duration || 20000) * 48000 / 1e6) }); }, error: e => { erro = e; } });
+    enc.configure(cfg); const N = 48000; for (let i = 0; i < R.d.length; i += N) { const part = R.d.slice(i, Math.min(R.d.length, i + N)), ad = new AudioData({ format: 'f32-planar', sampleRate: 48000, numberOfFrames: part.length, numberOfChannels: 1, timestamp: Math.round(i / 48 * 1000), data: part }); enc.encode(ad); ad.close(); }
+    await enc.flush(); enc.close(); if (erro || !pk.length) return null;
+    const pre = 312, serie = (Math.random() * 4294967295) >>> 0, cab = new Uint8Array(19), cv = new DataView(cab.buffer); cab.set([...'OpusHead'].map(c => c.charCodeAt(0))); cab[8] = 1; cab[9] = 1; cv.setUint16(10, pre, true); cv.setUint32(12, 48000, true);
+    const ven = [...'Estudio Problems'].map(c => c.charCodeAt(0)), tags = new Uint8Array(8 + 4 + ven.length + 4); tags.set([...'OpusTags'].map(c => c.charCodeAt(0))); new DataView(tags.buffer).setUint32(8, ven.length, true); tags.set(ven, 12);
+    const pags = [oggPagina([cab], 0, serie, 0, 2), oggPagina([tags], 0, serie, 1, 0)]; let seq = 2, gran = pre, grupo = [], segs = 0; const fim = pre + R.d.length;
+    for (let i = 0; i < pk.length; i++) { const p = pk[i], s = Math.floor(p.b.length / 255) + 1; if (segs + s > 255 && grupo.length) { pags.push(oggPagina(grupo, Math.min(gran, fim), serie, seq++, 0)); grupo = []; segs = 0; }
+      grupo.push(p.b); segs += s; gran += p.n; }
+    pags.push(oggPagina(grupo, Math.min(gran, fim), serie, seq, 4)); return new Blob(pags, { type: 'audio/ogg' }); }
   const pedaco = (A, a, b) => ({ sr: A.sr, d: A.d.slice(Math.max(0, Math.round(a * A.sr)), Math.min(A.d.length, Math.round(b * A.sr))) });
   // energia em quadros de 20 ms (para silêncios e ajuste fino)
   function energia(A) { const q = Math.max(1, Math.round(A.sr * .02)), n = Math.ceil(A.d.length / q), e = new Float32Array(n); for (let i = 0; i < n; i++) { let s = 0; const ini = i * q, f = Math.min(A.d.length, ini + q); for (let j = ini; j < f; j++) s += A.d[j] * A.d[j]; e[i] = Math.sqrt(s / Math.max(1, f - ini)); } return { e, q: .02 }; }
@@ -157,7 +177,7 @@ const Cortes = (() => {
     // ---- salvar: cada pedaço vira o áudio de uma fala (WAV mono 22 kHz) ----
     async function salva() { para(); const bs = uma ? [0, dur()] : [0, ...marcas, dur()], out = [], salvaBt = rod.lastChild; salvaBt.disabled = true; salvaBt.textContent = 'Preparando…';
       try { for (let k = 0; k < bs.length - 1; k++) { const fi = uma ? 0 : donoDe(k); if (!uma && (fi == null || fi < 0)) continue; const p = await reamostra(pedaco(A, Math.max(0, bs[k] - (uma ? 0 : .02)), Math.min(dur(), bs[k + 1] + (uma ? 0 : .02))), 22050);
-          if (p.d.length < 2205) continue; out.push({ fala: uma ? null : falas[fi].id, blob: wav(p), duracao: Math.round(p.d.length / p.sr * 100) / 100 }); }
+          if (p.d.length < 2205) continue; let blob = null; try { blob = await opusOgg(p); } catch { } out.push({ fala: uma ? null : falas[fi].id, blob: blob || wav(p), duracao: Math.round(p.d.length / p.sr * 100) / 100 }); }
         if (!out.length) throw new Error('Nenhum pedaço para salvar.'); const ok = await o.aoSalvar(out); if (ok !== false) fecha(true); }
       catch (e) { alert(e.message); salvaBt.disabled = false; salvaBt.textContent = uma ? 'Salvar' : 'Separar nas falas'; } }
     info.textContent = `${tms(dur())}${o.blob ? ' · ' + mb(o.blob.size) : ''}${uma ? '' : ` · ${falas.length} fala(s)`}`;
@@ -204,6 +224,6 @@ const Cortes = (() => {
     const n = partes.reduce((s, d) => s + d.length, 0), d = new Float32Array(n); let o = 0; for (const p of partes) { d.set(p, o); o += p.length; } return { dados: { sr: A.sr, d }, marcas, quem }; }
   // áudio → pedaços de WAV 16 kHz em base64 (para a transcrição; até ~150 s cada)
   async function paraTranscrever(A, seg = 150) { const r = await reamostra({ sr: A.sr, d: A.d }, 16000), out = []; for (let a = 0; a < r.d.length; a += seg * 16000) { const b = wav({ sr: 16000, d: r.d.slice(a, a + seg * 16000) }), u8 = new Uint8Array(await b.arrayBuffer()); let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); out.push({ base64: btoa(s), desde: a / 16000 }); } return out; }
-  return { revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms };
+  return { revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms, opusOgg, wav };
 })();
 if (typeof window !== 'undefined') window.Cortes = Cortes;

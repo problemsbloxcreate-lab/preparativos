@@ -1648,7 +1648,7 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
   // níveis de acesso: o /estudio-conta.js (defer) cria o EstudioPerm depois deste arquivo; espera ele antes de desenhar os botões
   if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));
   try { await window.EstudioPerm?.pronto; } catch { }
-  const q = new URLSearchParams(location.search), id = q.get('id'), aba = q.get('aba');
+  const q = new URLSearchParams(location.search), id = q.get('id') || q.get('roteiro'), aba = q.get('aba');
   if (aba === 'ideias') return trocaAba(aba, true); if (aba === 'personagens' || aba === 'cores') return trocaAba('personagens', true);
   if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { tela().innerHTML = giroBloco(); let msg = '';
     try { await abrePrep(await Nuvem.abre(id), undefined, true);
