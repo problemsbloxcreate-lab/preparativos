@@ -192,7 +192,7 @@ const Cortes = (() => {
         const bts = el('div', 'ct-bts'); bts.append(bt('▶', 'mini', () => toca(bs[k], bs[k + 1]), 'Ouvir este pedaço'), bt('✎', 'mini', () => editaPedaco(k), 'Editar só este pedaço'));
         if (iguais.has(k) && fi == null) { r.classList.add('igual'); s.title = 'Igual ao que a fala ' + (iguais.get(k) + 1) + ' já tem gravado'; }
         r.append(el('span', 'ct-n', fi == null ? (iguais.has(k) ? '=' : '×') : fi >= 0 ? String(fi + 1) : '?'), s, el('span', 'ct-d', iguais.has(k) && fi == null ? `igual à ${iguais.get(k) + 1}` : tms(bs[k + 1] - bs[k])), bts); lista.append(r); }
-      const faltam = falas.map((_, i) => i).filter(i => !usados.has(i));
+      const jaTem = new Set(iguais.values()), faltam = falas.map((_, i) => i).filter(i => !usados.has(i) && !jaTem.has(i)); // igual ao já gravado não é "faltando"
       if (faltam.length) { lista.append(el('div', 'ct-lt', `Faltando (${faltam.length})`)); for (const i of faltam) { const r = el('div', 'ct-falta'); r.append(el('span', 'ct-n', String(i + 1)), el('span', null, falas[i].rotulo + ': ' + String(falas[i].texto || '').slice(0, 90)));
         const b1 = bt('Usar a seleção', 'mini', () => daFala(i, 'sel'), 'Corta nas pontas do trecho selecionado e dá esse pedaço para esta fala'); b1.disabled = !sel; r.append(b1, bt('Cortar no cursor', 'mini', () => daFala(i, 'cur'), 'Corta no cursor: o pedaço DEPOIS dele vai para esta fala')); lista.append(r); } }
       if (extras.length) { const x = el('div', 'ct-extra'), s = el('select'); s.append(new Option('+ Adicionar outra fala do roteiro…', '')); extras.forEach((fa, i) => s.append(new Option(fa.rotulo + ': ' + String(fa.texto || '').slice(0, 80), i)));
