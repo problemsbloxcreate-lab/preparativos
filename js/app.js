@@ -905,7 +905,7 @@ const Falas = {
   alvos() { const fs = []; for (const p of S.P.partes) for (const f of p.falas) if (!this.quem || Roteiro.quem(f).includes(this.quem)) fs.push(f); return fs; },
   paraCortes(f) { const vz = this.vez(f), outros = this.varios(f) ? f.personagens.filter(p => Roteiro.chave(p) !== vz) : [];
     return { id: f.id, rotulo: vz ? (f.personagens.find(p => Roteiro.chave(p) === vz) || f.personagem) : f.personagem, texto: f.texto, nota: f.nota, junto: vz ? outros.join(', ') : '' }; },
-  async guardaPedacos(ps) { for (const x of ps) { const f = this.acha(x.fala); if (f) await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); }
+  async guardaPedacos(ps) { for (const x of ps) { const f = this.acha(x.fala); if (f) await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); } this._quemVolta?.();
     aviso(`${ps.length} fala${ps.length === 1 ? '' : 's'} com áudio novo neste computador. Ouça e clique em "Enviar agora".`, 'ok', 5000); this.pinta(this.c); },
   // TRANSCRIÇÃO só quando a pessoa pede; o resultado fica guardado neste navegador (não repete a mesma)
   transcritor() { if (!pode('transcrever')) return null; return async A => {
@@ -915,11 +915,30 @@ const Falas = {
     for (const [i, p] of ps.entries()) { aviso(`Transcrevendo ${i + 1} de ${ps.length}…`, 'info', 4000); const r = await Nuvem.pede('/transcrever', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ audio: p.base64, language: 'pt', de: 'preparativos', prompt: this.alvos().slice(0, 8).map(f => f.texto).join(' ').slice(0, 280) }) });
       for (const sg of r.segments || []) { const ws = sg.words?.length ? sg.words : [{ w: sg.text, s: sg.start, e: sg.end }]; for (const w of ws) palavras.push({ w: w.w, s: (+w.s || 0) + p.desde, e: (+w.e || 0) + p.desde }); } }
     TH.put(k, { palavras, em: Date.now() }).catch(() => { }); return palavras; }; },
-  variasFalas() { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
+  // ANTES de analisar: de quem é o áudio e quais falas (a separação só usa ESSAS, na ordem do roteiro; nunca põe pedaço em fala de outro)
+  escolheFalas() { return new Promise(ok => { const P = S.P, cs = coresDoRoteiro(), ps = Roteiro.personagens(P.partes), todas = P.partes.flatMap(p => p.falas);
+    const m = h(`<div class="modal"><div class="caixa dn-caixa" role="dialog" aria-label="Subir um áudio com várias falas"><div class="dn-cab"><b>Subir um áudio com várias falas</b><small>Escolha antes de quem é o áudio e quais falas ele tem, na ordem do roteiro.</small></div>
+      <div class="dn-corpo"><fieldset class="dn-sec"><legend>De quem é este áudio?</legend><div class="vf-quem">${ps.map(p => `<label class="vf-p" style="--c:${cs.get(p.chave)}"><input type="radio" name="vq" value="${esc(p.chave)}" ${this.quem === p.chave ? 'checked' : ''}>${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span><small>${p.n}</small></label>`).join('')}
+        <label class="vf-p"><input type="radio" name="vq" value="" ${!this.quem ? 'checked' : ''}><span>Vários personagens (o roteiro inteiro, em ordem)</span></label></div></fieldset>
+      <fieldset class="dn-sec"><legend>Quais falas?</legend><label class="dn-op"><input type="radio" name="vs" value="todas" checked><span>Todas desse personagem</span></label><label class="dn-op"><input type="radio" name="vs" value="sem"><span>Só as que ainda não têm áudio</span></label><label class="dn-op"><input type="radio" name="vs" value="lista"><span>Escolher na lista</span></label>
+        <div class="vf-lista" hidden></div><small class="dn-exp" data-conta></small></fieldset></div>
+      <div class="dn-rod"><button class="bt" data-n>Cancelar</button><button class="bt pri" data-s>${ic('baixo', 14)} Escolher o arquivo</button></div></div></div>`);
+    const quem = () => $('input[name=vq]:checked', m)?.value || '', modo = () => $('input[name=vs]:checked', m).value;
+    const base = () => todas.filter(f => !quem() || Roteiro.quem(f).includes(quem())), temAudio = f => { const v = quem() && this.varios(f) ? f.audios?.[quem()]?.audio : f.audio; return !!v || this._loc?.has(f.id + (quem() && this.varios(f) ? '@' + quem() : '')); };
+    const pintaL = () => { const l = $('.vf-lista', m); l.hidden = modo() !== 'lista'; if (!l.hidden) { const marc = new Set($$('input[data-f]:checked', l).map(x => x.dataset.f)); l.innerHTML = base().map(f => `<label class="dn-op"><input type="checkbox" data-f="${esc(f.id)}" ${!l.dataset.ja || marc.has(f.id) ? 'checked' : ''}><span><b>${esc(f.personagem)}:</b> ${esc(f.texto.slice(0, 70))}</span></label>`).join(''); l.dataset.ja = 1; }
+      $('[data-conta]', m).textContent = `${escolhidas().length} fala(s) — o áudio vai ser separado só nelas, nesta ordem.`; };
+    const escolhidas = () => modo() === 'lista' ? base().filter(f => $(`.vf-lista input[data-f="${CSS.escape(f.id)}"]`, m)?.checked) : modo() === 'sem' ? base().filter(f => !temAudio(f)) : base();
+    m.addEventListener('change', e => { if (e.target.name === 'vq') delete $('.vf-lista', m).dataset.ja; pintaL(); }); pintaL();
+    const fim = v => { m.remove(); ok(v); }; $('[data-n]', m).onclick = () => fim(null); m.onclick = e => { if (e.target === m) fim(null); }; m.onkeydown = e => { if (e.key === 'Escape') fim(null); };
+    $('[data-s]', m).onclick = () => { const l = escolhidas(); if (!l.length) return aviso('Nenhuma fala com essa escolha.', 'info'); fim({ quem: quem(), falas: l }); };
+    document.body.appendChild(m); }); },
+  async variasFalas() { const esc0 = await this.escolheFalas(); if (!esc0) return; this.quem = esc0.quem; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } // a versão certa (fala de vários) é a do personagem escolhido; a tela passa a mostrar as falas dele
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
     inp.onchange = async () => { const arq = inp.files[0]; if (!arq) return; if (arq.size > 200 * 1048576) return aviso('Esse arquivo é grande demais (máx. 200 MB).', 'erro');
-      const fs = this.alvos(); aviso('Abrindo o áudio…', 'info', 2500);
+      const fs = esc0.falas; aviso('Abrindo o áudio…', 'info', 2500);
       try { const A = await Cortes.decodifica(arq), marcas = Cortes.silencios(A, fs.length);
-        await Cortes.revisao({ dados: A, blob: arq, falas: fs.map(f => this.paraCortes(f)), marcas, titulo: `Separar "${arq.name}" nas falas`, aviso: 'Cortes sugeridos pelas pausas mais longas (aproximado). Confira, arraste, ou use "Transcrever para acertar".', transcrever: this.transcritor(), aoSalvar: ps => this.guardaPedacos(ps) }); }
+        await Cortes.revisao({ dados: A, blob: arq, falas: fs.map(f => this.paraCortes(f)), marcas, titulo: `Separar "${arq.name}" em ${fs.length} fala(s)${esc0.quem ? ' de ' + (fs[0] ? (this.paraCortes(fs[0]).rotulo) : '') : ''}`, aviso: Cortes.avisoPausas(marcas, fs.length) + ' Ou use "Transcrever para acertar".', transcrever: this.transcritor(),
+          aoSalvar: ps => this.guardaPedacos(ps), aoFechar: () => this.pinta(this.c) }); }
       catch (e) { aviso(e.message, 'erro'); } };
     inp.click(); },
   async emSequencia() { const fs = this.alvos(); if (!fs.length) return; Mic.paraTeste($('.mic-painel', this.c)); const P = S.P;

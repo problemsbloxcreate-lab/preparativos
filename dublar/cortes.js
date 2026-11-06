@@ -53,9 +53,11 @@ const Cortes = (() => {
   function quieto(A, t, raio = .35) { const { e, q } = energia._c?.A === A ? energia._c : (energia._c = { A, ...energia(A) }); const i0 = Math.max(0, Math.floor((t - raio) / q)), i1 = Math.min(e.length - 1, Math.ceil((t + raio) / q)); let mi = Math.round(t / q), mv = Infinity;
     for (let i = i0; i <= i1; i++) { const v = e[i] + Math.abs(i * q - t) * .002; if (v < mv) { mv = v; mi = i; } } return Math.max(0, Math.min(A.d.length / A.sr, mi * q + q / 2)); }
   // SEM TRANSCRIÇÃO: as n−1 pausas mais longas viram os cortes (aproximado)
-  function silencios(A, n) { const { e, q } = energia(A), ord = [...e].sort((a, b) => a - b), lim = Math.max(ord[Math.floor(ord.length * .15)] * 3, .006), corr = [];
-    let ini = -1; for (let i = 0; i <= e.length; i++) { const sil = i < e.length && e[i] < lim; if (sil && ini < 0) ini = i; if (!sil && ini >= 0) { if ((i - ini) * q >= .18 && ini > 0 && i < e.length) corr.push({ t: (ini + i) / 2 * q, dur: (i - ini) * q }); ini = -1; } }
-    return corr.sort((a, b) => b.dur - a.dur).slice(0, Math.max(0, n - 1)).map(x => x.t).sort((a, b) => a - b); }
+  function silencios(A, n, minimo = .35) { const { e, q } = energia(A), ord = [...e].sort((a, b) => a - b), piso = ord[Math.floor(ord.length * .1)] || 0, voz = ord[Math.floor(ord.length * .9)] || 0;
+    const lim = Math.max(piso + (voz - piso) * .12, piso * 2, .003), corr = []; // limiar adaptado ao ruído de fundo (piso) e ao volume da voz
+    let ini = -1, comeco = e.findIndex(v => v >= lim), fimV = e.length - 1 - [...e].reverse().findIndex(v => v >= lim);
+    for (let i = 0; i <= e.length; i++) { const sil = i < e.length && e[i] < lim; if (sil && ini < 0) ini = i; if (!sil && ini >= 0) { if ((i - ini) * q >= minimo && ini > comeco && i <= fimV) corr.push({ t: (ini + i) / 2 * q, dur: (i - ini) * q }); ini = -1; } }
+    const m = corr.sort((a, b) => b.dur - a.dur).slice(0, Math.max(0, n - 1)).map(x => x.t).sort((a, b) => a - b); m.achados = corr.length + 1; return m; }
   // ---------- ALINHAMENTO: palavras transcritas (com tempo) × falas do roteiro ----------
   const normal = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
   function parecido(a, b) { if (a === b) return true; if (Math.abs(a.length - b.length) > 2) return false; let p = 0; const m = Math.min(a.length, b.length); while (p < m && a[p] === b[p]) p++; return p >= Math.min(4, m - 1) || (a.length > 3 && b.length > 3 && (a.includes(b) || b.includes(a))); }
@@ -110,7 +112,7 @@ const Cortes = (() => {
     add('desf', '↶ Desfazer', () => desfaz(), 'Ctrl+Z'); add('ref', '↷ Refazer', () => refaz(), 'Ctrl+Y'); add('orig', 'Voltar ao original', () => { guarda(); A.d = ORIG.d.slice(); marcas = [...ORIG.marcas]; dono = null; sel = null; tudo(); }); sep();
     add('zm', 'Zoom −', () => fazZoom(zoom / 1.6, cab)); add('zp', 'Zoom +', () => fazZoom(zoom * 1.6, cab)); barra.append(tempo);
     if (!uma) { if (o.transcrever) rod.append(bt('Transcrever para acertar', '', () => transcreve(), 'Usa a cota de transcrição (só quando você pede; o resultado fica guardado neste navegador)'));
-      rod.append(bt('Separar pelos silêncios', '', () => { guarda(); marcas = silencios(A, falas.length); dono = null; aviso = 'Separado pelas pausas mais longas: é aproximado, confira cada pedaço.'; tudo(); })); }
+      rod.append(bt('Separar pelos silêncios', '', () => { guarda(); marcas = silencios(A, falas.length); dono = null; aviso = avisoPausas(marcas, falas.length); tudo(); })); }
     rod.append(bt('Cancelar', '', () => fecha()), bt(uma ? 'Salvar' : 'Separar nas falas', 'pri', () => salva()));
     // ---- desenhar ----
     const px = () => cv.width / (dur() * zoom), xT = t => (t - ini) * px(), tX = x => ini + x / px();
@@ -120,7 +122,7 @@ const Cortes = (() => {
       const s0 = ini * sr, por = vis * sr / W; g.fillStyle = '#7fb6ff';
       for (let x = 0; x < W; x++) { const a = Math.floor(s0 + x * por), b = Math.min(d.length, Math.floor(s0 + (x + 1) * por) + 1); let mn = 0, mx = 0; for (let i = a; i < b; i++) { const v = d[i]; if (v < mn) mn = v; if (v > mx) mx = v; } g.fillRect(x, H / 2 - mx * H / 2, 1, Math.max(1, (mx - mn) * H / 2)); }
       if (!uma) { const bs = [0, ...marcas, dur()]; g.font = `${12 * devicePixelRatio}px Segoe UI, sans-serif`;
-        for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k), nome = fi == null ? '(não usar)' : fi >= 0 && falas[fi] ? (k + 1) + '. ' + falas[fi].rotulo : '(sobrando)'; const x = Math.max(4, xT(bs[k]) + 4); if (x < W) { g.fillStyle = fi == null || fi < 0 ? '#ffb04a' : '#ffd36b'; g.fillText(nome.slice(0, 40), x, 14 * devicePixelRatio); } }
+        for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k), nome = fi == null ? '(não usar)' : fi >= 0 && falas[fi] ? (k + 1) + '. ' + falas[fi].rotulo + ': ' + String(falas[fi].texto || '') : '(sobrando)'; const x = Math.max(4, xT(bs[k]) + 4); if (x < W) { g.fillStyle = fi == null || fi < 0 ? '#ffb04a' : '#ffd36b'; g.fillText(nome.slice(0, 40), x, 14 * devicePixelRatio); } }
         g.lineWidth = 2 * devicePixelRatio; for (const m of marcas) { const x = xT(m); g.strokeStyle = '#ff6b93'; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); g.fillStyle = '#ff6b93'; g.fillRect(x - 5 * devicePixelRatio, H - 12 * devicePixelRatio, 10 * devicePixelRatio, 12 * devicePixelRatio); } }
       g.strokeStyle = '#fff'; g.lineWidth = devicePixelRatio; g.beginPath(); g.moveTo(xT(cab), 0); g.lineTo(xT(cab), H); g.stroke();
       rol.hidden = zoom <= 1.001; rol.value = Math.round(ini / Math.max(.001, dur() - vis) * 1000) || 0;
@@ -224,6 +226,7 @@ const Cortes = (() => {
     const n = partes.reduce((s, d) => s + d.length, 0), d = new Float32Array(n); let o = 0; for (const p of partes) { d.set(p, o); o += p.length; } return { dados: { sr: A.sr, d }, marcas, quem }; }
   // áudio → pedaços de WAV 16 kHz em base64 (para a transcrição; até ~150 s cada)
   async function paraTranscrever(A, seg = 150) { const r = await reamostra({ sr: A.sr, d: A.d }, 16000), out = []; for (let a = 0; a < r.d.length; a += seg * 16000) { const b = wav({ sr: 16000, d: r.d.slice(a, a + seg * 16000) }), u8 = new Uint8Array(await b.arrayBuffer()); let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); out.push({ base64: btoa(s), desde: a / 16000 }); } return out; }
-  return { revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms, opusOgg, wav };
+  const avisoPausas = (m, n) => m.achados === n ? `Achei ${n} pedaço${n === 1 ? '' : 's'} pelas pausas (uma por fala). Confira ouvindo cada um.` : m.achados > n ? `Achei ${m.achados} pedaços para ${n} fala${n === 1 ? '' : 's'}: usei as ${n - 1} pausas mais longas. Confira e arraste os cortes.` : `Achei ${m.achados} pedaço${m.achados === 1 ? '' : 's'} para ${n} falas: faltam pausas. Ponha os cortes que faltam (M ou duplo clique).`;
+  return { avisoPausas, revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms, opusOgg, wav };
 })();
 if (typeof window !== 'undefined') window.Cortes = Cortes;
