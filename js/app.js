@@ -695,7 +695,8 @@ se o texto não indicar partes, use uma parte com o nome do roteiro.`,
 /* ---------- aba Falas e gravação ---------- */
 /* ---------- MICROFONE: permissão, escolher o microfone, ouvir a própria voz, filtros e volume (guardados NESTE computador) ---------- */
 const Mic = {
-  cfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('ep-prep-mic') || '{}') || {}; } catch { } return { dev: '', monitor: false, ruido: true, eco: true, agc: true, vol: 1, ...c }; },
+  cfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('ep-prep-mic') || '{}') || {}; } catch { } return { dev: '', monitor: false, ruido: true, eco: true, agc: true, vol: 1, grave: true, comp: false, qual: 'alta', conta: true, ...c }; },
+  kbps() { return { normal: 64000, alta: 96000, max: 128000 }[this.cfg().qual] || 96000; },
   salva(c) { try { localStorage.setItem('ep-prep-mic', JSON.stringify(c)); } catch { } },
   async permissao() { try { const p = await navigator.permissions.query({ name: 'microphone' }); return p.state; } catch { }
     try { const d = await navigator.mediaDevices.enumerateDevices(); return d.some(x => x.kind === 'audioinput' && x.label) ? 'granted' : 'prompt'; } catch { return 'prompt'; } },
@@ -703,7 +704,9 @@ const Mic = {
   async abre() { const c = this.cfg(), base = { echoCancellation: c.eco, noiseSuppression: c.ruido, autoGainControl: c.agc };
     let st; try { st = await navigator.mediaDevices.getUserMedia({ audio: c.dev ? { ...base, deviceId: { exact: c.dev } } : base }); } catch (e) { if (!c.dev) throw e; st = await navigator.mediaDevices.getUserMedia({ audio: base }); }
     const ac = new AudioContext(), src = ac.createMediaStreamSource(st), g = ac.createGain(), an = ac.createAnalyser(), dest = ac.createMediaStreamDestination(); g.gain.value = c.vol; an.fftSize = 2048;
-    src.connect(g); g.connect(an); g.connect(dest); let mon = null; if (c.monitor) { mon = ac.createGain(); mon.gain.value = 1; g.connect(mon); mon.connect(ac.destination); }
+    let no = src; if (c.grave) { const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 80; no.connect(hp); no = hp; } // filtro de graves
+    if (c.comp) { const k = ac.createDynamicsCompressor(); k.threshold.value = -24; k.knee.value = 20; k.ratio.value = 3; k.attack.value = .005; k.release.value = .2; no.connect(k); no = k; } // compressor
+    no.connect(g); g.connect(an); g.connect(dest); let mon = null; if (c.monitor) { mon = ac.createGain(); mon.gain.value = 1; g.connect(mon); mon.connect(ac.destination); }
     return { st, ac, an, g, dest, mon, fecha() { try { st.getTracks().forEach(t => t.stop()); } catch { } try { ac.close(); } catch { } } }; },
   nivel(an, buf) { an.getByteTimeDomainData(buf); let s = 0, pico = 0; for (const v of buf) { const x = (v - 128) / 128; s += x * x; pico = Math.max(pico, Math.abs(x)); } return { rms: Math.sqrt(s / buf.length), pico }; },
   teste: null,
@@ -725,12 +728,15 @@ const Mic = {
         <label class="mp-campo"><small>Volume do microfone <b data-vv>${Math.round(c.vol * 100)}%</b></small><input type="range" min="0" max="2" step="0.05" value="${c.vol}" data-vol></label>
         <div class="mp-campo"><small>Teste (fale alguma coisa)</small><div class="mp-medidor"><i></i><span class="mp-pico"></span></div></div>
       </div>
-      <div class="mp-chaves">${chave('ruido', 'Redução de ruído', 'Tira chiado e barulho de fundo')}${chave('eco', 'Cancelar eco', 'Tira o eco do som que sai das caixas')}${chave('agc', 'Volume automático', 'O navegador ajusta o volume sozinho')}${chave('monitor', 'Ouvir a minha voz', 'Você escuta o microfone enquanto testa e grava (use fone de ouvido para não dar microfonia)')}</div>`;
+      <div class="mp-chaves">${chave('ruido', 'Redução de ruído', 'Tira chiado e barulho de fundo')}${chave('eco', 'Cancelar eco', 'Tira o eco do som que sai das caixas')}${chave('agc', 'Volume automático', 'O navegador ajusta o volume sozinho')}${chave('monitor', 'Ouvir a minha voz', 'Você escuta o microfone enquanto testa e grava (use fone de ouvido para não dar microfonia)')}</div>
+      <div class="mp-mais"><small>Mais configurações</small><div class="mp-chaves"><span class="mp-q"><small>Qualidade</small><span class="mp-seg">${[['normal', 'Normal'], ['alta', 'Alta'], ['max', 'Máxima']].map(([k, t]) => `<button data-q="${k}" class="${c.qual === k ? 'on' : ''}">${t}</button>`).join('')}</span></span>
+        ${chave('grave', 'Filtro de graves', 'Tira ronco, vento e batidas no microfone (corta abaixo de 80 Hz)')}${chave('comp', 'Compressor', 'Deixa o volume mais igual entre partes baixas e altas')}${chave('conta', 'Contagem 3, 2, 1', 'Conta antes de começar a gravar')}</div></div>`;
     const muda = (k, v) => { const n = { ...this.cfg(), [k]: v }; this.salva(n); if (this.teste) { this.paraTeste(); this.testa(box); } };
     $('[data-dev]', box).onchange = e => muda('dev', e.target.value);
     $('[data-vol]', box).oninput = e => { $('[data-vv]', box).textContent = Math.round(e.target.value * 100) + '%'; const n = { ...this.cfg(), vol: +e.target.value }; this.salva(n); if (this.teste) this.teste.m.g.gain.value = +e.target.value; };
     $$('[data-c]', box).forEach(i => i.onchange = () => { if (i.dataset.c === 'monitor' && i.checked) aviso('Use fone de ouvido: sem fone, o som da caixa volta para o microfone (microfonia).', 'info', 6000); muda(i.dataset.c, i.checked); });
     $('[data-teste]', box).onclick = () => this.teste ? this.paraTeste(box) : this.testa(box);
+    $$('[data-q]', box).forEach(b => b.onclick = () => { $$('[data-q]', box).forEach(x => x.classList.toggle('on', x === b)); muda('qual', b.dataset.q); });
   },
   async testa(box) { try { const m = await this.abre(), buf = new Uint8Array(m.an.fftSize), med = $('.mp-medidor i', box), pk = $('.mp-pico', box); let raf;
       const anda = () => { const { rms, pico } = this.nivel(m.an, buf); med.style.width = Math.min(100, rms * 280) + '%'; pk.style.left = Math.min(100, pico * 100) + '%'; pk.classList.toggle('alto', pico > .95); raf = requestAnimationFrame(anda); }; anda();
@@ -1055,8 +1061,9 @@ const Falas = {
     let guia = null; if (ouvindo) { try { guia = await this.audioOutro(f, ouvindo); } catch (e) { return aviso(e.message, 'erro'); } aviso('Use fone de ouvido: assim o áudio do outro personagem não entra na sua gravação.', 'info', 5000); }
     Mic.paraTeste($('.mic-painel', this.c));
     let m; try { m = await Mic.abre(); } catch { Mic.pinta($('.mic-painel', this.c)); return aviso('Não consegui usar o microfone. Veja o quadro "Microfone" lá em cima.', 'erro'); }
+    if (Mic.cfg().conta) await new Promise(ok => { const o = h('<div class="conta3"><b>3</b></div>'); document.body.append(o); let n = 3; const t = setInterval(() => { n--; if (n <= 0) { clearInterval(t); o.remove(); ok(); } else $('b', o).textContent = String(n); }, 700); }); // 3, 2, 1
     const tipo = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
-    const mr = new MediaRecorder(m.dest.stream, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: PREP_CONFIG.audioBits }), pedacos = [], t0 = performance.now();
+    const mr = new MediaRecorder(m.dest.stream, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: Mic.kbps() }), pedacos = [], t0 = performance.now();
     const bt = $('[data-gravar]', el); bt.classList.add('gravando'); bt.innerHTML = ic('parar', 16); bt.title = 'Parar';
     el.classList.add('gravando'); const st0 = $('.st', el); if (st0) st0.innerHTML = '<span class="rec">● gravando <b class="cron">0:00</b></span>';
     // ONDA AO VIVO: as barrinhas vão entrando pela direita enquanto a pessoa fala
