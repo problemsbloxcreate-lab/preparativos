@@ -827,12 +827,14 @@ const TH = { _db: null, abre() { return this._db || (this._db = new Promise((ok,
   async op(modo, f) { const db = await this.abre(); return new Promise((ok, no) => { const tx = db.transaction('th', modo), r = f(tx.objectStore('th')); tx.oncomplete = () => ok(r?.result); tx.onerror = () => no(tx.error); }); },
   get(k) { return this.op('readonly', s => s.get(k)); }, put(k, v) { return this.op('readwrite', s => s.put(v, k)); } };
 const thPedidos = new Map(); let thFila = Promise.resolve(), thAtivos = 0; const thEspera = [];
+const thCor = new Map(); // id do personagem do Ateliê → cor principal (do Animador)
 async function thumbDe(x) {
-  try { const g = await TH.get(x.id); if (g && g.mod === x.mod) return g.thumb || null; } catch { }
+  try { const g = await TH.get(x.id); if (g && g.mod === x.mod) { if (g.cor) thCor.set(x.id, g.cor); return g.thumb || null; } } catch { }
   if (thPedidos.has(x.id)) return thPedidos.get(x.id);
   const pr = (async () => { if (thAtivos >= 4) await new Promise(r => thEspera.push(r)); thAtivos++; // no máximo 4 de uma vez
     try { const d = await Nuvem.pede('/personagens/arquivo?k=' + encodeURIComponent(`personagens/${x.id}/personagem.json`)); const th = typeof d?.thumb === 'string' && d.thumb.startsWith('data:image/') ? d.thumb : null;
-      TH.put(x.id, { mod: x.mod, thumb: th }).catch(() => { }); return th; }
+      const cor = /^#[0-9a-f]{6}$/i.test(String(d?.cor || '')) ? String(d.cor).toLowerCase() : null; thCor.set(x.id, cor);
+      TH.put(x.id, { mod: x.mod, thumb: th, cor }).catch(() => { }); return th; }
     catch { return null; } finally { thAtivos--; thEspera.shift()?.(); thPedidos.delete(x.id); } })();
   thPedidos.set(x.id, pr); return pr;
 }
@@ -1070,7 +1072,7 @@ function confirmaHtml(titulo, html, rotOk, perigo) {
 
 async function pintaPersonagens() {
   const el = tela(); el.innerHTML = `<section class="inicio pers-aba"><div class="cab"><span class="cab-ic t-pers">${ic('pessoa', 24)}</span><div class="cab-txt"><h1>Personagens</h1><p>O elenco da equipe: foto, cor da legenda, pasta e quem faz no Animador.</p></div><span class="esp"></span>${pode('organizar') ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button><button class="bt pri" data-novop>${ic('mais', 15)} Personagem novo</button>` : ''}</div>
-    <p class="dica">Arraste um personagem para a pasta que quiser. Clique no nome da pasta para fechar ou abrir; botão direito na pasta ou no personagem para mais opções (renomear, apagar a pasta, foto…).</p>
+    <div class="pb-busca"><input type="search" data-busca placeholder="Buscar personagem em todas as pastas" aria-label="Buscar personagem"></div>
     <div class="pers-grade">${giroBloco()}</div>
     <input type="file" accept="image/*" data-arq hidden></section>`;
   try { await carregaPers(true); if (!S.lista) S.lista = (await Nuvem.lista().catch(() => ({ itens: [] }))).itens || []; } catch (e) { $('.pers-grade', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
@@ -1090,59 +1092,119 @@ async function pintaPersonagens() {
     todos[k] = { nome: n, ...(grupo ? { grupo } : {}) }; manda(k, { nome: n, ...(grupo ? { grupo } : {}) }, `${n} entrou na lista${grupo ? ' em ' + grupo : ''}. Escolha a foto, a cor e o personagem do Ateliê dele.`); };
   $('[data-novop]', el)?.addEventListener('click', () => novoPers(null));
   $('[data-pnova]', el)?.addEventListener('click', async () => { const g = await pastaNova(); if (!g) return; novas.add(g); pintaL(); aviso(`Pasta "${g}" criada. Arraste personagens para ela.`, 'info'); });
+  // ===== PASTAS EM CARTÕES (como a tela inicial do Animador, pedido da dona 06/11): clicar abre a pasta; "‹ Personagens" volta =====
+  let aberta = null, busca = ''; try { aberta = localStorage.getItem('ep-prep-pers-aberta') || null; } catch { }
+  const abre = g => { aberta = g || null; try { aberta ? localStorage.setItem('ep-prep-pers-aberta', aberta) : localStorage.removeItem('ep-prep-pers-aberta'); } catch { } pintaL(); window.scrollTo({ top: 0 }); };
+  const listaPastas = () => [...new Set([...GRUPOS_BASE, ...Object.values(todos).map(v => v.grupo).filter(Boolean), ...novas])];
+  const membros = g => Object.entries(todos).filter(([, v]) => (v.grupo || '') === g).map(([k]) => k);
+  const mandaVarios = async (itens, msg) => { try { const r = await Nuvem.acao({ acao: 'personagens', itens }); S.pers = r.personagens || S.pers; Object.assign(todos, S.pers); if (msg) aviso(msg, 'ok'); pintaL(); } catch (er) { aviso(er.message, 'erro'); } };
+  const corP = v => v.cor || corPadrao(v.nome);
+  const ordena = E => E.sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  const moveP = (k, g) => { if (!todos[k] || (todos[k].grupo || '') === (g || '')) return; todos[k] = { ...todos[k], grupo: g || undefined }; pintaL(); manda(k, { grupo: g || null }, g ? `${todos[k].nome} foi para ${g}.` : `${todos[k].nome} saiu da pasta.`); };
+  const cartao = ([k, v]) => `<div class="pc3" data-k="${esc(k)}" style="--c:${corP(v)}" ${ed ? 'draggable="true"' : ''} role="button" tabindex="0" title="Ver ${esc(v.nome)} (cor da legenda, foto, Animador)">${ava(v.nome, corP(v), 'g')}<b>${esc(v.nome)}</b>
+    <span class="pc3-m"><i class="pc3-cor" title="Cor da legenda"></i>${v.atelie?.id ? `<span class="pc3-at" data-th="${esc(v.atelie.id)}" title="No Animador: ${esc(v.atelie.nome || v.atelie.id)}">${icAt(12)}</span>` : ''}</span></div>`;
+  const grade = L => `<div class="pc3-grade">${L.map(cartao).join('')}</div>`;
+  const renomeiaPasta = async g => { const ms = membros(g), nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 30)) || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (!nn || nn === g) return;
+    novas.delete(g); novas.add(nn); if (aberta === g) { aberta = nn; try { localStorage.setItem('ep-prep-pers-aberta', nn); } catch { } } if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: nn }])), `Pasta renomeada para ${nn}.`); };
+  const apagaPasta = async g => { const ms = membros(g); if (!await pergunta(`Apagar a pasta "${g}"?`, ms.length ? `${ms.length === 1 ? 'O personagem dela vai' : `Os ${ms.length} personagens dela vão`} para "Fora de pastas". Nenhum personagem é apagado.` : 'A pasta está vazia.', [['Cancelar', false], ['Apagar a pasta', true, 'perigo']])) return;
+    novas.delete(g); if (aberta === g) { aberta = null; try { localStorage.removeItem('ep-prep-pers-aberta'); } catch { } } if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: null }])), `Pasta "${g}" apagada.`); };
+  const menuPasta = (e, g) => { const base = GRUPOS_BASE.includes(g);
+    popMenu(e, [[`${ic('pasta', 14)} Abrir a pasta`, '', () => abre(g)], [`${ic('mais', 14)} Personagem novo nesta pasta…`, '', () => novoPers(g), !ed], [`${ic('pasta', 14)} Pasta nova…`, '', () => $('[data-pnova]', el)?.click(), !ed], '-',
+      [`${ic('lapis', 14)} Renomear…`, base ? 'fixa' : '', () => renomeiaPasta(g), base || !ed], [`${ic('lixo', 14)} Apagar a pasta`, base ? 'fixa' : '', () => apagaPasta(g), base || !ed]]); };
+  const trocaFoto = k => { alvo = k; arq.click(); };
+  const tiraFoto = async k => { if (await pergunta('Tirar a foto?', `${todos[k].nome} volta a aparecer com as iniciais.`, [['Cancelar', false], ['Tirar', true, 'perigo']])) await manda(k, { foto: null }, 'Foto tirada.'); };
+  const escolhePadrao = async k => { let L; try { L = await atelie(); } catch (er) { aviso(er.message, 'erro'); return false; }
+    const r = await escolheNoAtelie(L, todos[k].atelie, `Padrão de ${todos[k].nome} no Animador (todos os roteiros)`, 'Automático (personagem com o mesmo nome)'); if (r === false) return false;
+    await manda(k, { atelie: r === undefined ? 'auto' : r === null ? null : { id: r.id, nome: r.nome } }, r === undefined ? 'Padrão: automático (mesmo nome).' : r === null ? 'Padrão: nenhum personagem na cena.' : `Padrão no Animador: ${r.nome}.`); return true; };
+  const menuPers = (e, k) => { const v = todos[k];
+    popMenu(e, [[`${ic('lapis', 14)} Ver / mudar a cor e o resto…`, '', () => detalhe(k)], [`${ic('camera', 14)} ${v.foto ? 'Trocar a foto…' : 'Pôr uma foto…'}`, '', () => trocaFoto(k), !ed],
+      ...(v.foto ? [[`${ic('lixo', 14)} Tirar a foto`, '', () => tiraFoto(k), !ed]] : []), [`${icAt(14)} Padrão no Animador…`, '', () => escolhePadrao(k), !ed], '-',
+      ...listaPastas().map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, (v.grupo || '') === g ? '✓' : '', () => moveP(k, g), !ed || (v.grupo || '') === g]),
+      [`${ic('pasta', 14)} Tirar da pasta`, !v.grupo ? '✓' : '', () => moveP(k, ''), !ed || !v.grupo],
+      [`${ic('mais', 14)} Pasta nova com ${esc(v.nome)}…`, '', async () => { const g = await pastaNova(); if (g) { novas.add(g); moveP(k, g); } }, !ed], '-',
+      [`${ic('lapis', 14)} Renomear…`, '', () => renomeiaPersonagem(k, todos, () => pintaPersonagens()), !ed],
+      [`${ic('lixo', 14)} Tirar da lista…`, '', () => apagaPersonagem(k, todos, () => pintaPersonagens()), !ed]]); };
+  // solta um personagem (arrastado) em cima de um elemento = vai para a pasta g
+  const alvoSoltar = (alvoEl, g) => { if (!ed) return; alvoEl.ondragover = e => { if (!e.dataTransfer.types.includes('text/pers-prep')) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; alvoEl.classList.add('alvo'); };
+    alvoEl.ondragleave = e => { if (!alvoEl.contains(e.relatedTarget)) alvoEl.classList.remove('alvo'); };
+    alvoEl.ondrop = e => { e.preventDefault(); alvoEl.classList.remove('alvo'); const k = e.dataTransfer.getData('text/pers-prep'); if (k) moveP(k, g); }; };
   const pintaL = () => {
-    const E = Object.entries(todos).sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')), pastas = [...new Set([...GRUPOS_BASE, ...E.map(([, v]) => v.grupo).filter(Boolean), ...novas])];
-    const grupos = [...pastas, ''].map(g => [g, E.filter(([, v]) => (v.grupo || '') === g)]);
-    $('.pers-grade', el).innerHTML = grupos.map(([g, l]) => `<div class="pasta-g ${fechadas[g || '-'] ? 'fechada' : ''}" data-pasta="${esc(g)}">
-      <button class="pasta-g-tit" data-abre="${esc(g || '-')}">${ic('baixo', 14)} ${ic('pasta', 16)} <b>${g ? esc(g) : 'Sem pasta'}</b> <small>${l.length}</small></button>
-      <div class="pcards">${l.map(([k, v]) => { const cor = v.cor || corPadrao(v.nome);
-      // TILE DO PERSONAGEM: topo (foto + nome + pasta), "Cor da legenda" (quadradinhos) e "No Animador" — o .pc-meio continua sendo o miolo
-      return `<div class="pcard2" data-k="${esc(k)}" style="--c:${cor}" ${ed ? 'draggable="true"' : ''}><span class="pega" title="Arraste para outra pasta">${ic('mover', 14)}</span>
-        <div class="pc-topo"><button class="foto" ${ed ? '' : 'disabled'} title="${v.foto ? 'Trocar a foto' : 'Pôr uma foto'}">${ava(v.nome, cor, 'g')}<span class="cam">${ic('camera', 13)}</span></button>
-          <div class="pc-nome"><b>${esc(v.nome)}</b><small>${ic('pasta', 12)} ${v.grupo ? esc(v.grupo) : 'sem pasta'}</small><span class="leg-mini">Exemplo de legenda</span></div></div>
-        <div class="pc-meio">
-          <div class="pc-sec"><small>Cor da legenda</small><div class="paleta">${PALETA.map(x => `<button class="cor ${x === cor ? 'on' : ''}" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<label class="cor-outra" title="Outra cor"><input type="color" value="${cor}" ${ed ? '' : 'disabled'}><span>${ic('mais', 12)}</span></label></div></div>
-          <div class="pc-sec pc-an"><small>No Animador</small><button class="el-esc" data-pad ${ed ? '' : 'disabled'} title="Personagem do Ateliê que faz ${esc(v.nome)} em todos os roteiros"><span class="ap-th p ${v.atelie?.id ? '' : 'sem-th'}" ${v.atelie?.id ? `data-th="${esc(v.atelie.id)}"` : ''}>${v.atelie?.id ? esc(iniciais(v.atelie.nome || v.atelie.id)) : icAt(20)}</span><span>${v.atelie === null ? 'Nenhum' : v.atelie?.id ? esc(v.atelie.nome || v.atelie.id) : 'Automático (mesmo nome)'}</span></button></div>
-          ${v.foto && ed ? `<button class="link" data-tira>Tirar a foto</button>` : ''}</div></div>`; }).join('') || `<div class="pasta-vazia">${ed ? 'Arraste personagens para cá.' : 'Ninguém nesta pasta.'}</div>`}</div></div>`).join('<hr class="sep-pasta">');
-    // BOTÃO DIREITO — na pasta: abrir/fechar, pasta nova, renomear, apagar (os personagens vão para "Sem pasta"; Principais e Secundários são fixas)
-    const mandaVarios = async (itens, msg) => { try { const r = await Nuvem.acao({ acao: 'personagens', itens }); S.pers = r.personagens || S.pers; Object.assign(todos, S.pers); if (msg) aviso(msg, 'ok'); pintaL(); } catch (er) { aviso(er.message, 'erro'); } };
-    const membros = g => Object.entries(todos).filter(([, v]) => (v.grupo || '') === g).map(([k]) => k);
-    $$('.pasta-g', el).forEach(pg => { $('.pasta-g-tit', pg).oncontextmenu = e => { e.preventDefault(); const g = pg.dataset.pasta, base = !g || GRUPOS_BASE.includes(g), ms = membros(g);
-      popMenu(e, [[`${ic('baixo', 14)} ${fechadas[g || '-'] ? 'Abrir a pasta' : 'Fechar a pasta'}`, '', () => $('[data-abre]', pg).click()],
-        [`${ic('mais', 14)} Personagem novo nesta pasta…`, '', () => novoPers(g || null), !ed], [`${ic('pasta', 14)} Pasta nova…`, '', () => $('[data-pnova]', el)?.click(), !ed], '-',
-        [`${ic('lapis', 14)} Renomear…`, base ? 'fixa' : '', async () => { const nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 30)) || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (!nn || nn === g) return;
-          novas.delete(g); novas.add(nn); if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: nn }])), `Pasta renomeada para ${nn}.`); }, base || !ed],
-        [`${ic('lixo', 14)} Apagar a pasta`, base ? 'fixa' : '', async () => { if (!await pergunta(`Apagar a pasta "${g}"?`, ms.length ? `${ms.length === 1 ? 'O personagem dela vai' : `Os ${ms.length} personagens dela vão`} para "Sem pasta". Nenhum personagem é apagado.` : 'A pasta está vazia.', [['Cancelar', false], ['Apagar a pasta', true, 'perigo']])) return;
-          novas.delete(g); if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: null }])), `Pasta "${g}" apagada.`); }, base || !ed]]); }; });
-    // BOTÃO DIREITO — no personagem: foto, padrão no Animador, mover de pasta
-    $$('.pcard2', el).forEach(cd => { cd.oncontextmenu = e => { if (e.target.closest('input,select')) return; e.preventDefault(); const k = cd.dataset.k, v = todos[k], ps2 = [...new Set([...GRUPOS_BASE, ...Object.values(todos).map(x => x.grupo).filter(Boolean), ...novas])];
-      popMenu(e, [[`${ic('camera', 14)} ${v.foto ? 'Trocar a foto…' : 'Pôr uma foto…'}`, '', () => $('.foto', cd).click(), !ed],
-        ...(v.foto ? [[`${ic('lixo', 14)} Tirar a foto`, '', () => $('[data-tira]', cd)?.click(), !ed]] : []),
-        [`${icAt(14)} Padrão no Animador…`, '', () => $('[data-pad]', cd).click(), !ed], '-',
-        ...ps2.map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, (v.grupo || '') === g ? '✓' : '', () => manda(k, { grupo: g }, `${v.nome} foi para ${g}.`), !ed || (v.grupo || '') === g]),
-        [`${ic('pasta', 14)} Tirar da pasta`, !v.grupo ? '✓' : '', () => manda(k, { grupo: null }, `${v.nome} saiu da pasta.`), !ed || !v.grupo],
-        [`${ic('mais', 14)} Pasta nova com ${esc(v.nome)}…`, '', async () => { const g = await pastaNova(); if (g) { novas.add(g); manda(k, { grupo: g }, `${v.nome} foi para ${g}.`); } }, !ed], '-',
-        [`${ic('lapis', 14)} Renomear…`, '', () => renomeiaPersonagem(k, todos, () => pintaPersonagens()), !ed],
-        [`${ic('lixo', 14)} Tirar da lista…`, '', () => apagaPersonagem(k, todos, () => pintaPersonagens()), !ed]]); }; });
-    // abrir/fechar pastas
-    $$('[data-abre]', el).forEach(b => b.onclick = () => { const k = b.dataset.abre; fechadas[k] = !fechadas[k]; try { localStorage.setItem('ep-prep-pastas-aba', JSON.stringify(fechadas)); } catch { } b.parentElement.classList.toggle('fechada', !!fechadas[k]); });
-    // ARRASTAR para outra pasta (solta no título ou na área da pasta)
-    $$('.pcard2[draggable]', el).forEach(cd => { cd.ondragstart = e => { e.dataTransfer.setData('text/plain', cd.dataset.k); e.dataTransfer.effectAllowed = 'move'; cd.classList.add('arrastando'); document.body.classList.add('arrastando-pers'); };
-      cd.ondragend = () => { cd.classList.remove('arrastando'); document.body.classList.remove('arrastando-pers'); $$('.pasta-g.alvo', el).forEach(x => x.classList.remove('alvo')); }; });
-    $$('.pasta-g', el).forEach(pg => { pg.ondragover = e => { if (!ed) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; pg.classList.add('alvo'); }; pg.ondragleave = e => { if (!pg.contains(e.relatedTarget)) pg.classList.remove('alvo'); };
-      pg.ondrop = e => { e.preventDefault(); pg.classList.remove('alvo'); const k = e.dataTransfer.getData('text/plain'), g = pg.dataset.pasta; if (!k || !todos[k] || (todos[k].grupo || '') === g) return;
-        todos[k] = { ...todos[k], grupo: g || undefined }; pintaL(); manda(k, { grupo: g || null }, g ? `${todos[k].nome} foi para ${g}.` : `${todos[k].nome} saiu da pasta.`); }; });
-    $$('.pcard2', el).forEach(cd => { const k = cd.dataset.k;
-      $('.foto', cd).onclick = () => { alvo = k; arq.click(); };
-      $('[data-tira]', cd)?.addEventListener('click', async () => { if (await pergunta('Tirar a foto?', `${todos[k].nome} volta a aparecer com as iniciais.`, [['Cancelar', false], ['Tirar', true, 'perigo']])) manda(k, { foto: null }, 'Foto tirada.'); });
-      $('[data-pad]', cd)?.addEventListener('click', async e => { const bt = e.currentTarget, th = $('.ap-th', bt), rot = th.innerHTML; th.innerHTML = giro(); th.classList.add('girando'); // só o ícone vira o carregando: o botão não muda de tamanho
-        let L; try { L = await atelie(); } catch (er) { th.innerHTML = rot; th.classList.remove('girando'); return aviso(er.message, 'erro'); } th.innerHTML = rot; th.classList.remove('girando');
-        const r = await escolheNoAtelie(L, todos[k].atelie, `Padrão de ${todos[k].nome} no Animador (todos os roteiros)`, 'Automático (personagem com o mesmo nome)'); if (r === false) return;
-        manda(k, { atelie: r === undefined ? 'auto' : r === null ? null : { id: r.id, nome: r.nome } }, r === undefined ? 'Padrão: automático (mesmo nome).' : r === null ? 'Padrão: nenhum personagem na cena.' : `Padrão no Animador: ${r.nome}.`); });
-      const thp = $('[data-pad] [data-th]', cd); if (thp) { thp.classList.add('carregando-th'); atelie().then(L => { const x = L.find(y => y.id === thp.dataset.th); if (x) thumbDe(x).then(t => { thp.classList.remove('carregando-th'); if (t) { thp.style.backgroundImage = `url("${t}")`; thp.classList.add('com-th'); } }); }).catch(() => thp.classList.remove('carregando-th')); }
-      const cor = v => manda(k, { cor: v }); $$('.cor', cd).forEach(b => b.onclick = () => cor(b.dataset.cor)); $('input[type=color]', cd).onchange = e => cor(e.target.value); });
+    const box = $('.pers-grade', el), E = ordena(Object.entries(todos)), pastas = listaPastas(); if (aberta && !pastas.includes(aberta)) aberta = null;
+    if (busca) { const q = Roteiro.chave(busca), L = E.filter(([, v]) => Roteiro.chave(v.nome).includes(q)); box.innerHTML = L.length ? grade(L) : '<div class="vazio">Ninguém com esse nome.</div>'; }
+    else if (aberta) { const L = E.filter(([, v]) => (v.grupo || '') === aberta), base = GRUPOS_BASE.includes(aberta);
+      box.innerHTML = `<nav class="pb-cam"><button class="pb-volta" data-volta title="Voltar · solte um personagem aqui para tirar desta pasta">${ic('voltar', 14)} Personagens</button><span aria-hidden="true">›</span><b>${esc(aberta)}</b></nav>
+        <div class="pb-abre-t"><span class="pb-ic">${ic('pasta', 20)}</span><h2>${esc(aberta)}</h2><small>${L.length} ${L.length === 1 ? 'personagem' : 'personagens'}</small><span class="esp"></span>${ed ? `<button class="bt" data-novo-aqui>${ic('mais', 14)} Personagem novo aqui</button>${base ? '' : `<button class="bt" data-ren>${ic('lapis', 14)} Renomear</button>`}<button class="bt ic" data-mn title="Opções da pasta">${ic('mais3', 16)}</button>` : ''}</div>
+        ${L.length ? grade(L) : '<div class="pb-vazia">Pasta vazia. Volte e arraste personagens para o cartão desta pasta (ou use o botão direito no personagem › Mover para…).</div>'}`; }
+    else { const soltos = E.filter(([, v]) => !v.grupo);
+      box.innerHTML = `<h3 class="pb-h">Pastas <small>clique para abrir · arraste um personagem para cima de uma pasta</small></h3>
+        <div class="pb-cards">${pastas.map(g => { const L = E.filter(([, v]) => v.grupo === g);
+          return `<div class="pb-card" data-pasta="${esc(g)}" role="button" tabindex="0" title="Abrir a pasta · botão direito: opções"><div class="pb-prev">${L.slice(0, 3).map(([, v]) => ava(v.nome, corP(v), 'g')).join('') || `<span class="pb-vz">${ic('pasta', 34)}</span>`}</div>
+            <div class="pb-info"><b>${esc(g)}</b><small>${L.length}</small><button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button></div><small class="pb-desc">${L.length ? esc(L.slice(0, 4).map(([, v]) => v.nome).join(', ') + (L.length > 4 ? '…' : '')) : 'Pasta vazia'}</small></div>`; }).join('')}</div>
+        ${soltos.length ? `<h3 class="pb-h">Fora de pastas <small>${soltos.length}</small></h3>${grade(soltos)}` : ''}`; }
+    // cartões dos personagens: clicar abre os detalhes; arrastar leva para uma pasta
+    $$('.pc3', box).forEach(cd => { const k = cd.dataset.k; cd.onclick = () => detalhe(k); cd.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); detalhe(k); } }; cd.oncontextmenu = e => { e.preventDefault(); menuPers(e, k); };
+      cd.ondragstart = e => { e.dataTransfer.setData('text/pers-prep', k); e.dataTransfer.effectAllowed = 'move'; cd.classList.add('arrastando'); }; cd.ondragend = () => cd.classList.remove('arrastando'); });
+    const ths = $$('.pc3-at[data-th]', box); if (ths.length) atelie().then(L => ths.forEach(t => { const x = L.find(y => y.id === t.dataset.th); if (x) thumbDe(x).then(u => { if (u) { t.style.backgroundImage = `url("${u}")`; t.classList.add('com-th'); t.innerHTML = ''; } }); })).catch(() => { });
+    $$('.pb-card', box).forEach(c => { const g = c.dataset.pasta; c.onclick = e => { if (e.target.closest('.pb-mn')) return; abre(g); }; c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abre(g); } };
+      $('.pb-mn', c).onclick = e => { e.stopPropagation(); menuPasta(e.currentTarget, g); }; c.oncontextmenu = e => { e.preventDefault(); menuPasta(e, g); }; alvoSoltar(c, g); });
+    const vt = $('[data-volta]', box); if (vt) { vt.onclick = () => abre(null); alvoSoltar(vt, ''); }
+    $('[data-ren]', box)?.addEventListener('click', () => renomeiaPasta(aberta)); $('[data-mn]', box)?.addEventListener('click', e => menuPasta(e.currentTarget, aberta)); $('[data-novo-aqui]', box)?.addEventListener('click', () => novoPers(aberta));
+  };
+  { const bi = $('[data-busca]', el); bi.oninput = () => { busca = bi.value.trim(); pintaL(); }; }
+  // ===== DETALHES DO PERSONAGEM (abre ao clicar): cor da legenda (com as cores do personagem do Ateliê e conta-gotas), foto, Animador, pasta =====
+  const detalhe = k => { const v = todos[k]; if (!v) return; let cor = corP(v), tSalva = 0;
+    const m = h(`<div class="modal"><div class="caixa pd-caixa" style="--c:${cor}" role="dialog" aria-label="${esc(v.nome)}">
+      <div class="pd-cab"><button class="foto" ${ed ? '' : 'disabled'} title="${v.foto ? 'Trocar a foto' : 'Pôr uma foto'}">${ava(v.nome, cor, 'g')}<span class="cam">${ic('camera', 13)}</span></button>
+        <div class="pd-nome"><b>${esc(v.nome)}</b><small>${ic('pasta', 12)} ${v.grupo ? esc(v.grupo) : 'fora de pastas'}${v.foto && ed ? ` · <button class="link" data-tira>tirar a foto</button>` : ''}</small></div><span class="esp"></span><button class="bt ic" data-x title="Fechar">${ic('voltar', 15)}</button></div>
+      <div class="pd-corpo">
+        <div class="pd-sec"><small>Cor da legenda</small><div class="paleta">${PALETA.map(x => `<button class="cor" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<label class="cor-outra" title="Outra cor"><input type="color" value="${cor}" ${ed ? '' : 'disabled'}><span>${ic('mais', 12)}</span></label></div></div>
+        <div class="pd-sec pd-at" hidden><small>Cores do personagem <b data-at-nome></b> <span class="pd-carr">${giro()}</span></small><div class="pd-at-l"><canvas class="pd-cv" width="150" height="150" title="Clique para pegar a cor deste ponto"></canvas>
+          <div class="pd-at-d"><div class="paleta" data-cores></div><span class="dica">As cores que mais aparecem no personagem do Ateliê. Ou clique na imagem para pegar a cor daquele ponto.</span><span class="pd-lupa"><i></i><b></b></span></div></div></div>
+        <div class="pd-leg"><span>Exemplo de legenda</span></div>
+        <div class="pd-2"><div class="pd-sec"><small>No Animador</small><button class="el-esc" data-pad ${ed ? '' : 'disabled'}><span class="ap-th p ${v.atelie?.id ? '' : 'sem-th'}" ${v.atelie?.id ? `data-th="${esc(v.atelie.id)}"` : ''}>${v.atelie?.id ? esc(iniciais(v.atelie.nome || v.atelie.id)) : icAt(20)}</span><span>${v.atelie === null ? 'Nenhum' : v.atelie?.id ? esc(v.atelie.nome || v.atelie.id) : 'Automático (mesmo nome)'}</span></button></div>
+          <div class="pd-sec"><small>Pasta</small><select data-pasta ${ed ? '' : 'disabled'}><option value="">Fora de pastas</option>${listaPastas().map(g => `<option value="${esc(g)}" ${g === v.grupo ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></div></div>
+      </div>
+      <div class="bts"><button class="bt" data-ren ${ed ? '' : 'disabled'}>${ic('lapis', 14)} Renomear</button><button class="bt" data-apaga ${ed ? '' : 'disabled'}>${ic('lixo', 14)} Tirar da lista</button><span class="esp"></span><button class="bt pri" data-x>Pronto</button></div></div></div>`);
+    const cx = $('.pd-caixa', m), fim = () => { if (tSalva) { clearTimeout(tSalva); tSalva = 0; if (cor !== corP(todos[k])) manda(k, { cor }); } m.remove(); };
+    // escolher a cor: muda na hora aqui e guarda logo depois (uma gravação só, mesmo clicando em várias)
+    const poeCor = (c, guarda = true) => { cor = c; cx.style.setProperty('--c', c); $('.ava', cx)?.style.setProperty('--c', c); $$('[data-cor]', m).forEach(b => b.classList.toggle('on', b.dataset.cor === c)); $('input[type=color]', m).value = c;
+      if (guarda && ed) { clearTimeout(tSalva); tSalva = setTimeout(() => { tSalva = 0; manda(k, { cor: c }); }, 700); } };
+    poeCor(cor, false);
+    $$('[data-cor]', m).forEach(b => b.onclick = () => poeCor(b.dataset.cor)); $('input[type=color]', m).oninput = e => poeCor(e.target.value);
+    m.onclick = e => { if (e.target === m || e.target.closest('[data-x]')) fim(); }; m.onkeydown = e => { if (e.key === 'Escape') fim(); };
+    $('.foto', m).onclick = () => { fim(); trocaFoto(k); };
+    $('[data-tira]', m)?.addEventListener('click', async () => { fim(); await tiraFoto(k); });
+    $('[data-pad]', m).onclick = async () => { fim(); if (await escolhePadrao(k)) detalhe(k); };
+    $('[data-pasta]', m).onchange = e => moveP(k, e.target.value);
+    $('[data-ren]', m).onclick = () => { fim(); renomeiaPersonagem(k, todos, () => pintaPersonagens()); };
+    $('[data-apaga]', m).onclick = () => { fim(); apagaPersonagem(k, todos, () => pintaPersonagens()); };
+    document.body.appendChild(m); $('[data-x]', m).focus();
+    // personagem do Ateliê ligado a ele: o escolhido, senão o de MESMO nome (sem gastar nuvem: a miniatura já vem guardada)
+    if (v.atelie !== null) atelie().then(async L => { const x = v.atelie?.id ? L.find(y => y.id === v.atelie.id) : L.find(y => Roteiro.chave(y.nome) === k); if (!x || !m.isConnected) return;
+      const pa = $('[data-pad] [data-th]', m); const u = await thumbDe(x); if (!m.isConnected) return; if (pa && u) { pa.style.backgroundImage = `url("${u}")`; pa.classList.add('com-th'); pa.textContent = ''; }
+      const sec = $('.pd-at', m); $('[data-at-nome]', m).textContent = '(' + x.nome + ')'; sec.hidden = false; $('.pd-carr', m).remove();
+      const cv = $('.pd-cv', m), g = cv.getContext('2d', { willReadFrequently: true }), cores = [];
+      if (thCor.get(x.id)) cores.push(thCor.get(x.id)); // a cor principal que o Animador já calculou
+      const pintaCores = () => { const box = $('[data-cores]', m); box.innerHTML = cores.slice(0, 8).map(c => `<button class="cor" style="--c:${c}" data-cor="${c}" ${ed ? '' : 'disabled'} title="${c}"></button>`).join('') || '<small>Sem cores para mostrar.</small>';
+        $$('[data-cor]', box).forEach(b => b.onclick = () => poeCor(b.dataset.cor)); $$('[data-cor]', box).forEach(b => b.classList.toggle('on', b.dataset.cor === cor)); };
+      if (u) { const im = new Image(); im.onload = () => { const r = Math.min(cv.width / im.width, cv.height / im.height); g.drawImage(im, (cv.width - im.width * r) / 2, (cv.height - im.height * r) / 2, im.width * r, im.height * r);
+          for (const c of coresDaImagem(g, cv.width, cv.height)) if (!cores.includes(c)) cores.push(c); pintaCores(); }; im.src = u; } else { cv.hidden = true; $('.pd-lupa', m).hidden = true; pintaCores(); }
+      // CONTA-GOTAS na imagem (funciona em qualquer navegador)
+      const ponto = e => { const r = cv.getBoundingClientRect(), d = g.getImageData(Math.floor((e.clientX - r.left) * cv.width / r.width), Math.floor((e.clientY - r.top) * cv.height / r.height), 1, 1).data; return d[3] > 100 ? '#' + [d[0], d[1], d[2]].map(n => n.toString(16).padStart(2, '0')).join('') : null; };
+      cv.onmousemove = e => { const c = ponto(e); if (!c) return; $('.pd-lupa i', m).style.background = c; $('.pd-lupa b', m).textContent = c; };
+      cv.onclick = e => { if (!ed) return; const c = ponto(e); if (c) poeCor(c); };
+    }).catch(() => { });
   };
   pintaL();
+}
+// AS CORES QUE MAIS APARECEM numa imagem (para escolher a cor da legenda): junta por tom e claridade e devolve a média de cada grupo
+function coresDaImagem(g, w, h) {
+  let D; try { D = g.getImageData(0, 0, w, h).data; } catch { return []; } const grupos = new Map(); let tot = 0;
+  for (let i = 0; i < D.length; i += 8) { if (D[i + 3] < 200) continue; const r = D[i], gg = D[i + 1], b = D[i + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 510, s = mx === mn ? 0 : (mx - mn) / 255 / (1 - Math.abs(2 * l - 1) || 1);
+    if (l < .1) continue; // contorno preto não conta
+    let hh = 0; if (mx !== mn) { const d = mx - mn; hh = mx === r ? ((gg - b) / d + 6) % 6 : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4; }
+    const key = s < .15 ? 'n' + Math.round(l * 4) : Math.round(hh * 3) % 18 + ':' + Math.round(l * 3); const v = grupos.get(key) || [0, 0, 0, 0]; v[0] += r; v[1] += gg; v[2] += b; v[3]++; grupos.set(key, v); tot++; }
+  return [...grupos.values()].filter(v => v[3] > tot * .02).sort((a, b) => b[3] - a[3]).slice(0, 7).map(v => '#' + v.slice(0, 3).map(x => Math.round(x / v[3]).toString(16).padStart(2, '0')).join(''));
 }
 
 /* ---------- aba Ideias (mesmos dados das Ideias do Animador: /ideias → ideias/*.json) ---------- */
