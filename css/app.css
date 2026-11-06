@@ -1128,3 +1128,17 @@ body.modo-doc.sem-guias .corpo.corpo-legendas>*{max-width:1200px;margin-left:aut
 .vivo-selo{display:inline-flex;align-items:center;gap:5px;margin-left:8px;padding:2px 8px;background:#e51400;color:#fff;font:700 10.5px/1.4 "Segoe UI",sans-serif;text-transform:uppercase;letter-spacing:.6px;vertical-align:middle}
 .vivo-selo i{width:7px;height:7px;border-radius:50%;background:#fff;animation:vivo-pisca 1.6s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.vivo-selo i{animation:none}}
+
+/* ===== MODO DOCUMENTO: o cabeçalho fica parado e SÓ o conteúdo rola (a barra de rolagem começa abaixo do cabeçalho) ===== */
+body.modo-doc{height:100vh;overflow:hidden}
+body.modo-doc>main{height:100vh;display:flex;flex-direction:column;overflow:hidden}
+body.modo-doc .prep{flex:1;min-height:0;display:flex;flex-direction:column}
+body.modo-doc .prep .dh-topo{position:relative;flex:none}
+body.modo-doc .prep .dh-area{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable}
+body.modo-doc .prep .guias{top:0;max-height:calc(100vh - 140px)}
+body.modo-doc .prep .estrutura{top:8px}
+body.modo-doc .prep .lg-prev{top:12px}
+/* sem o lado esquerdo: o conteúdo fica no MEIO */
+body.modo-doc.sem-guias .prep .dh-area>.corpo{margin-left:auto;margin-right:auto;width:100%}
+body.modo-doc.sem-guias .corpo.corpo-falas>.falas{max-width:none}
+.jd-juntos{margin-left:auto}

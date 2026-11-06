@@ -339,7 +339,7 @@ function menus(nav, def) {
 const GUIAS = [['roteiro', 'Roteiro', 'doc'], ['falas', 'Falas e gravação', 'mic'], ['legendas', 'Legendas', 'legenda']];
 // com destino = Animador aparece a guia do ELENCO: qual personagem do Ateliê é cada nome do roteiro (prep.animador.pers)
 const guiasDe = P => P?.destino === 'animador' ? [...GUIAS, ['elenco', 'Elenco no Animador', 'pessoa']] : GUIAS;
-function irGuia(k) { S.sub = k; if (k === 'falas') passaGravando(); marcaGuias(); pintaCorpo(); window.scrollTo({ top: 0 }); }
+function irGuia(k) { S.sub = k; if (k === 'falas') passaGravando(); marcaGuias(); pintaCorpo(); $('.dh-area')?.scrollTo({ top: 0 }); window.scrollTo({ top: 0 }); }
 // a etapa anda sozinha: abriu "Falas e gravação" num rascunho → Gravando (na nuvem, uma ação pequena; só neste computador, vai junto depois)
 async function passaGravando() { const P = S.P; if (!P || (P.status || 'rascunho') !== 'rascunho' || !pode('pronto')) return; P.status = 'gravando';
   if (P.mod && !P.novo && !S.sujo) { try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, status: 'gravando' }); if (r.mod) { P.mod = r.mod; S.base.mod = r.mod; } S.lista = null; } catch { marcaSujo(); } } else marcaSujo(); }
@@ -890,6 +890,7 @@ const Falas = {
       $('[data-edita]', el)?.addEventListener('click', () => this.editaAudio(f));
       $$('[data-ouve-outro]', el).forEach(b => b.onclick = async () => { const a = await this.audioOutro(f, b.dataset.ouveOutro).catch(e => { aviso(e.message, 'erro'); return null; }); if (!a) return; if (S.tocando) S.tocando.pause(); S.tocando = a; a.play(); });
       $$('[data-grava-ouvindo]', el).forEach(b => b.onclick = () => this.grava(f, el, b.dataset.gravaOuvindo));
+      $('[data-ouve-juntos]', el)?.addEventListener('click', e => this.ouveJuntos(f, e.currentTarget));
       // ANDAR PELO ÁUDIO: clicar/arrastar na onda vai para aquele ponto (tocando ou não)
       const bx = $('.onda-box', el); bx.onpointerdown = ev => { ev.preventDefault(); const fr = e2 => { const r = bx.getBoundingClientRect(); return Math.max(0, Math.min(1, (e2.clientX - r.left) / r.width)); };
         const vai = e2 => { const a = S.tocando; if (a && a._f === f.id && a.duration) a.currentTime = fr(e2) * a.duration; };
@@ -1025,7 +1026,7 @@ const Falas = {
       : `<div class="quem">${ava(f.personagem, cor, 'p')}<b>${esc(f.personagem)}</b></div>`;
     const outros = varios && vz ? f.personagens.filter(p => Roteiro.chave(p) !== vz) : [];
     const juntoH = outros.length ? `<div class="junto-de"><span>${ic('alerta', 13)} Esta fala é dita <b>ao mesmo tempo</b> que:</span>${outros.map(p => { const ko = Roteiro.chave(p), tem = f.audios?.[ko]?.audio || this._loc?.has(f.id + '@' + ko);
-        return `<span class="jd-p">${ava(p, cs.get(ko) || corOuPadrao(p), 'p')}<b style="color:${cs.get(ko) || corOuPadrao(p)}">${esc(p)}</b>${tem ? `<button class="bt mini" data-ouve-outro="${esc(ko)}">${ic('play', 12)} Ouvir</button>${pode('gravar') ? `<button class="bt mini" data-grava-ouvindo="${esc(ko)}" title="Toca a gravação de ${esc(p)} enquanto você grava (use fone)">${ic('mic', 12)} Gravar ouvindo ${esc(p)}</button>` : ''}` : '<small>ainda não gravou</small>'}</span>`; }).join('')}</div>` : '';
+        return `<span class="jd-p" data-ko="${esc(ko)}" data-tem="${tem ? 1 : ''}">${ava(p, cs.get(ko) || corOuPadrao(p), 'p')}<b style="color:${cs.get(ko) || corOuPadrao(p)}">${esc(p)}</b>${tem ? `<button class="bt mini" data-ouve-outro="${esc(ko)}">${ic('play', 12)} Ouvir</button>${pode('gravar') ? `<button class="bt mini" data-grava-ouvindo="${esc(ko)}" title="Toca a gravação de ${esc(p)} enquanto você grava (use fone)">${ic('mic', 12)} Gravar ouvindo ${esc(p)}</button>` : ''}` : '<small>ainda não gravou</small>'}</span>`; }).join('')}${(local || au) && outros.some(p => f.audios?.[Roteiro.chave(p)]?.audio || this._loc?.has(f.id + '@' + Roteiro.chave(p))) ? `<button class="bt mini jd-juntos" data-ouve-juntos title="Toca a sua versão e a dos outros ao mesmo tempo">${ic('play', 12)} Ouvir juntos</button>` : ''}</div>` : '';
     const dicaV = varios && !vz ? `<small class="dica-v">Gravação de todos juntos (opcional): cada personagem também tem a sua linha.</small>` : '';
     return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}" data-f="${esc(f.id)}" ${varios ? `data-vez="${esc(vz)}"` : ''} style="--c:${cor}"><span class="num">${n}</span>
       ${quemH}
@@ -1037,6 +1038,15 @@ const Falas = {
       ${local ? `<button class="redondo tirar" data-tirar title="Apagar esta gravação">${ic('lixo', 15)}</button>` : ''}</div></div>`;
   },
   // a gravação de OUTRO personagem da mesma fala (deste computador ou da nuvem), para ouvir/gravar junto
+  async ouveJuntos(f, bt) { if (S.juntos) { S.juntos.forEach(a => a.pause()); S.juntos = null; bt.innerHTML = `${ic('play', 12)} Ouvir juntos`; return; }
+    const KL = this.chaveL(f), AU = this.audioDe(f);
+    try { const l = await DB.get('aud', KL).catch(() => null), meu = l?.blob || (AU ? await Nuvem.audio(AU) : null); if (!meu) throw new Error('Esta versão ainda não tem áudio.');
+      const outros = [...new Set(Roteiro.quem(f))].filter(k => k !== this.vez(f)), lista = [new Audio(URL.createObjectURL(meu))];
+      for (const k of outros) { try { lista.push(await this.audioOutro(f, k)); } catch { } } if (lista.length < 2) throw new Error('O outro personagem ainda não gravou esta fala.');
+      if (S.tocando) { S.tocando.pause(); S.tocando = null; } await Promise.all(lista.map(a => new Promise(ok => { if (a.readyState >= 3) ok(); else { a.oncanplaythrough = ok; setTimeout(ok, 2000); } })));
+      S.juntos = lista; bt.innerHTML = `${ic('parar', 12)} Parar`; let fim = 0; lista.forEach(a => { a.currentTime = 0; a.onended = () => { if (++fim >= lista.length && S.juntos === lista) { S.juntos = null; bt.innerHTML = `${ic('play', 12)} Ouvir juntos`; } }; });
+      lista.forEach(a => a.play()); } // começam no mesmo instante
+    catch (e) { aviso(e.message, 'erro'); } },
   async audioOutro(f, ko) { const l = await DB.get('aud', S.P.id + '/' + f.id + '@' + ko).catch(() => null), k = f.audios?.[ko]?.audio; const b = l?.blob || (k ? await Nuvem.audio(k) : null); if (!b) throw new Error('Esse personagem ainda não gravou esta fala.'); const a = new Audio(URL.createObjectURL(b)); return a; },
   async grava(f, el, ouvindo) { const KL = this.chaveL(f);
     if (this.rec) { const parar = this.rec.f === f; this.rec.parar(); if (parar) return; }
@@ -1448,7 +1458,7 @@ async function pintaPersonagens() {
   $('[data-pnova]', el)?.addEventListener('click', async () => { const g = await pastaNova(); if (!g) return; novas.add(g); pintaL(); aviso(`Pasta "${g}" criada. Arraste personagens para ela.`, 'info'); });
   // ===== PASTAS EM CARTÕES (como a tela inicial do Animador, pedido da dona 06/11): clicar abre a pasta; "‹ Personagens" volta =====
   let aberta = null, busca = ''; // sempre começa nas pastas (pedido da dona); clicar em "Personagens" lá em cima volta para cá
-  const abre = g => { aberta = g || null; pintaL(); window.scrollTo({ top: 0 }); };
+  const abre = g => { aberta = g || null; pintaL(); window.scrollTo({ top: 0 }); $('.dh-area')?.scrollTo({ top: 0 }); };
   const listaPastas = () => [...new Set([...GRUPOS_BASE, ...Object.values(todos).map(v => v.grupo).filter(Boolean), ...novas])];
   const membros = g => Object.entries(todos).filter(([, v]) => (v.grupo || '') === g).map(([k]) => k);
   const mandaVarios = async (itens, msg) => { try { const r = await Nuvem.acao({ acao: 'personagens', itens }); S.pers = r.personagens || S.pers; Object.assign(todos, S.pers); if (msg) aviso(msg, 'ok'); pintaL(); } catch (er) { aviso(er.message, 'erro'); } };
