@@ -114,6 +114,11 @@ function novoPrep(nome = 'Roteiro novo', texto = '') {
 }
 // rascunho deste navegador (guardado a cada mudança, sem gastar a nuvem). "Trabalhar junto" (P.junto) manda sozinho 20 s depois da última mudança.
 let tGuarda = 0, tJunto = 0, ultAuto = 0;
+// o que conta como mudança: o conteúdo do roteiro (não a hora, o autor etc.). S.marco = como estava ao abrir / no último envio.
+const assinatura = P => P ? JSON.stringify([P.nome, (P.roteiro || '').trim(), P.destino, P.status, P.legenda, P.pagina, P.org, P.animador]) : '';
+const prepVazio = P => !!P?.novo && !(P.roteiro || '').trim();
+// só pergunta ao sair se há mudança de verdade ainda não mandada para a nuvem
+function mudouDeVerdade() { const P = S.P; if (!P || !S.sujo) return false; if (P.novo) return !prepVazio(P); return S.marco == null || assinatura(P) !== S.marco; }
 function marcaSujo() {
   S.sujo = true; pintaBarraPrep(); clearTimeout(tGuarda); tGuarda = setTimeout(() => DB.put('rasc', S.P.id, { P: S.P, base: S.base, em: Date.now() }).catch(() => { }), 600);
   clearTimeout(tJunto); if (S.P?.mod && !S.P.novo && pode('roteiro')) { const falta = Math.max(8000, 15000 - (Date.now() - ultAuto)); tJunto = setTimeout(() => { if (S.sujo && S.P?.mod && !S.P.novo) { ultAuto = Date.now(); salvaPrep(null, true); } }, falta); }
@@ -174,7 +179,10 @@ function quemHtml(autor, edicoes, curto) {
 const tela = () => $('#tela');
 function trocaAba(a, semHist) { S.aba = a; S.P = null; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === a)); const alvo = a === 'roteiros' ? '' : '?aba=' + a;
   if (location.search !== alvo) history[semHist ? 'replaceState' : 'pushState'](null, '', './' + alvo); pinta(); }
-async function sairDoPrep(semHist) { if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; AoVivo.sai(); AoVivo.atual = null; if (!semHist) history.pushState(null, '', S.aba && S.aba !== 'roteiros' ? './?aba=' + S.aba : './'); pinta(); return true; }
+async function sairDoPrep(semHist) {
+  // sem mudança de verdade: sai direto; roteiro novo e vazio nem fica como rascunho
+  if (S.P && S.sujo && !mudouDeVerdade()) { clearTimeout(tGuarda); clearTimeout(tJunto); const id = S.P.id, novo = S.P.novo; S.sujo = false; if (novo || S.marco != null) await DB.del('rasc', id).catch(() => { }); }
+  if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; AoVivo.sai(); AoVivo.atual = null; if (!semHist) history.pushState(null, '', S.aba && S.aba !== 'roteiros' ? './?aba=' + S.aba : './'); pinta(); return true; }
 function pinta() { Mic.paraTeste(); if (S.P) return pintaPrep(); modoDoc(false); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
 // bolinha com as iniciais do personagem, na cor dele; com foto, a foto (carrega sozinha quando a bolinha aparece)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
@@ -212,7 +220,7 @@ async function pintaInicio(novo) {
   $$('[data-onde]', el).forEach(b => b.onclick = () => { filtroOnde = b.dataset.onde; pintaInicio(); });
   await carregaPers().catch(() => { });
   const passa = it => filtro === 'todos' || (it.status || 'rascunho') === filtro, G = { pc: [], nuvem: [], uso: [] };
-  try { for (const r of (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id).sort((a, b) => b.em - a.em)) G.pc.push({ it: r.P, onde: r.P.novo || !r.base?.mod ? 'pc' : 'mudou', abre: () => abrePrep(r.P, r.base) }); } catch { }
+  try { for (const r of (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id).sort((a, b) => b.em - a.em)) { if (prepVazio(r.P)) { DB.del('rasc', r.P.id).catch(() => { }); continue; } G.pc.push({ it: r.P, onde: r.P.novo || !r.base?.mod ? 'pc' : 'mudou', abre: () => abrePrep(r.P, r.base) }); } } catch { }
   try { if (!S.lista || novo) S.lista = (await Nuvem.lista()).itens || []; } catch (e) { $('[data-g="nuvem"]', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; }
   T.mostra();
   for (const it of (S.lista || []).sort((a, b) => (b.mod || 0) - (a.mod || 0))) (it.uso?.length ? G.uso : G.nuvem).push({ it, onde: it.uso?.length ? 'uso' : 'nuvem', abre: () => Nuvem.abre(it.id).then(abrePrep) });
@@ -255,7 +263,7 @@ const ETAPA_DICA = P => { const st = P.status || 'rascunho', d = DESTINOS[P.dest
 async function abrePrep(P, base, semHist) {
   // tem rascunho deste computador mais novo que o da nuvem?
   if (!base && !P.novo) { try { const r = await DB.get('rasc', P.id); if (r?.P && (+r.base?.mod || 0) === (+P.mod || 0) && r.em > (P.mod || 0)) { const usar = await pergunta('Continuar de onde parou?', 'Este computador tem mudanças neste roteiro que ainda não foram para a nuvem.', [['Abrir o da nuvem', false], ['Continuar daqui', true, 'pri']]); if (usar) { base = r.base; P = r.P; } else await DB.del('rasc', P.id); } } catch { } }
-  S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.sub = pode('roteiro') || pode('organizar') ? (S.sub || 'roteiro') : 'falas'; S.ed = null;
+  S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.marco = base ? null : assinatura(P); S.sub = pode('roteiro') || pode('organizar') ? (S.sub || 'roteiro') : 'falas'; S.ed = null;
   if (!S.pers) carregaPers().then(() => { if (S.P) { S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } }).catch(() => { S.pers = {}; });
   if (!S.nomeEu) window.EstudioLogin?.perfil?.().then(p => { S.nomeEu = String(p?.nome || '').split(' ')[0]; }).catch(() => { });
   { const u = './?id=' + encodeURIComponent(P.id); if (new URLSearchParams(location.search).get('id') !== P.id) history[semHist ? 'replaceState' : 'pushState'](null, '', u); } pintaPrep();
@@ -401,7 +409,7 @@ async function salvaPrep(bt, quieto) {
         if (esc2 === 'abrir') { await DB.del('rasc', P.id).catch(() => { }); S.sujo = false; return abrePrep(nv); }
         if (esc2 !== 'forcar') return; r = await Nuvem.salva({ ...P, novo: undefined }, true); }
     }
-    P.mod = r.mod; delete P.novo; S.base = { mod: P.mod, roteiro: enviado }; S.sujo = P.roteiro !== enviado; S.lista = null;
+    P.mod = r.mod; delete P.novo; S.base = { mod: P.mod, roteiro: enviado }; S.sujo = P.roteiro !== enviado; if (!S.sujo) S.marco = assinatura(P); S.lista = null;
     if (!S.sujo) await DB.del('rasc', P.id).catch(() => { }); else DB.put('rasc', P.id, { P, base: S.base, em: Date.now() }).catch(() => { });
     carregaPers(true).then(() => pintaLado()).catch(() => { }); // personagens novos entraram na lista da equipe
     if (!quieto) aviso('Mandado para a nuvem. A equipe já vê.', 'ok'); if (S.sub === 'falas') pintaCorpo();
@@ -1246,7 +1254,7 @@ addEventListener('popstate', async () => {
   trocaAba(['ideias', 'personagens'].includes(aba) ? aba : 'roteiros', true);
 });
 $$('[data-aba]').forEach(b => b.onclick = async () => { if (S.P && !await sairDoPrep(true)) return; trocaAba(b.dataset.aba); });
-addEventListener('beforeunload', e => { if (S.sujo) { e.preventDefault(); e.returnValue = ''; } });
+addEventListener('beforeunload', e => { if (mudouDeVerdade()) { e.preventDefault(); e.returnValue = ''; } });
 addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registrar?.({
   programa: 'Preparativos',
   async listar() { const out = [];
