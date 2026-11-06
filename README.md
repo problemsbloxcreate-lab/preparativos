@@ -146,3 +146,9 @@ roteiro e grava as próprias falas.
 ## Publicar
 
 Commit + `git pull --rebase` + push na `main` (o GitHub Pages publica a raiz). Antes: `node --check js/*.js` e `node js/roteiro.js`.
+
+## Link de dublagem
+
+LINK DE DUBLAGEM (06/11/2026): página PÚBLICA `/dublar/#t=<token>` servida pelo PORTEIRO (arquivos `preparativos/dublar/{index.html,dublar.js,dublar.css}`, só esses, com CSP rígida). A API `/dublar/api/{ver,enviar,terminar}` do porteiro (POST só da mesma origem) repassa ao turma-ia pela ligação TURMA com `x-porteiro-nome`/`x-porteiro-id` de quem tem sessão; o turma-ia recusa `/dublar/*` vindo da internet (req.cf). Token 32 bytes aleatórios, só o HASH fica (`dublar-links/<sha256>` = id; `preparativos/<id>/dublar.json` = { links, pend }). Vale só para as falas escolhidas (todas / um personagem / uma fala), prazo 1 hora ou sem prazo; link de UM personagem/fala morre no "Terminei", de vários só quando o responsável encerra (ou vence). Limites: 20 MB, tipo pelo conteúdo (`tipoAudio`), 10 envios por fala, 6×falas por link, 40 pedidos/min por link e 60 por IP. Áudios em `preparativos/<id>/dub/` "aguardando aprovação" até a ação `dublar` (op lista|novo|desliga|aceita|recusa); permissão `preparativos.links` para criar/encerrar, `gravar` para aceitar. Fala aceita ganha `audio` (chave dub/) e `dub: { nome, conta, em }`. Depois de publicar o turma-ia, rodar a Action `porta-reserva.yml` (estudio-problems).
+
+Também: cada fala aceita áudio pronto (mp3, wav, ogg, m4a, webm até 20 MB; o servidor confere o tipo pelo conteúdo) e a onda da fala é clicável para ir a qualquer ponto.
