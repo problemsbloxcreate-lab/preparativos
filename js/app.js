@@ -1114,6 +1114,7 @@ async function pintaPersonagens() {
 
 /* ---------- aba Ideias (mesmos dados das Ideias do Animador: /ideias → ideias/*.json) ---------- */
 const num = n => { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(1).replace('.0', '').replace('.', ',') + ' mi' : n >= 1e3 ? Math.round(n / 1e3) + ' mil' : String(n); };
+const PEND_IDEIAS = 'prep-ideias-pendentes'; // ideias que a nuvem não aceitou (ex.: limite do dia)
 const Ideias = {
   S: null, formato: 'todos', aFormato: 'short', aCanal: '',
   async pinta(novo) {
@@ -1124,6 +1125,9 @@ const Ideias = {
       <div class="filtros">${[['todos', 'Todas', 'grade'], ['short', 'Shorts', 'celular'], ['longo', 'Vídeos longos', 'filme']].map(([k, n, i]) => `<button data-fo="${k}" class="${this.formato === k ? 'on' : ''}">${ic(i, 14)} ${n}</button>`).join('')}</div>
       <div class="ids grade">${giroBloco()}</div></section>`;
     try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { T.mostra(); $('.ids', el).innerHTML = $('.analise-box', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
+    // ideias que não foram para a nuvem (06/11/2026: as 8 ideias de 05/11 sumiram quando a nuvem estava no limite): manda de novo, UMA vez por página
+    if (!this._pend) { this._pend = true; let p = null; try { p = JSON.parse(localStorage.getItem(PEND_IDEIAS) || 'null'); } catch { }
+      if (p?.lista) { const s = this.S.ideias; if (!s || String(p.em || '') > String(s.em || '')) { this.S.ideias = p; return this.guarda(p, 'As ideias que não tinham ido para a nuvem foram salvas agora.'); } try { localStorage.removeItem(PEND_IDEIAS); } catch { } } }
     T.mostra(); const A = this.S.analise, I = this.S.ideias || { lista: [] };
     this.pintaAnalise($('.analise-box', el), A, I);
     $('[data-canais]', el)?.addEventListener('click', () => this.canais());
@@ -1228,7 +1232,8 @@ Metade shorts e metade longos; formatos variados (mistério, conversa com o púb
       if (x) Object.assign(x, o); else I.lista.unshift({ id: 'ide' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...o, porque: '', personagens: [] });
       el.remove(); this.guarda(I); };
   },
-  async guarda(I, msg = 'Ideias salvas.') { I.em = new Date().toISOString(); try { await Nuvem.json('/ideias', 'PUT', { ideias: I }); aviso(msg, 'ok'); } catch (e) { aviso(e.message, 'erro'); } this.pinta(); },
+  async guarda(I, msg = 'Ideias salvas.') { I.em = new Date().toISOString(); try { await Nuvem.json('/ideias', 'PUT', { ideias: I }); try { localStorage.removeItem(PEND_IDEIAS); } catch { } aviso(msg, 'ok'); }
+    catch (e) { try { localStorage.setItem(PEND_IDEIAS, JSON.stringify(I)); } catch { } aviso(e.message + ' As ideias ficaram guardadas neste computador e vão para a nuvem na próxima vez que você abrir as Ideias.', 'erro'); } this.pinta(); },
 };
 
 /* ======================= começo ======================= */
