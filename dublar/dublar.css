@@ -39,3 +39,4 @@ input[type=text]{flex:1 1 220px}
 .fim{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%);padding:20px 0 10px;display:flex;justify-content:flex-end}
 .dica{font-size:12.5px;color:var(--muted)}
 @media (max-width:560px){.fala .texto{font-size:18px}.topo .tempo{display:none}}
+.faixa-erro{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 12px}.faixa-erro p{flex:1 1 260px;margin:0}

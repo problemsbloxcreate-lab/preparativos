@@ -1003,3 +1003,6 @@ table.atalhos kbd{display:inline-block;background:var(--panel-2);border:1px soli
 .lg-cor-fala{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 0;padding:8px 10px;border:1px dashed var(--line)}.lg-cor-fala[hidden]{display:none}.lg-cor-fala small{color:var(--muted);flex:1 1 220px}
 .fala .quem.varios{flex-wrap:wrap;row-gap:2px}.fala .quem.varios b{white-space:normal;overflow:visible;text-overflow:clip}.fala .quem.varios small{flex-basis:100%}
 .dub-painel:empty{display:none}
+
+/* o "#" dos títulos não aparece (o título já se vê pelo tamanho e peso) */
+.folha-txt .l.h .mk{display:none!important}

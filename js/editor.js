@@ -61,7 +61,7 @@ const Editor = (() => {
       const bs = [...ed.children]; let i = 0; for (; i < bs.length; i++) { const n = bs[i].textContent.length; if (p <= n) break; p -= n + 1; }
       const b = bs[Math.min(i, bs.length - 1)]; if (!b) return [ed, 0]; if (i >= bs.length) p = b.textContent.length;
       const w = document.createTreeWalker(b, NodeFilter.SHOW_TEXT), ns = []; let t; while ((t = w.nextNode())) ns.push(t);
-      const esc0 = n => !!n.parentElement?.closest('.it .mk, .l.a .mk'); // sinais "*" que não aparecem
+      const esc0 = n => !!n.parentElement?.closest('.it .mk, .l.a .mk, .l.h .mk'); // sinais "*" e "#" que não aparecem
       for (let j = 0; j < ns.length; j++) { const n = ns[j], L = n.nodeValue.length;
         if (p < L) { if (p === 0 && esc0(n) && j > 0 && !esc0(ns[j - 1])) return [ns[j - 1], ns[j - 1].nodeValue.length]; return [n, p]; }
         if (p === L && (!esc0(n) || j === ns.length - 1)) return [n, L];
@@ -70,12 +70,13 @@ const Editor = (() => {
     }
     // ---- OS "*" ESCONDIDOS (pedido da dona, 06/11): o cursor nunca fica "dentro" deles; Enter/Backspace/Delete agem no que se VÊ ----
     function linhaInfo(p) { const ini = texto.lastIndexOf('\n', p - 1) + 1, f0 = texto.indexOf('\n', p), fim = f0 < 0 ? texto.length : f0, i = texto.slice(0, ini).split('\n').length - 1, x = info[i] || {}, L = texto.slice(ini, fim), H = new Set();
-      let vIni = ini, vFim = fim, acao = false;
-      if (x.t === 'a') { const m = L.match(/^(\s*)\*(.+)\*(\s*)$/); if (m) { acao = true; vIni = ini + m[1].length + 1; vFim = fim - m[3].length - 1; H.add(vIni - 1); H.add(vFim); } }
+      let vIni = ini, vFim = fim, acao = false, tit = false;
+      if (x.t === 'h') { const m = L.match(/^(\s*#{1,6}\s*)/); if (m) { tit = true; vIni = ini + m[1].length; for (let q = ini; q < vIni; q++) H.add(q); } } // o "# " do título não aparece
+      else if (x.t === 'a') { const m = L.match(/^(\s*)\*(.+)\*(\s*)$/); if (m) { acao = true; vIni = ini + m[1].length + 1; vFim = fim - m[3].length - 1; H.add(vIni - 1); H.add(vFim); } }
       else if (x.t === 'f' || x.t === 'f2') { const marca = (txt, base) => { for (const mm of txt.matchAll(/\*([^*\n]+)\*/g)) { H.add(base + mm.index); H.add(base + mm.index + mm[0].length - 1); } };
         if (x.t === 'f2') marca(L, ini); else { const b1 = ini + (x.pre || '').length + (x.nome || '').length; marca(x.meio || '', b1); marca(x.resto || '', b1 + (x.meio || '').length); } }
-      return { ini, fim, vIni, vFim, acao, H, i }; }
-    const visivel = p => { const l = linhaInfo(p); return l.acao ? Math.max(l.vIni, Math.min(l.vFim, p)) : p; };
+      return { ini, fim, vIni, vFim, acao, tit, H, i }; }
+    const visivel = p => { const l = linhaInfo(p); return l.acao ? Math.max(l.vIni, Math.min(l.vFim, p)) : l.tit ? Math.max(l.vIni, p) : p; };
     function poeCursor(a, b = a) { const s = getSelection(), r = document.createRange(); const [n1, o1] = ponto(a), [n2, o2] = ponto(b); r.setStart(n1, o1); r.setEnd(n2, o2); s.removeAllRanges(); s.addRange(r); }
     // ---- pinta (só as linhas que mudaram) ----
     function pinta() {
@@ -112,10 +113,12 @@ const Editor = (() => {
         const p = visivel(c0.a), l = linhaInfo(p);
         if (l.acao) { if (p <= l.vIni) { texto = texto.slice(0, l.ini) + '\n' + texto.slice(l.ini); pinta(); poeCursor(l.vIni + 1); guardaHist(l.vIni + 1, false); avisa(); return; }
           if (p >= l.vFim) return troca(l.fim, l.fim, '\n'); return troca(p, p, '*\n*'); }
+        if (l.tit && p <= l.vIni) { texto = texto.slice(0, l.ini) + '\n' + texto.slice(l.ini); pinta(); poeCursor(l.vIni + 1); guardaHist(l.vIni + 1, false); avisa(); return; }
         return troca(p, p, '\n'); }
       // BACKSPACE / DELETE pulam os "*" escondidos e, na borda da linha, só juntam as linhas
       if ((e.key === 'Backspace' || e.key === 'Delete') && c0 && c0.a === c0.b && !mod && !e.altKey) {
         const p = visivel(c0.a), l = linhaInfo(p);
+        if (e.key === 'Backspace' && l.tit && p <= l.vIni) { e.preventDefault(); texto = texto.slice(0, l.ini) + texto.slice(l.vIni); pinta(); poeCursor(l.ini); guardaHist(l.ini, false); avisa(); return; } // título → texto normal
         if (e.key === 'Backspace') { let q = p - 1; while (q >= l.ini && l.H.has(q)) q--;
           if (q < l.ini || (l.acao && p <= l.vIni)) { e.preventDefault(); if (l.ini > 0) { texto = texto.slice(0, l.ini - 1) + texto.slice(l.ini); pinta(); poeCursor(visivel(l.ini - 1)); guardaHist(l.ini - 1, false); avisa(); } return; }
           if (q !== p - 1 || p !== c0.a) { e.preventDefault(); texto = texto.slice(0, q) + texto.slice(q + 1); pinta(); poeCursor(visivel(q)); guardaHist(q, false); avisa(); } return; }
