@@ -79,6 +79,7 @@ const Cortes = (() => {
 .ct-sep{width:1px;height:22px;background:#3a3d44;margin:0 4px}
 .ct-tempo{font:12.5px ui-monospace,Consolas,monospace;color:#c9cdd4;margin-left:auto}
 .ct-onda{position:relative;margin:10px 16px 0;height:190px;background:#141518;border:1px solid #3a3d44;cursor:text;touch-action:none}.ct-onda canvas{width:100%;height:100%;display:block}
+.ct-atalhos{margin:6px 16px 0;color:#9aa0ab;font-size:11.5px;line-height:1.55}.ct-num{min-width:22px;text-align:center;color:#ffd36b;font-size:14px}
 .ct-rol{margin:4px 16px 0;width:calc(100% - 32px);accent-color:#ffd36b}
 .ct-lista{overflow:auto;padding:8px 16px;display:flex;flex-direction:column;gap:4px;min-height:60px}
 .ct-ped{display:flex;align-items:center;gap:8px;padding:5px 8px;background:#26282d;border-left:4px solid var(--c,#888);font-size:13px}.ct-ped select{background:#141518;color:#eceef2;border:1px solid #4a4d55;padding:3px;max-width:340px;flex:1}.ct-ped small{color:#9aa0ab;min-width:70px}
@@ -92,6 +93,7 @@ const Cortes = (() => {
 @media (max-width:600px){.ct-seq .ct-txt{font-size:22px}.ct-onda{height:150px}}`; document.head.appendChild(s); }
 
   /* ================= REVISÃO / EDIÇÃO FINA ================= */
+  const pilha = []; // janelas abertas (a de cima recebe as teclas)
   async function revisao(o) {
     css(); let A; try { A = o.dados || await decodifica(o.blob); } catch { throw new Error('Não consegui ler esse arquivo como áudio (use mp3, wav, ogg, m4a ou webm).'); }
     const ORIG = { d: A.d.slice(), marcas: [...(o.marcas || [])] }, uma = !!o.uma, falas = o.falas || [];
@@ -101,19 +103,23 @@ const Cortes = (() => {
     const c1 = el('div', 'ct-cab'); c1.append(el('b', null, o.titulo || (uma ? 'Editar o áudio' : 'Separar o áudio nas falas'))); const info = el('small'); c1.append(info, el('span', 'ct-esp')); c1.append(bt('Fechar', '', () => fecha())); j.append(c1);
     const barra = el('div', 'ct-barra'); j.append(barra);
     const onda = el('div', 'ct-onda'), cv = el('canvas'); onda.append(cv); j.append(onda); const rol = el('input', 'ct-rol'); rol.type = 'range'; rol.min = 0; rol.max = 1000; rol.value = 0; rol.hidden = true; j.append(rol);
+    const dica = el('div', 'ct-atalhos'); dica.textContent = (uma ? '' : 'C ou M cortar aqui · Enter ouvir o pedaço do cursor · Ctrl+←/→ corte anterior/seguinte · ') + 'Espaço tocar/parar · clique = cursor · arrastar = selecionar · Delete apaga a seleção' + (uma ? '' : ' (ou o corte no cursor)') + ' · [ aparar até aqui · ] aparar daqui · Home/End começo/fim · ←/→ andar 0,1 s (Shift 1 s, Alt 0,01 s) · + − 0 zoom · rodinha zoom, Shift+rodinha rolar · Ctrl+Z / Ctrl+Y';
+    j.append(dica);
     const lista = el('div', 'ct-lista'); if (!uma) j.append(lista);
     const rod = el('div', 'ct-rod'), av = el('span', 'ct-aviso'); rod.append(av); j.append(rod);
     const tempo = el('span', 'ct-tempo');
     const B = {}; const add = (k, txt, fn, title, cls) => { B[k] = bt(txt, cls, fn, title); barra.append(B[k]); return B[k]; }, sep = () => barra.append(el('span', 'ct-sep'));
-    add('play', '▶ Ouvir', () => toca(), 'Espaço'); add('ouveSel', 'Ouvir a seleção', () => sel && toca(sel[0], sel[1])); sep();
-    if (!uma) { add('marca', '+ Marcar corte', () => { poeMarca(cab); }, 'M (também tocando) · duplo clique na onda'); sep(); }
-    add('apaga', 'Apagar trecho', () => apagaSel(), 'Delete: tira o trecho selecionado'); add('apara', 'Cortar fora da seleção', () => apara(), 'Fica só o que está selecionado (apara começo e fim)'); sep();
-    add('menos', 'Volume −', () => ganho(1 / 1.18)); add('mais', 'Volume +', () => ganho(1.18)); sep();
+    add('play', '▶ Ouvir', () => toca(), 'Espaço'); add('ouveSel', '▶ Seleção', () => sel && toca(sel[0], sel[1]), 'Ouvir só o que está selecionado'); sep();
+    if (!uma) { add('marca', '✂ Cortar aqui', () => { poeMarca(cab); }, 'C ou M (também tocando) · duplo clique na onda: separa duas falas neste ponto'); sep(); }
+    add('ini', '⇤ Aparar até aqui', () => aparaAte(cab), '[ : tira tudo ANTES do cursor'); add('fim', 'Aparar daqui ⇥', () => aparaDesde(cab), '] : tira tudo DEPOIS do cursor');
+    add('sil', '✨ Tirar silêncio das pontas', () => tiraPontas(), 'Tira o silêncio do começo e do fim (deixa uma folguinha)'); sep();
+    add('apaga', '🗑 Apagar seleção', () => apagaSel(), 'Delete: tira o trecho selecionado (arraste na onda para selecionar)'); add('apara', 'Ficar só com a seleção', () => apara(), 'Tira tudo fora da seleção'); sep();
+    add('menos', '🔉 −', () => ganho(1 / 1.18), 'Volume mais baixo (na seleção ou em tudo)'); add('mais', '🔊 +', () => ganho(1.18), 'Volume mais alto (na seleção ou em tudo)'); sep();
     add('desf', '↶ Desfazer', () => desfaz(), 'Ctrl+Z'); add('ref', '↷ Refazer', () => refaz(), 'Ctrl+Y'); add('orig', 'Voltar ao original', () => { guarda(); A.d = ORIG.d.slice(); marcas = [...ORIG.marcas]; dono = null; sel = null; tudo(); }); sep();
     add('zm', 'Zoom −', () => fazZoom(zoom / 1.6, cab)); add('zp', 'Zoom +', () => fazZoom(zoom * 1.6, cab)); barra.append(tempo);
     if (!uma) { if (o.transcrever) rod.append(bt('Transcrever para acertar', '', () => transcreve(), 'Usa a cota de transcrição (só quando você pede; o resultado fica guardado neste navegador)'));
       rod.append(bt('Separar pelos silêncios', '', () => { guarda(); marcas = silencios(A, falas.length); dono = null; aviso = avisoPausas(marcas, falas.length); tudo(); })); }
-    rod.append(bt('Cancelar', '', () => fecha()), bt(uma ? 'Salvar' : 'Separar nas falas', 'pri', () => salva()));
+    rod.append(bt('Cancelar', '', () => fecha()), bt(o.cru ? 'Usar este pedaço' : uma ? 'Salvar' : 'Separar nas falas', 'pri', () => salva()));
     // ---- desenhar ----
     const px = () => cv.width / (dur() * zoom), xT = t => (t - ini) * px(), tX = x => ini + x / px();
     function desenha() { const W = cv.width = onda.clientWidth * devicePixelRatio, H = cv.height = onda.clientHeight * devicePixelRatio, g = cv.getContext('2d'), d = A.d, sr = A.sr; g.clearRect(0, 0, W, H);
@@ -122,7 +128,10 @@ const Cortes = (() => {
       const s0 = ini * sr, por = vis * sr / W; g.fillStyle = '#7fb6ff';
       for (let x = 0; x < W; x++) { const a = Math.floor(s0 + x * por), b = Math.min(d.length, Math.floor(s0 + (x + 1) * por) + 1); let mn = 0, mx = 0; for (let i = a; i < b; i++) { const v = d[i]; if (v < mn) mn = v; if (v > mx) mx = v; } g.fillRect(x, H / 2 - mx * H / 2, 1, Math.max(1, (mx - mn) * H / 2)); }
       if (!uma) { const bs = [0, ...marcas, dur()]; g.font = `${12 * devicePixelRatio}px Segoe UI, sans-serif`;
-        for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k), nome = fi == null ? '(não usar)' : fi >= 0 && falas[fi] ? (k + 1) + '. ' + falas[fi].rotulo + ': ' + String(falas[fi].texto || '') : '(sobrando)'; const x = Math.max(4, xT(bs[k]) + 4); if (x < W) { g.fillStyle = fi == null || fi < 0 ? '#ffb04a' : '#ffd36b'; g.fillText(nome.slice(0, 40), x, 14 * devicePixelRatio); } }
+        g.font = `bold ${13 * devicePixelRatio}px Segoe UI, sans-serif`;
+        for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k), nome = fi == null ? '×' : fi >= 0 && falas[fi] ? String(fi + 1) : '?', x = Math.max(4, xT(bs[k]) + 5);
+          if (x < W && xT(bs[k + 1]) > 0) { const w = g.measureText(nome).width + 8 * devicePixelRatio; g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x - 3 * devicePixelRatio, 3 * devicePixelRatio, w, 18 * devicePixelRatio);
+            g.fillStyle = fi == null || fi < 0 ? '#ffb04a' : '#ffd36b'; g.fillText(nome, x + devicePixelRatio, 17 * devicePixelRatio); } }
         g.lineWidth = 2 * devicePixelRatio; for (const m of marcas) { const x = xT(m); g.strokeStyle = '#ff6b93'; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); g.fillStyle = '#ff6b93'; g.fillRect(x - 5 * devicePixelRatio, H - 12 * devicePixelRatio, 10 * devicePixelRatio, 12 * devicePixelRatio); } }
       g.strokeStyle = '#fff'; g.lineWidth = devicePixelRatio; g.beginPath(); g.moveTo(xT(cab), 0); g.lineTo(xT(cab), H); g.stroke();
       rol.hidden = zoom <= 1.001; rol.value = Math.round(ini / Math.max(.001, dur() - vis) * 1000) || 0;
@@ -133,7 +142,7 @@ const Cortes = (() => {
       for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k), r = el('div', 'ct-ped' + (fi == null ? '' : fi < 0 ? ' sobra' : '')); r.style.setProperty('--c', fi >= 0 ? '#ffd36b' : '#ffb04a');
         const s = el('select'); s.append(new Option('(não usar este pedaço)', 'x')); falas.forEach((fa, i) => s.append(new Option((i + 1) + '. ' + fa.rotulo + ': ' + String(fa.texto || '').slice(0, 50), i))); s.value = fi == null || fi < 0 ? 'x' : fi; if (fi >= 0) usados.add(fi);
         s.onchange = () => { dono = dono || [...Array(bs.length - 1)].map((_, q) => donoDe(q)); dono[k] = s.value === 'x' ? null : +s.value; tudo(); };
-        r.append(el('small', null, tms(bs[k + 1] - bs[k])), bt('▶', '', () => toca(bs[k], bs[k + 1]), 'Ouvir este pedaço'), s); lista.append(r); }
+        r.append(el('b', 'ct-num', fi == null ? '×' : fi >= 0 ? String(fi + 1) : '?'), el('small', null, tms(bs[k + 1] - bs[k])), bt('▶', '', () => toca(bs[k], bs[k + 1]), 'Ouvir este pedaço'), bt('✎', '', () => editaPedaco(k), 'Editar só este pedaço (aparar, cortar, volume)'), s); lista.append(r); }
       const faltam = falas.map((fa, i) => i).filter(i => !usados.has(i)); for (const i of faltam) { const r = el('div', 'ct-ped falta'); r.append(el('small', null, 'faltando'), el('span', null, (i + 1) + '. ' + falas[i].rotulo + ': ' + String(falas[i].texto || '').slice(0, 60))); lista.append(r); }
       const sobra = (bs.length - 1) - falas.length; av.textContent = [aviso, sobra > 0 ? `Sobram ${sobra} pedaço(s): escolha a fala ou deixe "não usar".` : '', faltam.length ? `${faltam.length} fala(s) sem pedaço: ponha mais marcadores (M) ou deixe para gravar depois.` : ''].filter(Boolean).join(' '); }
     const tudo = () => { desenha(); pintaLista(); };
@@ -143,6 +152,16 @@ const Cortes = (() => {
     function refaz() { if (!fut.length) return; hist.push({ d: A.d, marcas: [...marcas], dono }); const h = fut.pop(); A.d = h.d; marcas = h.marcas; dono = h.dono; sel = null; tudo(); }
     function apagaSel() { if (!sel) return; guarda(); const [a, b] = sel, ia = Math.round(a * A.sr), ib = Math.round(b * A.sr), d = new Float32Array(A.d.length - (ib - ia)); d.set(A.d.subarray(0, ia)); d.set(A.d.subarray(ib), ia); A.d = d;
       marcas = marcas.filter(m => m < a || m > b).map(m => m > b ? m - (b - a) : m); cab = a; sel = null; tudo(); }
+    function aparaAte(t) { if (t <= .001) return; guarda(); A.d = A.d.slice(Math.round(t * A.sr)); marcas = marcas.filter(m => m > t).map(m => m - t); cab = 0; sel = null; ini = 0; tudo(); }
+    function aparaDesde(t) { if (t >= dur() - .001) return; guarda(); A.d = A.d.slice(0, Math.round(t * A.sr)); marcas = marcas.filter(m => m < t); sel = null; tudo(); }
+    function tiraPontas() { const { e, q } = energia(A), ord = [...e].sort((a, b) => a - b), piso = ord[Math.floor(ord.length * .1)] || 0, voz = ord[Math.floor(ord.length * .9)] || 0, lim = Math.max(piso + (voz - piso) * .12, .003);
+      const a = e.findIndex(v => v >= lim), b = e.length - 1 - [...e].reverse().findIndex(v => v >= lim); if (a < 0) return; const t0 = Math.max(0, a * q - .12), t1 = Math.min(dur(), (b + 1) * q + .15);
+      if (t0 < .02 && t1 > dur() - .02) return; guarda(); A.d = A.d.slice(Math.round(t0 * A.sr), Math.round(t1 * A.sr)); marcas = marcas.filter(m => m > t0 && m < t1).map(m => m - t0); cab = 0; sel = null; ini = 0; tudo(); }
+    // editar SÓ um pedaço (no áudio geral): abre o mesmo editor para ele e devolve o resultado no lugar
+    async function editaPedaco(k) { para(); const bs = bordas(), a = bs[k], b = bs[k + 1], P0 = pedaco(A, a, b);
+      await revisao({ dados: P0, uma: true, titulo: 'Editar o pedaço ' + (donoDe(k) >= 0 ? (donoDe(k) + 1) + ': ' + (falas[donoDe(k)]?.rotulo || '') : k + 1), cru: true,
+        aoSalvar: ([x]) => { guarda(); const n = x.dados.d, d = new Float32Array(A.d.length - (Math.round(b * A.sr) - Math.round(a * A.sr)) + n.length); d.set(A.d.subarray(0, Math.round(a * A.sr))); d.set(n, Math.round(a * A.sr)); d.set(A.d.subarray(Math.round(b * A.sr)), Math.round(a * A.sr) + n.length);
+          const dif = n.length / A.sr - (b - a); A.d = d; marcas = marcas.map(m => m > a + .001 ? m + dif : m); tudo(); } }); }
     function apara() { if (!sel) return; guarda(); const [a, b] = sel; A.d = A.d.slice(Math.round(a * A.sr), Math.round(b * A.sr)); marcas = marcas.filter(m => m > a && m < b).map(m => m - a); cab = 0; sel = null; ini = 0; tudo(); }
     function ganho(k) { guarda(); const d = A.d.slice(), [a, b] = sel || [0, dur()]; for (let i = Math.round(a * A.sr); i < Math.min(d.length, Math.round(b * A.sr)); i++) d[i] = Math.max(-1, Math.min(1, d[i] * k)); A.d = d; tudo(); }
     function poeMarca(t) { if (uma) return; t = Math.max(.01, Math.min(dur() - .01, t)); guarda(); marcas = [...marcas, t].sort((a, b) => a - b); dono = null; tudo(); }
@@ -165,11 +184,21 @@ const Cortes = (() => {
     onda.ondblclick = e => { const r = cv.getBoundingClientRect(); poeMarca(tX((e.clientX - r.left) * devicePixelRatio)); };
     onda.onwheel = e => { e.preventDefault(); const r = cv.getBoundingClientRect(), t = tX((e.clientX - r.left) * devicePixelRatio); if (e.shiftKey) { ini += (e.deltaY > 0 ? 1 : -1) * dur() / zoom * .15; desenha(); } else fazZoom(zoom * (e.deltaY < 0 ? 1.3 : 1 / 1.3), t); };
     rol.oninput = () => { ini = rol.value / 1000 * (dur() - dur() / zoom); desenha(); };
-    const tecla = e => { if (!f.isConnected) return; if (e.target.closest?.('select,input')) return; const mod = e.ctrlKey || e.metaKey;
-      if (e.key === ' ') { e.preventDefault(); toca(); } else if ((e.key === 'm' || e.key === 'M') && !mod) { e.preventDefault(); poeMarca(cab); } else if (e.key === 'Delete' || e.key === 'Backspace') { if (sel) { e.preventDefault(); apagaSel(); } }
+    const bordas = () => [0, ...marcas, dur()], pedacoDe = t => { const bs = bordas(); let k = 0; while (k < bs.length - 2 && t >= bs[k + 1]) k++; return [bs[k], bs[k + 1]]; };
+    const vaiPara = t => { para(); cab = Math.max(0, Math.min(dur(), t)); sel = null; const vis = dur() / zoom; if (cab < ini || cab > ini + vis) ini = cab - vis / 2; desenha(); };
+    const tecla = e => { if (!f.isConnected || pilha[pilha.length - 1] !== f) return; if (e.target.closest?.('select,input')) return; const mod = e.ctrlKey || e.metaKey, k = e.key;
+      if (k === 'Home') { e.preventDefault(); vaiPara(0); } else if (k === 'End') { e.preventDefault(); vaiPara(dur()); }
+      else if (k === 'ArrowLeft' || k === 'ArrowRight') { e.preventDefault(); const d = k === 'ArrowLeft' ? -1 : 1;
+        if (mod) { const bs = bordas(), alvo = d < 0 ? [...bs].reverse().find(b => b < cab - .005) : bs.find(b => b > cab + .005); vaiPara(alvo ?? (d < 0 ? 0 : dur())); }
+        else vaiPara(cab + d * (e.shiftKey ? 1 : e.altKey ? .01 : .1)); }
+      else if (k === 'Enter') { e.preventDefault(); const [a, b] = pedacoDe(cab); toca(a, b); }
+      else if (k === '[') { e.preventDefault(); aparaAte(cab); } else if (k === ']') { e.preventDefault(); aparaDesde(cab); }
+      else if (k === '+' || k === '=') { e.preventDefault(); fazZoom(zoom * 1.6, cab); } else if (k === '-' || k === '_') { e.preventDefault(); fazZoom(zoom / 1.6, cab); } else if (k === '0' && !mod) { e.preventDefault(); zoom = 1; ini = 0; desenha(); }
+      else if (k === ' ') { e.preventDefault(); toca(); } else if (/^[mMcC]$/.test(k) && !mod) { e.preventDefault(); poeMarca(cab); }
+      else if (k === 'Delete' || k === 'Backspace') { if (sel) { e.preventDefault(); apagaSel(); } else if (!uma) { const mi = marcas.findIndex(m => Math.abs(m - cab) < .08); if (mi >= 0) { e.preventDefault(); guarda(); marcas.splice(mi, 1); dono = null; tudo(); } } }
       else if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); desfaz(); } else if (mod && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); refaz(); } else if (e.key === 'Escape') fecha(); };
-    addEventListener('keydown', tecla); const rz = () => desenha(); addEventListener('resize', rz);
-    function fecha(semPerguntar) { if (!semPerguntar && hist.length && !confirm('Fechar sem salvar? As mudanças neste áudio se perdem.')) return; para(); removeEventListener('keydown', tecla); removeEventListener('resize', rz); f.remove(); o.aoFechar?.(); }
+    pilha.push(f); addEventListener('keydown', tecla); const rz = () => desenha(); addEventListener('resize', rz);
+    function fecha(semPerguntar) { if (!semPerguntar && hist.length && !confirm('Fechar sem salvar? As mudanças neste áudio se perdem.')) return; para(); removeEventListener('keydown', tecla); removeEventListener('resize', rz); f.remove(); const pi = pilha.indexOf(f); if (pi >= 0) pilha.splice(pi, 1); o.aoFechar?.(); }
     // ---- transcrição (só quando a pessoa pede) ----
     async function transcreve() { if (!o.transcrever) return; const bts = $$('button', rod); bts.forEach(b => b.disabled = true); const v = av.textContent; av.textContent = 'Transcrevendo… (pode levar um pouco)';
       try { energia._c = null; const palavras = await o.transcrever(A); const pos = alinha(palavras, falas); if (!pos.some(Boolean)) throw new Error('Não achei as falas na transcrição. Use os silêncios ou marque à mão.');
@@ -177,7 +206,8 @@ const Cortes = (() => {
         marcas = [...new Set(novas.map(x => Math.round(x * 1000) / 1000))].sort((a, b) => a - b); dono = null; aviso = `Cortes sugeridos pela transcrição (${pos.filter(Boolean).length} de ${falas.length} falas achadas). Confira e arraste se precisar.`; tudo(); }
       catch (e) { av.textContent = v; alert(e.message); } bts.forEach(b => b.disabled = false); }
     // ---- salvar: cada pedaço vira o áudio de uma fala (WAV mono 22 kHz) ----
-    async function salva() { para(); const bs = uma ? [0, dur()] : [0, ...marcas, dur()], out = [], salvaBt = rod.lastChild; salvaBt.disabled = true; salvaBt.textContent = 'Preparando…';
+    async function salva() { para(); if (o.cru) { o.aoSalvar([{ dados: { sr: A.sr, d: A.d.slice() } }]); return fecha(true); }
+      const bs = uma ? [0, dur()] : [0, ...marcas, dur()], out = [], salvaBt = rod.lastChild; salvaBt.disabled = true; salvaBt.textContent = 'Preparando…';
       try { for (let k = 0; k < bs.length - 1; k++) { const fi = uma ? 0 : donoDe(k); if (!uma && (fi == null || fi < 0)) continue; const p = await reamostra(pedaco(A, Math.max(0, bs[k] - (uma ? 0 : .02)), Math.min(dur(), bs[k + 1] + (uma ? 0 : .02))), 22050);
           if (p.d.length < 2205) continue; let blob = null; try { blob = await opusOgg(p); } catch { } out.push({ fala: uma ? null : falas[fi].id, blob: blob || wav(p), duracao: Math.round(p.d.length / p.sr * 100) / 100 }); }
         if (!out.length) throw new Error('Nenhum pedaço para salvar.'); const ok = await o.aoSalvar(out); if (ok !== false) fecha(true); }
