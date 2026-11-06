@@ -1116,3 +1116,5 @@ body.modo-doc .corpo.corpo-falas{background:none}
 /* sem o lado esquerdo (Falas, Legendas, Elenco): o conteúdo fica no meio */
 body.modo-doc.sem-guias .corpo.corpo-falas>.falas,body.modo-doc.sem-guias .corpo.corpo-elenco>*{max-width:980px;margin-left:auto;margin-right:auto}
 body.modo-doc.sem-guias .corpo.corpo-legendas>*{max-width:1200px;margin-left:auto;margin-right:auto}
+
+.dh-guias .dg-prox.feito{background:#60a917!important;border-color:#60a917!important;color:#fff!important}

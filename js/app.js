@@ -339,10 +339,19 @@ function menus(nav, def) {
 const GUIAS = [['roteiro', 'Roteiro', 'doc'], ['falas', 'Falas e gravação', 'mic'], ['legendas', 'Legendas', 'legenda']];
 // com destino = Animador aparece a guia do ELENCO: qual personagem do Ateliê é cada nome do roteiro (prep.animador.pers)
 const guiasDe = P => P?.destino === 'animador' ? [...GUIAS, ['elenco', 'Elenco no Animador', 'pessoa']] : GUIAS;
-function irGuia(k) { S.sub = k; marcaGuias(); pintaCorpo(); window.scrollTo({ top: 0 }); }
+function irGuia(k) { S.sub = k; if (k === 'falas') passaGravando(); marcaGuias(); pintaCorpo(); window.scrollTo({ top: 0 }); }
+// a etapa anda sozinha: abriu "Falas e gravação" num rascunho → Gravando (na nuvem, uma ação pequena; só neste computador, vai junto depois)
+async function passaGravando() { const P = S.P; if (!P || (P.status || 'rascunho') !== 'rascunho' || !pode('pronto')) return; P.status = 'gravando';
+  if (P.mod && !P.novo && !S.sujo) { try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, status: 'gravando' }); if (r.mod) { P.mod = r.mod; S.base.mod = r.mod; } S.lista = null; } catch { marcaSujo(); } } else marcaSujo(); }
 // a barra de guias de cima: qual está aberta, e Anterior/Próximo; o lado esquerdo só aparece no Roteiro (títulos e personagens)
 function marcaGuias() { const L = guiasDe(S.P).map(g => g[0]), i = L.indexOf(S.sub); $$('.dh-guias [data-sub]').forEach(x => x.classList.toggle('on', x.dataset.sub === S.sub));
-  const a = $('[data-guia-ant]'), b = $('[data-guia-prox]'); if (a) { a.disabled = i <= 0; a.onclick = () => i > 0 && irGuia(L[i - 1]); } if (b) { b.disabled = i >= L.length - 1; b.onclick = () => i < L.length - 1 && irGuia(L[i + 1]); }
+  const a = $('[data-guia-ant]'), b = $('[data-guia-prox]'); if (a) { a.disabled = i <= 0; a.onclick = () => i > 0 && irGuia(L[i - 1]); }
+  if (b) { const ultima = i >= L.length - 1, pronto = S.P?.status === 'pronto';
+    if (!ultima) { b.disabled = false; b.classList.remove('feito'); b.innerHTML = `Próximo <span class="dg-seta-d">${ic('voltar', 15)}</span>`; b.title = 'Próxima guia'; b.onclick = () => irGuia(L[i + 1]); }
+    else { b.disabled = !pode('pronto'); b.classList.toggle('feito', pronto); b.innerHTML = pronto ? `${ic('ok', 15)} Pronto` : `${ic('ok', 15)} Finalizar`;
+      b.title = pronto ? `Já está pronto para o ${DESTINOS[S.P.destino] || 'programa'} usar. Clique para voltar a gravar.` : 'Marca como pronto: o roteiro fica disponível para o programa de destino (An, Sh ou Ed)';
+      b.onclick = async () => { if (pronto) { if (await pergunta('Voltar a gravar?', 'O roteiro deixa de aparecer como pronto no programa de destino até você finalizar de novo.', [['Cancelar', false], ['Voltar a gravar', true, 'pri']])) await S.mudaMarca?.('status', 'gravando'); }
+        else await S.mudaMarca?.('status', 'pronto'); marcaGuias(); }; } }
   document.body.classList.toggle('sem-guias', S.sub !== 'roteiro'); }
 function baixaTexto() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([S.P.roteiro || ''], { type: 'text/plain;charset=utf-8' })); a.download = (S.P.nome || 'roteiro').replace(/[^\w\- ]+/g, '_') + '.txt'; a.click(); }
 function mostraComo() { const m = h(`<div class="modal"><div class="caixa larga">${COMO}<div class="bts"><button class="bt pri">Entendi</button></div></div></div>`); $('button', m).onclick = () => m.remove(); m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
@@ -363,7 +372,6 @@ function pintaPrep() {
       <span class="esp"></span>
       <div class="quem-doc"><div class="aovivo-doc"></div><button class="g-mini" data-hist title="Quem criou e quem editou">${ic('relogio', 18)}</button></div>
       <div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 20)}</button>`).join('')}</div>
-      <div class="etapas" role="group" aria-label="Situação">${PREP_CONFIG.status.map(([v, n], i) => `<button data-status="${v}" class="${i < at ? 'feito' : i === at ? 'on' : ''}" ${pp ? '' : 'disabled'} title="${esc(ETAPA_TIT[v])}"><i>${i < at ? ic('ok', 12) : i + 1}</i><span>${esc(n)}</span></button>`).join('')}</div>
       <span class="enviar"></span>
       <span class="dh-conta"></span>
     </header>
@@ -388,7 +396,7 @@ function pintaPrep() {
   $('[data-volta]', el).onclick = () => sairDoPrep();
   const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); nm.size = Math.max(8, Math.min(40, nm.value.length + 1)); marcaSujo(); };
   nm.onkeydown = e => { if (e.key === 'Enter') { nm.blur(); S.ed?.foca(); } };
-  const mudaMarca = async (campo, v) => {
+  const mudaMarca = S.mudaMarca = async (campo, v) => {
     if (campo === 'status' && v === P.status) return; const antes = P.status;
     if (campo === 'status' && v === 'pronto') { // pronto = vai para um programa: precisa do destino e avisa o que falta gravar
       if (!P.destino) { const d = await pergunta('Vai para qual programa?', 'Escolha onde este roteiro vai ser usado. Ele passa a aparecer lá como pronto.', [...PREP_CONFIG.destinos.map(([k, n]) => [n, k]), ['Cancelar', null]]); if (!d) return; P.destino = d; }
