@@ -108,7 +108,7 @@ const Cortes = (() => {
 .ct-ped .ct-n{width:26px;height:26px;display:grid;place-items:center;background:var(--c,#ffd36b);color:#1a1405;font-weight:700;font-size:13px}
 .ct-ped select{background:#141518;color:#eceef2;border:1px solid #42454d;padding:4px 6px;min-width:0;width:100%;height:30px}
 .ct-ped .ct-d{font:12px ui-monospace,monospace;color:#9aa0ab}.ct-ped .ct-bts{display:flex;gap:4px}
-.ct-ped.sobra{--c:#ffb04a}.ct-ped.nao{--c:#5a5d66}
+.ct-ped.sobra{--c:#ffb04a}.ct-ped.nao{--c:#5a5d66}.ct-ped.igual{--c:#60a917;opacity:.75}.ct-ped.igual .ct-d{color:#7bd88f}
 .ct-falta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px dashed #ff6b81;background:rgba(255,77,94,.06);font-size:13px}.ct-falta .ct-n{width:26px;height:26px;display:grid;place-items:center;background:#ff4d5e;color:#fff;font-weight:700}.ct-falta>span:not(.ct-n){flex:1 1 220px}.ct-falta .ct-n{flex:none}
 .ct-extra{display:flex;gap:8px;align-items:center;margin-top:4px}.ct-extra select{flex:1;background:#141518;color:#eceef2;border:1px solid #42454d;padding:4px 6px;height:30px}
 .ct-rod{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid #2c2f35;background:#1d1f24}.ct-aviso{color:#ffb04a;font-size:12.5px;flex:1 1 280px}
@@ -190,7 +190,8 @@ const Cortes = (() => {
         const s = el('select'); s.append(new Option('— não usar este pedaço —', 'x')); falas.forEach((fa, i) => s.append(new Option((i + 1) + '. ' + fa.rotulo + ': ' + String(fa.texto || '').slice(0, 70), i))); s.value = fi == null || fi < 0 ? 'x' : fi;
         s.onchange = () => { guarda(); materializa(); dono[k] = s.value === 'x' ? null : +s.value; tudo(); };
         const bts = el('div', 'ct-bts'); bts.append(bt('▶', 'mini', () => toca(bs[k], bs[k + 1]), 'Ouvir este pedaço'), bt('✎', 'mini', () => editaPedaco(k), 'Editar só este pedaço'));
-        r.append(el('span', 'ct-n', fi == null ? '×' : fi >= 0 ? String(fi + 1) : '?'), s, el('span', 'ct-d', tms(bs[k + 1] - bs[k])), bts); lista.append(r); }
+        if (iguais.has(k) && fi == null) { r.classList.add('igual'); s.title = 'Igual ao que a fala ' + (iguais.get(k) + 1) + ' já tem gravado'; }
+        r.append(el('span', 'ct-n', fi == null ? (iguais.has(k) ? '=' : '×') : fi >= 0 ? String(fi + 1) : '?'), s, el('span', 'ct-d', iguais.has(k) && fi == null ? `igual à ${iguais.get(k) + 1}` : tms(bs[k + 1] - bs[k])), bts); lista.append(r); }
       const faltam = falas.map((_, i) => i).filter(i => !usados.has(i));
       if (faltam.length) { lista.append(el('div', 'ct-lt', `Faltando (${faltam.length})`)); for (const i of faltam) { const r = el('div', 'ct-falta'); r.append(el('span', 'ct-n', String(i + 1)), el('span', null, falas[i].rotulo + ': ' + String(falas[i].texto || '').slice(0, 90)));
         const b1 = bt('Usar a seleção', 'mini', () => daFala(i, 'sel'), 'Corta nas pontas do trecho selecionado e dá esse pedaço para esta fala'); b1.disabled = !sel; r.append(b1, bt('Cortar no cursor', 'mini', () => daFala(i, 'cur'), 'Corta no cursor: o pedaço DEPOIS dele vai para esta fala')); lista.append(r); } }
@@ -198,6 +199,11 @@ const Cortes = (() => {
         s.onchange = () => { if (s.value === '') return; const fa = extras.splice(+s.value, 1)[0]; falas.push(fa); materializa(); tudo(); }; x.append(s); lista.append(x); }
       const sobra = (bs.length - 1) - falas.length; av.textContent = [aviso, sobra > 0 ? `Sobram ${sobra} pedaço(s): escolha a fala ou "não usar".` : '', faltam.length ? `${faltam.length} fala(s) sem pedaço: use "Usar a seleção" ou "Cortar no cursor" nelas.` : ''].filter(Boolean).join(' '); }
     const tudo = () => { desenha(); pintaLista(); info(); };
+    let iguais = new Map(); // índice do pedaço → número da fala de que ele é igual
+    async function confereIguais() { if (!o.comparar || uma) return; const bs = bordas(), ps = []; for (let k = 0; k < bs.length - 1; k++) { const fi = donoDe(k); if (fi >= 0 && falas[fi]) ps.push({ k, fi, fala: falas[fi].id, dados: pedaco(A, bs[k], bs[k + 1]) }); }
+      if (!ps.length) return; const v = av.textContent; av.textContent = 'Comparando com o que já está gravado…'; let ks = []; try { ks = await o.comparar(ps); } catch { } av.textContent = v;
+      iguais = new Map(); if (!ks.length) return tudo(); materializa(); for (const k of ks) { const p = ps.find(x => x.k === k); if (p) { iguais.set(k, p.fi); dono[k] = null; } }
+      aviso = (aviso ? aviso + ' ' : '') + `${ks.length} pedaço(s) iguais ao que já estava gravado ficaram de fora ("não usar"); só os diferentes vão substituir.`; tudo(); }
     const info = () => { chips.replaceChildren(); const c = t => chips.append(el('span', 'ct-chip', t)); c(tms(dur()).replace(/,\d+$/, '')); if (o.blob) c(mb(o.blob.size)); if (!uma) { c(`${falas.length} fala(s)`); c(`${marcas.length} corte(s)`); } };
     // ---- edição (com desfazer) ----
     function guarda() { hist.push({ d: A.d, marcas: [...marcas], dono: dono && [...dono] }); if (hist.length > 40) hist.shift(); fut = []; }
@@ -267,7 +273,7 @@ const Cortes = (() => {
     async function transcreve(sozinho) { if (!o.transcrever) return; const bts = $$('button', rod); bts.forEach(b => b.disabled = true); const v = av.textContent; av.textContent = 'Transcrevendo… (pode levar um pouco)';
       try { energia._c = null; const palavras = await o.transcrever(A); const pos = alinha(palavras, falas); if (!pos.some(Boolean)) throw new Error('Não achei as falas na transcrição. Use as pausas ou corte à mão.');
         guarda(); const novas = []; for (let k = 1; k < falas.length; k++) { const a = pos[k - 1], b = pos[k]; if (!b) continue; const t = a ? (a.fim + b.ini) / 2 : b.ini - .15; novas.push(quieto(A, t)); }
-        marcas = [...new Set(novas.map(x => Math.round(x * 1000) / 1000))].sort((a, b) => a - b); dono = null; selM = -1; aviso = `Cortes sugeridos pela transcrição (${pos.filter(Boolean).length} de ${falas.length} falas achadas). Confira e arraste se precisar.`; tudo(); }
+        marcas = [...new Set(novas.map(x => Math.round(x * 1000) / 1000))].sort((a, b) => a - b); dono = null; selM = -1; aviso = `Cortes sugeridos pela transcrição (${pos.filter(Boolean).length} de ${falas.length} falas achadas). Confira e arraste se precisar.`; tudo(); await confereIguais(); }
       catch (e) { if (sozinho) { aviso = 'A transcrição não deu certo (' + e.message + '). Fiquei com os cortes pelas pausas: confira, ou tente "Transcrever para acertar" de novo.'; pintaLista(); } else { av.textContent = v; alert(e.message); } } bts.forEach(b => b.disabled = false); }
     // ---- salvar: cada pedaço vira o áudio de uma fala (Opus .ogg; WAV se o navegador não tiver o codificador) ----
     async function salva() { para(); if (o.cru) { o.aoSalvar([{ dados: { sr: A.sr, d: A.d.slice() } }]); return fecha(true); }
@@ -276,7 +282,7 @@ const Cortes = (() => {
           if (p.d.length < 2205) continue; let blob = null; try { blob = await opusOgg(p); } catch { } out.push({ fala: uma ? null : falas[fi].id, blob: blob || wav(p), duracao: Math.round(p.d.length / p.sr * 100) / 100 }); }
         if (!out.length) throw new Error('Nenhum pedaço para salvar.'); const ok = await o.aoSalvar(out); if (ok !== false) fecha(true); }
       catch (e) { alert(e.message); salvaBt.disabled = false; salvaBt.textContent = uma ? 'Salvar' : 'Separar nas falas'; } }
-    document.body.append(f); requestAnimationFrame(tudo); if (o.autoTranscrever && o.transcrever && !uma) setTimeout(() => transcreve(true), 300); return { fecha };
+    document.body.append(f); requestAnimationFrame(tudo); if (o.autoTranscrever && o.transcrever && !uma) setTimeout(() => transcreve(true), 300); else setTimeout(() => confereIguais(), 300); return { fecha };
   }
 
   /* ================= GRAVAR TUDO EM SEQUÊNCIA ================= */
@@ -331,9 +337,15 @@ const Cortes = (() => {
   async function codifica(A, marcas, falas) { const bs = [0, ...marcas, A.d.length / A.sr], out = [];
     for (let k = 0; k < Math.min(bs.length - 1, falas.length); k++) { const p = await reamostra(pedaco(A, Math.max(0, bs[k] - .02), Math.min(A.d.length / A.sr, bs[k + 1] + .02)), 22050); if (p.d.length < 2205) continue;
       let blob = null; try { blob = await opusOgg(p); } catch { } out.push({ fala: falas[k].id, blob: blob || wav(p), duracao: Math.round(p.d.length / p.sr * 100) / 100 }); } return out; }
+  // DOIS ÁUDIOS IGUAIS? compara o envelope de volume (20 ms por quadro) com um pequeno deslocamento; devolve 0..1
+  function envelope(A) { const q = Math.max(1, Math.round(A.sr * .02)), n = Math.floor(A.d.length / q), e = new Float32Array(n); for (let i = 0; i < n; i++) { let s = 0; for (let j = i * q; j < (i + 1) * q; j++) s += A.d[j] * A.d[j]; e[i] = Math.sqrt(s / q); } return e; }
+  function parecido(A1, A2) { const a = envelope(A1), b = envelope(A2); if (a.length < 5 || b.length < 5) return 0; if (Math.abs(a.length - b.length) / Math.max(a.length, b.length) > .12) return 0;
+    let melhor = 0; for (let lag = -15; lag <= 15; lag++) { let sa = 0, sb = 0, n = 0; for (let i = 0; i < a.length; i++) { const j = i + lag; if (j < 0 || j >= b.length) continue; sa += a[i]; sb += b[j]; n++; } if (n < 5) continue; const ma = sa / n, mb = sb / n; let num = 0, da = 0, db = 0;
+      for (let i = 0; i < a.length; i++) { const j = i + lag; if (j < 0 || j >= b.length) continue; const x = a[i] - ma, y = b[j] - mb; num += x * y; da += x * x; db += y * y; } const c = da && db ? num / Math.sqrt(da * db) : 0; if (c > melhor) melhor = c; }
+    return melhor; }
   const avisoPausas = (m, n) => m.achados === n ? `Achei ${n} pedaço${n === 1 ? '' : 's'} pelas pausas (uma por fala). Confira ouvindo cada um.` : m.achados > n ? `Achei ${m.achados} pedaços para ${n} fala${n === 1 ? '' : 's'}: usei as ${n - 1} pausas mais longas. Confira e arraste os cortes.` : `Achei ${m.achados} pedaço${m.achados === 1 ? '' : 's'} para ${n} falas: faltam pausas. Ponha os cortes que faltam (M ou duplo clique).`;
   // áudio decodificado → arquivo pronto para guardar (Opus .ogg; WAV 22 kHz sem o codificador)
   async function comprime(A) { let b = null; try { b = await opusOgg(A); } catch { } return b || wav(await reamostra(A, 22050)); }
-  return { comprime, converte, aoAvisar: f => { avisaFn = f; }, cortesAuto, codifica, avisoPausas, revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms, opusOgg, wav };
+  return { parecido, comprime, converte, aoAvisar: f => { avisaFn = f; }, cortesAuto, codifica, avisoPausas, revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms, opusOgg, wav };
 })();
 if (typeof window !== 'undefined') window.Cortes = Cortes;

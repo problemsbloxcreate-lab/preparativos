@@ -931,6 +931,12 @@ const Falas = {
   chaveL(f) { return S.P.id + '/' + f.id + this.suf(f); },
   audioDe(f) { const v = this.vez(f); return v ? f.audios?.[v]?.audio || null : f.audio; },
   durDe(f) { const v = this.vez(f); return v ? f.audios?.[v]?.duracao || 0 : f.duracao; },
+  // IGUAIS AO QUE JÁ TEM: para cada pedaço, o áudio atual da fala (deste computador, senão da nuvem) é comparado; devolve os índices iguais
+  async comparaIguais(ps) { const out = [];
+    for (const p of ps) { const f = this.acha(p.fala); if (!f) continue; const KL = this.chaveL(f), au = this.audioDe(f);
+      try { const l = await DB.get('aud', KL).catch(() => null), blob = l?.blob || (au ? await Nuvem.audio(au) : null); if (!blob) continue;
+        if (Cortes.parecido(p.dados, await Cortes.decodifica(blob)) >= .92) out.push(p.k); } catch { } }
+    return out; },
   // ---------- áudio com várias falas, gravar em sequência, editar um áudio (js: dublar/cortes.js) ----------
   alvos() { const fs = []; for (const p of S.P.partes) for (const f of p.falas) if (!this.quem || Roteiro.quem(f).includes(this.quem)) fs.push(f); return fs; },
   paraCortes(f) { const vz = this.vez(f), outros = this.varios(f) ? f.personagens.filter(p => Roteiro.chave(p) !== vz) : [];
@@ -975,7 +981,7 @@ const Falas = {
       const esc0 = await this.escolheFalas(arq.name); if (!esc0) return; this.quem = esc0.quem; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } // a versão certa (fala de vários) é a do personagem escolhido
       const fs = esc0.falas; aviso('Abrindo o áudio…', 'info', 2500);
       try { const A = await Cortes.decodifica(arq), marcas = Cortes.silencios(A, fs.length);
-        await Cortes.revisao({ dados: A, blob: arq, falas: fs.map(f => this.paraCortes(f)), extras: S.P.partes.flatMap(p => p.falas).filter(f => !fs.includes(f)).map(f => this.paraCortes(f)), marcas, titulo: `Separar "${arq.name}" em ${fs.length} fala(s)${esc0.quem ? ' de ' + (fs[0] ? (this.paraCortes(fs[0]).rotulo) : '') : ''}`, aviso: esc0.transcrever ? 'Transcrevendo para achar cada fala pelo texto… enquanto isso, os cortes são pelas pausas.' : Cortes.avisoPausas(marcas, fs.length) + ' Ou use "Transcrever para acertar".', transcrever: this.transcritor(), autoTranscrever: esc0.transcrever,
+        await Cortes.revisao({ dados: A, blob: arq, falas: fs.map(f => this.paraCortes(f)), extras: S.P.partes.flatMap(p => p.falas).filter(f => !fs.includes(f)).map(f => this.paraCortes(f)), marcas, titulo: `Separar "${arq.name}" em ${fs.length} fala(s)${esc0.quem ? ' de ' + (fs[0] ? (this.paraCortes(fs[0]).rotulo) : '') : ''}`, aviso: esc0.transcrever ? 'Transcrevendo para achar cada fala pelo texto… enquanto isso, os cortes são pelas pausas.' : Cortes.avisoPausas(marcas, fs.length) + ' Ou use "Transcrever para acertar".', transcrever: this.transcritor(), autoTranscrever: esc0.transcrever, comparar: ps => this.comparaIguais(ps),
           aoSalvar: ps => this.guardaPedacos(ps), aoFechar: () => this.pinta(this.c) }); }
       catch (e) { aviso(e.message, 'erro'); } };
     inp.click(); },
@@ -1000,7 +1006,8 @@ const Falas = {
       const r = { nome: it.arq.name, quem: it.quem, rotulo: Roteiro.personagens(P.partes).find(p => p.chave === it.quem)?.nome || it.quem, falas: fs.map(f => this.paraCortes(f)), ids: fs.map(f => f.id) };
       try { if (!fs.length) throw new Error('nenhuma fala para esse personagem'); const A = await Cortes.decodifica(it.arq); r.A = A; r.blob = it.arq;
         const c = await Cortes.cortesAuto(A, r.falas, trans ? this.transcritor() : null); r.marcas = c.marcas; r.aviso = c.aviso; r.pedacos = (c.marcas.length + 1);
-        const ps = await Cortes.codifica(A, c.marcas, r.falas); for (const x of ps) { const f = this.acha(x.fala); if (f) await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); } r.feitas = ps.length; }
+        const bs = [0, ...c.marcas, A.d.length / A.sr], comp = await this.comparaIguais(r.falas.map((fa, k) => ({ k, fala: fa.id, dados: { sr: A.sr, d: A.d.slice(Math.round((bs[k] ?? 0) * A.sr), Math.round((bs[k + 1] ?? 0) * A.sr)) } })).filter(x => x.dados.d.length)), iguaisF = new Set(comp.map(k => r.falas[k].id));
+        const ps = (await Cortes.codifica(A, c.marcas, r.falas)).filter(x => !iguaisF.has(x.fala)); for (const x of ps) { const f = this.acha(x.fala); if (f) await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); } r.feitas = ps.length; r.iguais = iguaisF.size; if (r.iguais) r.aviso = (r.aviso || '') + ` ${r.iguais} igual(is) ao que já tinha (mantido).`; }
       catch (e) { r.erro = e.message; } lote.push(r); }
     this.quem = quem0; this._lote = lote; await this.pinta(this.c); this.mostraLote(); },
   // o resultado de cada arquivo, com "Revisar" (abre a revisão com os cortes que foram usados)
@@ -1012,7 +1019,7 @@ const Falas = {
     $('[data-x]', m).onclick = () => m.remove(); m.onkeydown = e => { if (e.key === 'Escape') m.remove(); };
     $$('[data-rev]', m).forEach(b => b.onclick = async () => { const r = L[+b.dataset.rev], quem0 = this.quem; m.remove(); this.quem = r.quem;
       await Cortes.revisao({ dados: { sr: r.A.sr, d: r.A.d.slice() }, blob: r.blob, falas: r.falas, marcas: r.marcas, titulo: `Revisar: ${r.nome} (${r.rotulo})`, aviso: r.aviso, transcrever: this.transcritor(),
-        aoSalvar: async ps => { for (const x of ps) { const f = this.acha(x.fala); if (f) await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); } r.feitas = ps.length; r.aviso = 'Revisado à mão.'; this.quem = quem0; await this.pinta(this.c); this.mostraLote(); },
+        comparar: ps => this.comparaIguais(ps), aoSalvar: async ps => { for (const x of ps) { const f = this.acha(x.fala); if (f) await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); } r.feitas = ps.length; r.aviso = 'Revisado à mão.'; this.quem = quem0; await this.pinta(this.c); this.mostraLote(); },
         aoFechar: () => { this.quem = quem0; } }); });
     document.body.appendChild(m); },
   async emSequencia() { const fs = this.alvos(); if (!fs.length) return; Mic.paraTeste($('.mic-painel', this.c)); const P = S.P;
