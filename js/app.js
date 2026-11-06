@@ -20,6 +20,7 @@ const IC = {
   luz: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>', pessoa: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   alerta: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>',
   pc: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>', coment: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
+  copiar: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
   pasta: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', mais3: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   junto: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20a6 6 0 0 1 12 0M10 20a6 6 0 0 1 12 0"/>', camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   grade: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
@@ -721,6 +722,66 @@ const Onda = {
     g.clearRect(0, 0, W, H); picos.forEach((p, i) => { const h = Math.max(2 * devicePixelRatio, p * (H - 4)); g.fillStyle = i / n < feito ? cor : 'rgba(150,155,170,.55)'; g.fillRect(i * bw + bw * .15, (H - h) / 2, bw * .7, h); }); },
 };
 
+/* ---------- LINKS DE DUBLAGEM (pedido da dona, 06/11/2026): um link para quem vai dublar, sem conta ----------
+   Quem pode (preparativos.links) escolhe ANTES de gerar: todas as falas, as de um personagem ou uma fala só; e o prazo: 1 hora ou sem prazo.
+   Link de UMA fala/UM personagem morre quando a pessoa clica em "Terminei". Link de vários personagens: quem encerra é o responsável (aqui).
+   O que chega fica "aguardando aprovação" (preparativos/<id>/dub/) até alguém aceitar. O token aparece UMA vez (o servidor guarda só o hash). */
+const Dub = {
+  async pinta(box) {
+    if (!box) return; const P = S.P; if (P.novo || !P.mod) { box.innerHTML = ''; return; }
+    box.className = 'dub-painel'; box.innerHTML = `<div class="dp-cab">${ic('enviar', 17)}<b>Links para dublar</b><span class="esp"></span>${pode('links') ? `<button class="bt" data-dub-novo>${ic('mais', 14)} Criar link</button>` : ''}</div><div class="dp-corpo">${giro('Carregando')}</div>`;
+    $('[data-dub-novo]', box)?.addEventListener('click', () => this.novo(box));
+    let r; try { r = await Nuvem.acao({ acao: 'dublar', op: 'lista', id: P.id }); } catch (e) { $('.dp-corpo', box).innerHTML = `<small class="erro">${esc(e.message)}</small>`; return; }
+    this.mostra(box, r);
+  },
+  nomeFala(id) { for (const p of S.P.partes) for (const f of p.falas) if (f.id === id) return f; return null; },
+  mostra(box, r) {
+    const corpo = $('.dp-corpo', box), links = r.links || [], pend = r.pend || [];
+    corpo.innerHTML = `${pend.length ? `<div class="dp-pend"><small class="dp-t">${ic('alerta', 13)} Chegaram ${pend.length} gravaç${pend.length === 1 ? 'ão' : 'ões'} esperando aprovação</small>${pend.map(x => { const f = this.nomeFala(x.fala);
+        return `<div class="dp-item" data-k="${esc(x.k)}"><button class="redondo" data-ouve title="Ouvir">${ic('play', 15)}</button><div class="dp-tx"><b>${esc(f?.personagem || '?')}</b> ${esc((f?.texto || '').slice(0, 90))}<small>por ${esc(x.quem?.nome || 'alguém')}${x.quem?.conta ? '' : ' (sem conta)'} · ${tempo(x.dur)} · ${esc(quando(x.em))}</small></div>
+          ${pode('gravar') ? `<button class="bt pri" data-aceita>${ic('ok', 14)} Aceitar</button><button class="bt" data-recusa>Recusar</button>` : ''}</div>`; }).join('')}</div>` : ''}
+      ${links.length ? links.map(l => `<div class="dp-link" data-h="${esc(l.h)}"><div class="dp-tx"><b>${esc(l.rotulo)}</b><small>${l.falas.length} fala${l.falas.length === 1 ? '' : 's'} · ${l.expira ? 'vence ' + new Date(l.expira).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'sem prazo'} · ${l.unico ? 'morre quando a pessoa terminar' : 'você encerra quando acabar'} · ${l.total} envio${l.total === 1 ? '' : 's'}${l.quem ? ' · ' + esc(l.quem.nome) : ''}</small></div>${pode('links') ? `<button class="bt" data-encerra>Encerrar link</button>` : ''}</div>`).join('')
+        : `<small class="dica">Nenhum link ligado. ${pode('links') ? 'Crie um para mandar a quem vai dublar (a pessoa não precisa de conta).' : ''}</small>`}`;
+    $$('.dp-item', corpo).forEach(it => { const k = it.dataset.k, x = pend.find(y => y.k === k);
+      $('[data-ouve]', it).onclick = async e => { const b = e.currentTarget; try { if (S.tocando) { S.tocando.pause(); S.tocando = null; } const a = new Audio(URL.createObjectURL(await Nuvem.audio(k))); S.tocando = a; a.play(); b.innerHTML = ic('parar', 15); a.onended = a.onpause = () => { b.innerHTML = ic('play', 15); }; } catch (er) { aviso(er.message, 'erro'); } };
+      $('[data-aceita]', it)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r2 = await Nuvem.acao({ acao: 'dublar', op: 'aceita', id: S.P.id, k }); const f = this.nomeFala(x.fala); if (f) { f.audio = r2.audio; f.duracao = r2.duracao; delete f.regravar; }
+        if (!S.sujo && r2.mod) { S.P.mod = r2.mod; S.base.mod = r2.mod; } S.lista = null; aviso('Gravação aceita: agora é o áudio da fala.', 'ok'); Falas.pinta(Falas.c); } catch (er) { aviso(er.message, 'erro'); e.currentTarget.disabled = false; } });
+      $('[data-recusa]', it)?.addEventListener('click', async () => { if (!await pergunta('Recusar esta gravação?', 'Ela é apagada da nuvem. A fala continua como estava.', [['Cancelar', false], ['Recusar', true, 'perigo']])) return; try { this.mostra(box, await Nuvem.acao({ acao: 'dublar', op: 'recusa', id: S.P.id, k })); } catch (er) { aviso(er.message, 'erro'); } }); });
+    $$('.dp-link', corpo).forEach(it => $('[data-encerra]', it)?.addEventListener('click', async () => { if (!await pergunta('Encerrar este link?', 'Ele para de funcionar na hora. O que já foi enviado continua aqui esperando aprovação.', [['Cancelar', false], ['Encerrar', true, 'perigo']])) return;
+      try { this.mostra(box, await Nuvem.acao({ acao: 'dublar', op: 'desliga', id: S.P.id, link: it.dataset.h })); aviso('Link encerrado.', 'ok'); } catch (er) { aviso(er.message, 'erro'); } }));
+  },
+  // CRIAR: escolher o alcance (todas / um personagem / uma fala) e o prazo ANTES de gerar
+  novo(box) {
+    const P = S.P, ps = Roteiro.personagens(P.partes), todas = P.partes.flatMap(p => p.falas);
+    const m = h(`<div class="modal"><div class="caixa larga dub-novo"><b>Criar link para dublar</b>
+      <p class="dica">A pessoa abre o link, vê só as falas escolhidas, grava cada uma e envia. Não precisa de conta. O que ela enviar fica esperando você aceitar.</p>
+      <div class="dn-sec"><small>Quais falas</small>
+        <label class="dn-op"><input type="radio" name="alc" value="pers" checked> Só as falas de um personagem <select data-pers>${ps.map(p => `<option value="${esc(p.chave)}">${esc(p.nome)} (${p.n})</option>`).join('')}</select></label>
+        <label class="dn-op"><input type="radio" name="alc" value="fala"> Só uma fala <select data-fala>${todas.map((f, i) => `<option value="${esc(f.id)}">${i + 1}. ${esc(f.personagem)}: ${esc(f.texto.slice(0, 60))}</option>`).join('')}</select></label>
+        <label class="dn-op"><input type="radio" name="alc" value="todas"> Todas as falas do roteiro (${todas.length})</label>
+        <label class="dn-op sub"><input type="checkbox" data-sem checked> Só as que ainda não têm áudio</label></div>
+      <div class="dn-sec"><small>Prazo</small>
+        <label class="dn-op"><input type="radio" name="prazo" value="hora" checked> 1 hora (depois é apagado sozinho)</label>
+        <label class="dn-op"><input type="radio" name="prazo" value="sempre"> Sem prazo</label>
+        <small class="dica" data-quem-fecha></small></div>
+      <div class="dn-sec"><small>Nome do link (só para você)</small><input type="text" data-rot maxlength="60" placeholder="Ex.: Clara — episódio 3"></div>
+      <div class="bts"><button class="bt" data-n>Cancelar</button><button class="bt pri" data-s>${ic('enviar', 14)} Gerar o link</button></div></div></div>`);
+    const fecha = () => m.remove(), alc = () => $('input[name=alc]:checked', m).value;
+    const escolhidas = () => { const so = $('[data-sem]', m).checked, l = alc() === 'fala' ? todas.filter(f => f.id === $('[data-fala]', m).value) : alc() === 'pers' ? todas.filter(f => Roteiro.chave(f.personagem) === $('[data-pers]', m).value) : todas; return alc() === 'fala' ? l : l.filter(f => !so || !f.audio); };
+    const explica = () => { const l = escolhidas(), varios = new Set(l.map(f => Roteiro.chave(f.personagem))).size > 1; $('[data-quem-fecha]', m).textContent = `${l.length} fala${l.length === 1 ? '' : 's'}. ` + (varios ? 'Vários personagens: o link só acaba quando VOCÊ encerrar (ou a hora passar).' : 'Um personagem só: o link morre quando a pessoa clicar em "Terminei".');
+      if (!$('[data-rot]', m).dataset.mexeu) $('[data-rot]', m).value = alc() === 'todas' ? 'Todas as falas' : alc() === 'pers' ? (ps.find(p => p.chave === $('[data-pers]', m).value)?.nome || '') : 'Uma fala'; };
+    m.addEventListener('change', explica); $('[data-rot]', m).oninput = e => { e.target.dataset.mexeu = 1; }; explica();
+    $('[data-n]', m).onclick = fecha; m.onclick = e => { if (e.target === m) fecha(); }; m.onkeydown = e => { if (e.key === 'Escape') fecha(); };
+    $('[data-s]', m).onclick = async e => { const l = escolhidas(); if (!l.length) return aviso('Nenhuma fala com essa escolha (todas já têm áudio?).', 'info'); const b = e.currentTarget; b.disabled = true; b.innerHTML = giro('Gerando');
+      try { const r = await Nuvem.acao({ acao: 'dublar', op: 'novo', id: P.id, falas: l.map(f => f.id), rotulo: $('[data-rot]', m).value, prazo: $('input[name=prazo]:checked', m).value });
+        const url = location.origin + '/dublar/#t=' + r.token; fecha(); this.mostra(box, r); this.mostraLink(url); } catch (er) { aviso(er.message, 'erro'); b.disabled = false; b.innerHTML = 'Gerar o link'; } };
+    document.body.appendChild(m); },
+  mostraLink(url) {
+    const m = h(`<div class="modal"><div class="caixa larga"><b>Link pronto</b><p>Copie e mande para quem vai dublar. <b>Ele só aparece agora</b>: se perder, crie outro.</p>
+      <div class="dn-url"><input type="text" readonly value="${esc(url)}"><button class="bt pri" data-cp>${ic('copiar', 14)} Copiar</button></div><div class="bts"><button class="bt" data-n>Fechar</button></div></div></div>`);
+    $('[data-cp]', m).onclick = async () => { try { await navigator.clipboard.writeText(url); aviso('Link copiado.', 'ok'); } catch { $('input', m).select(); document.execCommand('copy'); aviso('Link copiado.', 'ok'); } };
+    $('[data-n]', m).onclick = () => m.remove(); document.body.appendChild(m); $('input', m).select(); },
+};
 const Falas = {
   quem: null, rec: null,
   async pinta(c) {
@@ -732,6 +793,7 @@ const Falas = {
     const total = P.partes.reduce((s, p) => s + p.falas.length, 0), feitas = P.partes.reduce((s, p) => s + p.falas.filter(f => f.audio).length, 0);
     c.innerHTML = `<div class="falas">
       ${pode('gravar') ? '<div class="mic-painel"></div>' : ''}
+      ${pode('gravar') || pode('links') ? '<div class="dub-painel"></div>' : ''}
       <h3>Quem vai gravar?</h3>
       <div class="elenco-g">
         <button class="pcard ${!this.quem ? 'on' : ''}" data-grava=""><span class="ava g todos">${ic('pessoa', 20)}</span><b>Todos</b><small>${feitas} de ${total} gravadas</small><div class="barra"><i style="width:${total ? feitas / total * 100 : 0}%"></i></div></button>
@@ -753,7 +815,7 @@ const Falas = {
         if (S.tocando?._f === f.id) vai(ev); else this.ouve(f, $('[data-ouvir]', el), fr(ev));
         const mv = e2 => vai(e2), fim = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', fim); }; addEventListener('pointermove', mv); addEventListener('pointerup', fim); }; });
     this.pintaEnvio(locais);
-    Mic.pinta($('.mic-painel', c));
+    Mic.pinta($('.mic-painel', c)); Dub.pinta($('.dub-painel', c));
     // a onda das gravações deste computador (e das da nuvem que já foram ouvidas nesta aba)
     for (const el of $$('.fala', c)) { const f = this.acha(el.dataset.f), l = locais.get(el.dataset.f), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f'; if (!f) continue;
       const k = l ? `l:${P.id}/${f.id}:${l.em}` : f.audio ? 'n:' + f.audio : null; if (!k) continue;
