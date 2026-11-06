@@ -201,37 +201,74 @@ const ST_IC = { todos: 'grade', rascunho: 'lapis', gravando: 'mic', pronto: 'ok'
 function telaNova() { const alvo = tela(), el = document.createElement('div'); el.className = 'tela-in';
   const t = setTimeout(() => { if (!el.isConnected) alvo.replaceChildren(h(`<div class="tela-in">${giroBloco()}</div>`)); }, 350);
   return { el, mostra: () => { clearTimeout(t); if (!el.isConnected) alvo.replaceChildren(el); } }; }
+// TELA DE ROTEIROS (pedido da dona, 06/11): filtros em cima (onde está + situação), "continuar de onde parou", PASTAS em cartões
+// (como o Animador: clicar abre, "‹ Roteiros" volta, arrastar um roteiro para cima de uma pasta) e "fora de pastas". Seção vazia não aparece.
+// As pastas são da equipe toda: preparativos/pastas.json = { ordem: [nome…], de: { <id do roteiro>: nome } } (ação "pastas").
+let pastaRot = null; try { pastaRot = localStorage.getItem('ep-prep-rot-pasta') || null; } catch { }
+const abrePastaRot = g => { pastaRot = g || null; try { pastaRot ? localStorage.setItem('ep-prep-rot-pasta', pastaRot) : localStorage.removeItem('ep-prep-rot-pasta'); } catch { } pintaInicio(); window.scrollTo({ top: 0 }); };
+async function pastasRot(novo) { if (S.pastasR && !novo) return S.pastasR; try { const r = await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent('preparativos/pastas.json')); S.pastasR = r && typeof r === 'object' ? { ordem: r.ordem || [], de: r.de || {} } : { ordem: [], de: {} }; } catch { S.pastasR = S.pastasR || { ordem: [], de: {} }; } return S.pastasR; }
+async function mudaPastasRot(o, msg) { try { const r = await Nuvem.acao({ acao: 'pastas', ...o }); S.pastasR = r.pastas || S.pastasR; if (msg) aviso(msg, 'ok'); } catch (e) { aviso(e.message, 'erro'); } pintaInicio(); }
 async function pintaInicio(novo) {
-  const ONDES = [['tudo', 'Tudo', 'grade'], ['pc', 'Neste computador', 'pc'], ['nuvem', 'Na nuvem', 'nuvem'], ['uso', 'Em uso', 'play']];
+  const ONDES = [['tudo', 'Tudo', 'grade'], ['pc', 'Neste computador', 'pc'], ['nuvem', 'Na nuvem', 'nuvem'], ['uso', 'Em uso', 'play']], ed = pode('roteiro');
   const T = telaNova(), el = T.el; el.innerHTML = `<section class="inicio">
-    <div class="cab topo-ini"><span class="cab-ic t-rot">${ic('doc', 24)}</span><div class="cab-txt"><h1>Roteiros</h1><p>Escreva, separe as falas de cada personagem e grave.</p></div><span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button>${pode('roteiro') ? `<button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
+    <div class="cab topo-ini"><span class="cab-ic t-rot">${ic('doc', 24)}</span><div class="cab-txt"><h1>Roteiros</h1><p>Escreva, separe as falas de cada personagem e grave.</p></div><span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button>${ed ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button><button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
     <div class="filtros-ini">
       <div class="seg" role="group" aria-label="Onde">${ONDES.map(([k, n, i]) => `<button data-onde="${k}" class="${filtroOnde === k ? 'on' : ''}">${ic(i, 15)} ${n}<b class="n" data-n="${k}"></b></button>`).join('')}</div>
       <div class="chips-st" role="group" aria-label="Situação">${[['todos', 'Todas as situações'], ...PREP_CONFIG.status].map(([k, n]) => `<button data-f="${k}" class="st-${k} ${filtro === k ? 'on' : ''}">${ic(ST_IC[k], 14)} ${esc(n)}</button>`).join('')}</div>
     </div>
-    <div class="secoes">
-      <div class="painel-sec sec-pc" data-sec="pc"><div class="ps-cab"><span class="sec-ic">${ic('pc', 18)}</span><div><b>Neste computador</b><small>Só você vê. Vai para a nuvem quando for gravar, quando ficar pronto ou quando você mandar.</small></div></div><div class="grade" data-g="pc">${giroBloco()}</div></div>
-      <div class="painel-sec sec-nuvem" data-sec="nuvem"><div class="ps-cab"><span class="sec-ic">${ic('nuvem', 18)}</span><div><b>Na nuvem</b><small>A equipe toda vê e grava.</small></div></div><div class="grade" data-g="nuvem">${giroBloco()}</div></div>
-      <div class="painel-sec sec-uso" data-sec="uso"><div class="ps-cab"><span class="sec-ic">${ic('play', 18)}</span><div><b>Em uso</b><small>Já foram usados num programa (Animador, Shorts ou Editor).</small></div></div><div class="grade" data-g="uso">${giroBloco()}</div></div>
-    </div></section>`;
-  $('[data-at]', el).onclick = () => { S.lista = null; pintaInicio(true); };
+    <div class="rot-corpo">${giroBloco()}</div></section>`;
+  $('[data-at]', el).onclick = () => { S.lista = null; S.pastasR = null; pintaInicio(true); };
   $('[data-novo]', el)?.addEventListener('click', () => abrePrep(novoPrep()));
+  $('[data-pnova]', el)?.addEventListener('click', async () => { const g = await pastaNova(); if (g) mudaPastasRot({ nova: g }, `Pasta "${g}" criada. Arraste roteiros para ela.`); });
   $$('[data-f]', el).forEach(b => b.onclick = () => { filtro = b.dataset.f; pintaInicio(); });
   $$('[data-onde]', el).forEach(b => b.onclick = () => { filtroOnde = b.dataset.onde; pintaInicio(); });
   await carregaPers().catch(() => { });
-  const passa = it => filtro === 'todos' || (it.status || 'rascunho') === filtro, G = { pc: [], nuvem: [], uso: [] };
-  try { for (const r of (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id).sort((a, b) => b.em - a.em)) { if (prepVazio(r.P)) { DB.del('rasc', r.P.id).catch(() => { }); continue; } G.pc.push({ it: r.P, onde: r.P.novo || !r.base?.mod ? 'pc' : 'mudou', abre: () => abrePrep(r.P, r.base) }); } } catch { }
-  try { if (!S.lista || novo) S.lista = (await Nuvem.lista()).itens || []; } catch (e) { $('[data-g="nuvem"]', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; }
-  T.mostra();
-  for (const it of (S.lista || []).sort((a, b) => (b.mod || 0) - (a.mod || 0))) (it.uso?.length ? G.uso : G.nuvem).push({ it, onde: it.uso?.length ? 'uso' : 'nuvem', abre: () => Nuvem.abre(it.id).then(abrePrep) });
-  for (const k of ['pc', 'nuvem', 'uso']) {
-    const L = G[k].filter(x => passa(x.it)), sec = $(`[data-sec="${k}"]`, el), g = $(`[data-g="${k}"]`, el); $(`[data-n="${k}"]`, el).textContent = G[k].length || '';
-    sec.hidden = filtroOnde !== 'tudo' && filtroOnde !== k; if (sec.hidden) continue;
-    if (g.querySelector('.erro')) continue;
-    g.innerHTML = L.length ? '' : `<div class="vazio">${G[k].length ? 'Nada nesta situação.' : { pc: 'Nada só neste computador.', nuvem: 'Nenhum roteiro na nuvem.', uso: 'Nenhum roteiro foi usado num programa ainda.' }[k]}</div>`;
-    for (const x of L) { const c = cartao(x.it, x.onde); c.onclick = async () => { c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } }; g.appendChild(c); }
+  // TODOS os roteiros numa lista só (o que tem mudança só aqui fica uma vez, com o selo "termina de salvar ao abrir")
+  const todos = [], doPc = new Set(); let erro = '';
+  try { for (const r of (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id).sort((a, b) => b.em - a.em)) { if (prepVazio(r.P)) { DB.del('rasc', r.P.id).catch(() => { }); continue; } doPc.add(r.P.id); todos.push({ it: r.P, onde: r.P.novo || !r.base?.mod ? 'pc' : 'mudou', t: r.em || 0, abre: () => abrePrep(r.P, r.base) }); } } catch { }
+  try { if (!S.lista || novo) S.lista = (await Nuvem.lista()).itens || []; } catch (e) { erro = e.message; }
+  const PR = await pastasRot(novo);
+  for (const it of S.lista || []) if (!doPc.has(it.id)) todos.push({ it, onde: it.uso?.length ? 'uso' : 'nuvem', t: it.mod || 0, abre: () => Nuvem.abre(it.id).then(abrePrep) });
+  todos.sort((a, b) => b.t - a.t);
+  const naOnde = (x, k) => k === 'tudo' || (k === 'pc' ? x.onde === 'pc' || x.onde === 'mudou' : k === 'nuvem' ? x.onde === 'nuvem' || x.onde === 'mudou' : x.onde === 'uso');
+  for (const [k] of ONDES) $(`[data-n="${k}"]`, el).textContent = todos.filter(x => naOnde(x, k)).length || '';
+  const L = todos.filter(x => naOnde(x, filtroOnde) && (filtro === 'todos' || (x.it.status || 'rascunho') === filtro));
+  const pastaDe = x => PR.de[x.it.id] || '', pastas = [...new Set([...PR.ordem, ...Object.values(PR.de)])].filter(Boolean);
+  if (pastaRot && !pastas.includes(pastaRot)) pastaRot = null;
+  const corpo = $('.rot-corpo', el), grade = arr => { const g = h('<div class="grade"></div>'); for (const x of arr) g.appendChild(liga(x)); return g; };
+  const liga = x => { const c = cartao(x.it, x.onde); c.onclick = async () => { c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } };
+    if (ed) { c.draggable = true; c.ondragstart = e => { e.dataTransfer.setData('text/rot-prep', x.it.id); e.dataTransfer.effectAllowed = 'move'; c.classList.add('arrastando'); }; c.ondragend = () => c.classList.remove('arrastando'); }
+    c.oncontextmenu = e => { if (!ed) return; e.preventDefault(); const atual = pastaDe(x);
+      popMenu(e, [...pastas.map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, atual === g ? '✓' : '', () => mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`), atual === g]),
+        [`${ic('pasta', 14)} Tirar da pasta`, !atual ? '✓' : '', () => mudaPastasRot({ mover: { [x.it.id]: null } }, 'Saiu da pasta.'), !atual],
+        [`${ic('mais', 14)} Pasta nova com este roteiro…`, '', async () => { const g = await pastaNova(); if (g) mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`); }]]); };
+    return c; };
+  const alvo = (a, g) => { if (!ed) return; a.ondragover = e => { if (!e.dataTransfer.types.includes('text/rot-prep')) return; e.preventDefault(); a.classList.add('alvo'); }; a.ondragleave = e => { if (!a.contains(e.relatedTarget)) a.classList.remove('alvo'); };
+    a.ondrop = e => { e.preventDefault(); a.classList.remove('alvo'); const id = e.dataTransfer.getData('text/rot-prep'); if (!id || (PR.de[id] || '') === (g || '')) return; mudaPastasRot({ mover: { [id]: g || null } }, g ? `Foi para ${g}.` : 'Saiu da pasta.'); }; };
+  const menuPasta = (e, g) => popMenu(e, [[`${ic('pasta', 14)} Abrir a pasta`, '', () => abrePastaRot(g)], '-',
+    [`${ic('lapis', 14)} Renomear…`, '', async () => { const nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 40)) || '').trim(); if (nn && nn !== g) { if (pastaRot === g) { pastaRot = nn; try { localStorage.setItem('ep-prep-rot-pasta', nn); } catch { } } mudaPastasRot({ renomear: { de: g, para: nn } }, `Pasta renomeada para ${nn}.`); } }, !ed],
+    [`${ic('lixo', 14)} Apagar a pasta (os roteiros ficam)`, '', async () => { if (await pergunta(`Apagar a pasta "${g}"?`, 'Os roteiros dela vão para "Fora de pastas". Nenhum roteiro é apagado.', [['Cancelar', false], ['Apagar a pasta', true, 'perigo']])) { if (pastaRot === g) abrePastaRot(null); mudaPastasRot({ apagar: g }, `Pasta "${g}" apagada.`); } }, !ed]]);
+  corpo.innerHTML = '';
+  if (erro) corpo.appendChild(h(`<div class="vazio erro">${esc(erro)}</div>`));
+  if (pastaRot) { // ---- DENTRO DE UMA PASTA ----
+    const D = L.filter(x => pastaDe(x) === pastaRot), top = h(`<div><nav class="pb-cam"><button class="pb-volta" data-volta title="Voltar · solte um roteiro aqui para tirar desta pasta">${ic('voltar', 14)} Roteiros</button><span aria-hidden="true">›</span><b>${esc(pastaRot)}</b></nav>
+      <div class="pb-abre-t"><span class="pb-ic">${ic('pasta', 20)}</span><h2>${esc(pastaRot)}</h2><small>${D.length} ${D.length === 1 ? 'roteiro' : 'roteiros'}</small><span class="esp"></span>${ed ? `<button class="bt ic" data-mn title="Opções da pasta">${ic('mais3', 16)}</button>` : ''}</div></div>`);
+    $('[data-volta]', top).onclick = () => abrePastaRot(null); alvo($('[data-volta]', top), ''); $('[data-mn]', top)?.addEventListener('click', e => menuPasta(e.currentTarget, pastaRot));
+    corpo.appendChild(top); corpo.appendChild(D.length ? grade(D) : h(`<div class="pb-vazia">${todos.some(x => pastaDe(x) === pastaRot) ? 'Nada nesta pasta com esses filtros.' : 'Pasta vazia. Volte e arraste roteiros para o cartão desta pasta (ou botão direito no roteiro › Mover para…).'}</div>`));
+  } else {
+    const fora = L.filter(x => !pastaDe(x) || !pastas.includes(pastaDe(x)));
+    if (L.length > 6) { corpo.appendChild(h(`<h3 class="pb-h">Continuar de onde parou</h3>`)); corpo.appendChild(grade(L.slice(0, 4))); }
+    if (pastas.length) { corpo.appendChild(h(`<h3 class="pb-h">Pastas <small>clique para abrir · arraste um roteiro para cima de uma pasta</small></h3>`));
+      const cards = h('<div class="pb-cards"></div>');
+      for (const g of pastas) { const D = L.filter(x => pastaDe(x) === g), tot = todos.filter(x => pastaDe(x) === g).length, c = h(`<div class="pb-card" role="button" tabindex="0" title="Abrir a pasta · botão direito: opções"><div class="pb-prev pb-prev-r">${D.slice(0, 3).map(x => `<span class="st st-${esc(x.it.status || 'rascunho')}">${ic(ST_IC[x.it.status || 'rascunho'] || 'lapis', 11)} ${esc(STATUS[x.it.status || 'rascunho'] || '')}</span>`).join('') || `<span class="pb-vz">${ic('pasta', 34)}</span>`}</div>
+          <div class="pb-info"><b>${esc(g)}</b><small>${D.length}${D.length !== tot ? ' de ' + tot : ''}</small>${ed ? `<button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button>` : ''}</div><small class="pb-desc">${D.length ? esc(D.slice(0, 3).map(x => x.it.nome || 'Sem nome').join(', ') + (D.length > 3 ? '…' : '')) : tot ? 'Nada com esses filtros' : 'Pasta vazia'}</small></div>`);
+        c.onclick = e => { if (!e.target.closest('.pb-mn')) abrePastaRot(g); }; c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrePastaRot(g); } };
+        $('.pb-mn', c)?.addEventListener('click', e => { e.stopPropagation(); menuPasta(e.currentTarget, g); }); c.oncontextmenu = e => { e.preventDefault(); menuPasta(e, g); }; alvo(c, g); cards.appendChild(c); }
+      corpo.appendChild(cards); }
+    if (fora.length) { corpo.appendChild(h(`<h3 class="pb-h">${pastas.length ? 'Fora de pastas' : 'Todos os roteiros'} <small>${fora.length}</small></h3>`)); corpo.appendChild(grade(fora)); }
+    if (!L.length && !erro) corpo.appendChild(h(`<div class="vazio">${todos.length ? 'Nenhum roteiro com esses filtros.' : 'Ainda não há roteiros. Clique em "Novo roteiro".'}</div>`));
   }
-  $('[data-n="tudo"]', el).textContent = G.pc.length + G.nuvem.length + G.uso.length || '';
+  T.mostra();
   // AO VIVO: quem está com cada roteiro aberto agora (some sozinho quando a pessoa fecha)
   AoVivo.ouveTudo(m => { if (!el.isConnected || S.P) return AoVivo.paraTudo(); $$('[data-vivo]', el).forEach(d => { const g = Object.values(m[d.dataset.vivo] || {});
     d.innerHTML = g.length ? `<span class="vivo-tag" title="Ao vivo agora: ${esc(g.map(x => x.n).join(', '))}"><i></i> ao vivo</span>${g.slice(0, 4).map(x => pava(x, 'p vivo')).join('')}` : ''; d.parentElement.classList.toggle('tem-vivo', !!g.length); }); });

@@ -933,3 +933,7 @@ body:not(.modo-doc) .bt.pri:hover{filter:brightness(1.06)}
 .pd-caixa>.bts{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line)}
 .pd-carr{display:inline-flex;vertical-align:middle}
 @media (max-width:560px){.pd-2{grid-template-columns:1fr}.pd-at-l{flex-direction:column}}
+/* tela de Roteiros com pastas (06/11) */
+.rot-corpo{margin-top:6px}.rot-corpo .grade{margin-top:0;margin-bottom:8px}
+.pb-prev-r{flex-direction:column;gap:5px;align-items:center}.pb-prev-r .st{font-size:11px;padding:1px 8px;display:inline-flex;align-items:center;gap:4px}
+.cartao.arrastando{opacity:.4}.cartao[draggable=true]{cursor:pointer}
