@@ -367,7 +367,6 @@ function pintaPrep() {
     <div class="dh-area">
       <aside class="guias"><div class="g-tit">Guias do roteiro</div>
         ${guiasDe(P).map(([k, n, i]) => `<button data-sub="${k}" class="${S.sub === k ? 'on' : ''}">${ic(i, 16)} ${n}</button>`).join('')}
-        <p class="etapa-dica etapa-${esc(P.status || 'rascunho')}">${ETAPA_DICA(P)}</p>
         <div class="g-roteiro"></div></aside>
       <div class="corpo"></div>
     </div></section>`;
