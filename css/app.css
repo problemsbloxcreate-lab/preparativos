@@ -1019,3 +1019,5 @@ table.atalhos kbd{display:inline-block;background:var(--panel-2);border:1px soli
 .dn-caixa .vf-p{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;text-align:left!important;height:auto!important;min-height:0!important;width:auto!important;text-transform:none!important}
 .dn-caixa .vf-p input{flex:none;width:16px;height:16px;margin:0;accent-color:var(--m-marca,#ffd36b)}.dn-caixa .vf-p .ava{--ava:24px!important}
 .vf-sug{font-style:normal;font-size:11px;color:var(--m-marca,#ffd36b);border:1px solid currentColor;padding:0 6px;margin-left:6px}
+.dn-cab small b{display:inline!important;font-size:inherit!important;margin:0!important}
+.dn-caixa .dn-op{flex-wrap:nowrap!important}.dn-caixa .dn-op span{flex:1 1 auto;min-width:0}
