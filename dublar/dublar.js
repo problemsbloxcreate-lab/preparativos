@@ -57,7 +57,7 @@
     if (window.Cortes && n > 1) { const ac = el('div', 'linha acoes-varias'), paraC = f => ({ id: f.id, rotulo: f.voce || f.personagem, texto: f.texto, nota: f.nota, junto: (f.juntoCom || []).map(x => x.nome).join(', ') });
       const recebe = ps => { for (const x of ps) poeLocal(x.fala, x.blob, x.duracao); };
       ac.append(bt('Gravar tudo em sequência', '', async () => { try { await Cortes.sequencia({ falas: d.falas.map(paraC), abreMic: async () => ({ stream: await abreMic() }), aoTerminar: async (blob, tr) => { const R = await Cortes.paraRevisao(blob, tr, d.falas.map(f => f.id)); Cortes.revisao({ dados: R.dados, falas: d.falas.map(paraC), marcas: R.marcas, dono: R.quem.map(id => d.falas.findIndex(f => f.id === id)), titulo: 'Revisar a gravação', aviso: 'Os cortes são os Enter que você apertou. Arraste para acertar.', aoSalvar: recebe }); } }); } catch (e) { faixa(e.message); } }),
-        bt('Subir um áudio com várias falas', '', () => { const i = el('input'); i.type = 'file'; i.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm'; i.onchange = async () => { const a = i.files[0]; if (!a) return; if (a.size > (d.maxMb || 20) * 1048576 * 5) return faixa('Esse arquivo é grande demais.');
+        bt('Subir um áudio com várias falas', '', () => { const i = el('input'); i.type = 'file'; i.accept = 'audio/*,video/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm,.mpeg,.mpg,.mp2,.mpga,.flac,.aac,.wma,.amr,.3gp,.mov,.mp4,.mkv,.avi'; i.onchange = async () => { const a = i.files[0]; if (!a) return; if (a.size > (d.maxMb || 20) * 1048576 * 5) return faixa('Esse arquivo é grande demais.');
           try { const A = await Cortes.decodifica(a); await Cortes.revisao({ dados: A, blob: a, falas: d.falas.map(paraC), marcas: Cortes.silencios(A, d.falas.length), titulo: 'Separar o áudio nas falas', aviso: 'Cortes pelas pausas mais longas (aproximado): confira e arraste.', aoSalvar: recebe }); } catch (e) { faixa(e.message); } }; i.click(); }));
       app.append(ac); }
     for (const f of d.falas) app.append(cartao(f));
@@ -122,8 +122,9 @@
   }
   const poeLocal = (id, blob, dur) => { const v = S.loc.get(id); if (v) URL.revokeObjectURL(v.url); S.loc.set(id, { blob, dur, url: URL.createObjectURL(blob) }); pinta(); };
   function sobe(f) {
-    const i = el('input'); i.type = 'file'; i.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
-    i.onchange = async () => { const a = i.files[0]; if (!a) return; if (a.size > (S.d.maxMb || 20) * 1048576) return faixa('Esse arquivo passa de 20 MB.', f.id);
+    const i = el('input'); i.type = 'file'; i.accept = 'audio/*,video/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm,.mpeg,.mpg,.mp2,.mpga,.flac,.aac,.wma,.amr,.3gp,.mov,.mp4,.mkv,.avi';
+    i.onchange = async () => { const a = i.files[0]; if (!a) return; if (a.size > 200 * 1048576) return faixa('Esse arquivo passa de 200 MB.', f.id);
+      if (window.Cortes) { try { const A = await Cortes.decodifica(a), b = await Cortes.comprime(A); if (b.size > (S.d.maxMb || 20) * 1048576) return faixa('Esse áudio ficou grande demais (máx. 20 MB). Corte em pedaços menores.', f.id); return poeLocal(f.id, b, A.d.length / A.sr); } catch (e) { return faixa('Não consegui ler esse arquivo: ' + e.message, f.id); } }
       let dur = 0; try { const ac = new OfflineAudioContext(1, 2, 44100); dur = (await ac.decodeAudioData(await a.arrayBuffer())).duration; } catch { return faixa('Não consegui ler esse arquivo como áudio (use mp3, wav, ogg, m4a ou webm).', f.id); }
       poeLocal(f.id, a, dur); };
     i.click();
@@ -144,6 +145,7 @@
     aviso('Pronto, obrigado!', 'As gravações foram enviadas para a equipe. Pode fechar esta aba.', 'ok');
     setTimeout(() => { try { window.close(); } catch { } }, 1200); // o navegador só deixa fechar abas abertas por script; se não fechar, fica o aviso
   }
+  window.Cortes?.aoAvisar?.(t => { if (t) faixa(t); else $('.faixa-erro')?.remove(); });
   addEventListener('beforeunload', e => { if (S.loc.size) { e.preventDefault(); e.returnValue = ''; } });
   inicia();
 })();

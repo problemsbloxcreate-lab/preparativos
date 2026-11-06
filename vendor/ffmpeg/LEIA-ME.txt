@@ -1,0 +1,4 @@
+ffmpeg.wasm (conversor de áudio que roda no navegador), usado por dublar/cortes.js SÓ quando o navegador não consegue ler o arquivo
+(ex.: .mpeg/.mpg). Versões: @ffmpeg/ffmpeg 0.12.10 (ffmpeg.js, 814.ffmpeg.js) e @ffmpeg/core 0.12.6 (ffmpeg-core.js, ffmpeg-core.wasm),
+copiadas de cdn.jsdelivr.net/npm sem mudanças. Licença: MIT (ffmpeg.wasm) / LGPL-GPL (núcleo do FFmpeg).
+A página pública do link de dublagem pega os mesmos arquivos por /dublar/ff/<arquivo> (porteiro).

@@ -17,9 +17,24 @@ const Cortes = (() => {
   const bt = (txt, cls, fn, title) => { const b = el('button', 'ct-bt ' + (cls || ''), txt); b.type = 'button'; if (fn) b.onclick = fn; if (title) b.title = title; return b; };
   const tms = s => { s = Math.max(0, +s || 0); const m = Math.floor(s / 60), r = s - m * 60; return m + ':' + String(Math.floor(r)).padStart(2, '0') + ',' + String(Math.round((r % 1) * 1000) % 1000).padStart(3, '0'); };
   const mb = n => (n / 1048576).toFixed(n > 10485760 ? 0 : 1).replace('.', ',') + ' MB';
+  // CONVERSOR (ffmpeg.wasm, ~32 MB): só é carregado quando o navegador não consegue ler o arquivo (ex.: .mpeg/.mpg). Fica no nosso site:
+  // no Preparativos em /preparativos/vendor/ffmpeg/, na página pública do link em /dublar/ff/ (o porteiro serve os mesmos arquivos)
+  const MEU = (document.currentScript && document.currentScript.src) || '';
+  const FF_BASE = /\/preparativos\/dublar\/cortes\.js/.test(MEU) ? MEU.replace(/dublar\/cortes\.js.*$/, 'vendor/ffmpeg/') : /\/dublar\/cortes\.js/.test(MEU) ? MEU.replace(/cortes\.js.*$/, 'ff/') : 'vendor/ffmpeg/';
+  let FF = null, avisaFn = null; const avisa = t => { try { avisaFn?.(t); } catch { } };
+  function carregaFF() { if (FF) return FF; return FF = (async () => {
+    if (!window.FFmpegWASM) await new Promise((ok, erro) => { const s = document.createElement('script'); s.src = FF_BASE + 'ffmpeg.js'; s.onload = ok; s.onerror = () => erro(new Error('Não consegui carregar o conversor.')); document.head.append(s); });
+    const ff = new window.FFmpegWASM.FFmpeg(); await ff.load({ coreURL: FF_BASE + 'ffmpeg-core.js', wasmURL: FF_BASE + 'ffmpeg-core.wasm' }); return ff; })().catch(e => { FF = null; throw e; }); }
+  // qualquer arquivo de áudio ou vídeo que o FFmpeg entende → WAV mono 44,1 kHz (só o som)
+  async function converte(blob) { avisa('Convertendo o arquivo para um formato que o navegador lê (a primeira vez baixa o conversor, ~32 MB)…'); const ff = await carregaFF();
+    const ext = (String(blob.name || '').match(/\.([a-z0-9]{1,5})$/i) || [, 'bin'])[1].toLowerCase(), ent = 'entrada.' + ext;
+    await ff.writeFile(ent, new Uint8Array(await blob.arrayBuffer())); const r = await ff.exec(['-i', ent, '-vn', '-ac', '1', '-ar', '44100', '-f', 'wav', 'saida.wav']);
+    let out; try { out = await ff.readFile('saida.wav'); } catch { out = null; } try { await ff.deleteFile(ent); await ff.deleteFile('saida.wav'); } catch { }
+    if (r !== 0 && !out?.length || !out?.length) throw new Error('Esse arquivo não tem um áudio que eu consiga converter.'); return new Blob([out], { type: 'audio/wav' }); }
   let AC = null; const ac = () => (AC = AC && AC.state !== 'closed' ? AC : new (window.AudioContext || window.webkitAudioContext)());
   // ---------- áudio: decodificar (mono), recortar, WAV ----------
-  async function decodifica(blob) { const ab = await blob.arrayBuffer(); const b = await ac().decodeAudioData(ab.slice(0));
+  async function decodifica(blob) { let b; try { b = await ac().decodeAudioData((await blob.arrayBuffer()).slice(0)); } // o navegador não lê (ex.: .mpeg): converte na hora
+    catch { const w = await converte(blob); b = await ac().decodeAudioData(await w.arrayBuffer()); avisa(''); }
     const n = b.length, d = new Float32Array(n); for (let c = 0; c < b.numberOfChannels; c++) { const x = b.getChannelData(c); for (let i = 0; i < n; i++) d[i] += x[i] / b.numberOfChannels; } return { sr: b.sampleRate, d }; }
   async function reamostra(A, sr2) { if (A.sr === sr2 || !A.d.length) return A; const n2 = Math.max(1, Math.round(A.d.length * sr2 / A.sr)), o = new OfflineAudioContext(1, n2, sr2), b = o.createBuffer(1, A.d.length, A.sr);
     b.copyToChannel(A.d, 0); const s = o.createBufferSource(); s.buffer = b; s.connect(o.destination); s.start(); const r = await o.startRendering(); return { sr: sr2, d: r.getChannelData(0).slice() }; }
@@ -316,6 +331,8 @@ const Cortes = (() => {
     for (let k = 0; k < Math.min(bs.length - 1, falas.length); k++) { const p = await reamostra(pedaco(A, Math.max(0, bs[k] - .02), Math.min(A.d.length / A.sr, bs[k + 1] + .02)), 22050); if (p.d.length < 2205) continue;
       let blob = null; try { blob = await opusOgg(p); } catch { } out.push({ fala: falas[k].id, blob: blob || wav(p), duracao: Math.round(p.d.length / p.sr * 100) / 100 }); } return out; }
   const avisoPausas = (m, n) => m.achados === n ? `Achei ${n} pedaço${n === 1 ? '' : 's'} pelas pausas (uma por fala). Confira ouvindo cada um.` : m.achados > n ? `Achei ${m.achados} pedaços para ${n} fala${n === 1 ? '' : 's'}: usei as ${n - 1} pausas mais longas. Confira e arraste os cortes.` : `Achei ${m.achados} pedaço${m.achados === 1 ? '' : 's'} para ${n} falas: faltam pausas. Ponha os cortes que faltam (M ou duplo clique).`;
-  return { cortesAuto, codifica, avisoPausas, revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms, opusOgg, wav };
+  // áudio decodificado → arquivo pronto para guardar (Opus .ogg; WAV 22 kHz sem o codificador)
+  async function comprime(A) { let b = null; try { b = await opusOgg(A); } catch { } return b || wav(await reamostra(A, 22050)); }
+  return { comprime, converte, aoAvisar: f => { avisaFn = f; }, cortesAuto, codifica, avisoPausas, revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms, opusOgg, wav };
 })();
 if (typeof window !== 'undefined') window.Cortes = Cortes;

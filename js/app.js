@@ -843,6 +843,7 @@ const Varios = {
       if (!S.P || S.P !== P) return; P.varios = { ...(P.varios || {}), [k]: r }; try { localStorage.setItem('ep-prep-varios', JSON.stringify({ ...this.locais(), [k]: r })); } catch { }
       this.usa(P); P.partes = Roteiro.separa(P.roteiro || '', P.partes); marcaSujo(); S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } },
 };
+Cortes.aoAvisar(t => { if (t) aviso(t, 'info', 15000); }); // "convertendo o arquivo…"
 const Falas = {
   quem: null, rec: null,
   async pinta(c) {
@@ -943,7 +944,7 @@ const Falas = {
     const fim = v => { m.remove(); ok(v); }; $('[data-n]', m).onclick = () => fim(null); m.onclick = e => { if (e.target === m) fim(null); }; m.onkeydown = e => { if (e.key === 'Escape') fim(null); };
     $('[data-s]', m).onclick = () => { const l = escolhidas(); if (!l.length) return aviso('Nenhuma fala com essa escolha.', 'info'); fim({ quem: quem(), falas: l, transcrever: !!$('[data-trans]', m)?.checked }); };
     document.body.appendChild(m); }); },
-  async variasFalas() { const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
+  async variasFalas() { const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.accept = 'audio/*,video/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm,.mpeg,.mpg,.mp2,.mpga,.flac,.aac,.wma,.amr,.3gp,.mov,.mp4,.mkv,.avi';
     inp.onchange = async () => { if (inp.files.length > 1) return this.variosArquivos([...inp.files]); const arq = inp.files[0]; if (!arq) return; if (arq.size > 200 * 1048576) return aviso('Esse arquivo é grande demais (máx. 200 MB).', 'erro');
       const esc0 = await this.escolheFalas(arq.name); if (!esc0) return; this.quem = esc0.quem; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } // a versão certa (fala de vários) é a do personagem escolhido
       const fs = esc0.falas; aviso('Abrindo o áudio…', 'info', 2500);
@@ -1060,13 +1061,12 @@ const Falas = {
     catch (e) { aviso('Não consegui tocar: ' + (e.message || e), 'erro'); }
   },
   sobe(f) {
-    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,video/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm,.mpeg,.mpg,.mp2,.mpga,.flac,.aac,.wma,.amr,.3gp,.mov,.mp4,.mkv,.avi';
     inp.onchange = async () => { const arq = inp.files[0]; if (!arq) return;
-      if (arq.size > 20 * 1048576) return aviso('Esse áudio passa de 20 MB. Mande um arquivo menor (mp3 ou ogg ficam bem menores que wav).', 'erro');
-      let dur = 0; try { const ac = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 2, 44100); const ab = await ac.decodeAudioData(await arq.arrayBuffer()); dur = ab.duration; }
-      catch { return aviso('Não consegui ler esse arquivo como áudio. Use mp3, wav, ogg, m4a ou webm.', 'erro'); }
-      if (dur > PREP_CONFIG.audioMaxSeg + 1) return aviso(`Esse áudio tem ${tempo(dur)}. Cada fala pode ter até ${tempo(PREP_CONFIG.audioMaxSeg)}.`, 'erro');
-      const tipo = Falas.tipoDe(arq), blob = new Blob([arq], { type: tipo });
+      if (arq.size > 200 * 1048576) return aviso('Esse arquivo passa de 200 MB.', 'erro');
+      let A; try { aviso('Lendo o arquivo…', 'info', 2500); A = await Cortes.decodifica(arq); } catch (e) { return aviso('Não consegui ler esse arquivo: ' + (e.message || 'formato desconhecido'), 'erro'); }
+      const dur = A.d.length / A.sr; if (dur > PREP_CONFIG.audioMaxSeg + 1) return aviso(`Esse áudio tem ${tempo(dur)}. Cada fala pode ter até ${tempo(PREP_CONFIG.audioMaxSeg)}. Use "Subir áudio(s) com várias falas" para separar.`, 'erro');
+      const blob = await Cortes.comprime(A); // converte na hora: qualquer formato vira um áudio leve (Opus)
       try { await DB.put('aud', this.chaveL(f), { blob, duracao: Math.round(dur * 100) / 100, em: Date.now(), arquivo: String(arq.name || '').slice(0, 80) }); } catch (e) { return aviso('Não consegui guardar: ' + (e.message || e), 'erro'); }
       aviso('Áudio colocado na fala. Falta enviar para a nuvem.', 'ok'); this.pinta(this.c); };
     inp.click();
