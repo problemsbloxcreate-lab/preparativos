@@ -149,11 +149,14 @@ const Editor = (() => {
     let selMenu = null;
     const esconde = () => { menu.hidden = true; selMenu = null; };
     function mostraMenu(x, y, embaixo) { const c = cursor(); if (!c || c.a === c.b || o.somenteLer || !texto.slice(c.a, c.b).trim()) return esconde();
+      // a seleção JÁ É o nome de um personagem (linha de fala com esse nome)? então o item vira "Editar personagem (só neste roteiro)…"
+      const selT = texto.slice(c.a, c.b).trim(), achado = selT && info.find(x => x.t === 'f' && Roteiro.chave(x.nome) === Roteiro.chave(selT)), bN = menu.querySelector('[data-m="nome"],[data-m="editaPers"]');
+      if (bN) { const ed2 = !!(achado && o.editaPers); bN.dataset.m = ed2 ? 'editaPers' : 'nome'; bN.lastChild.textContent = ed2 ? ' Editar personagem (só neste roteiro)…' : ' É o nome do personagem'; bN.dataset.nome = ed2 ? achado.nome.trim() : ''; }
       selMenu = c; menu.hidden = false; const w = menu.offsetWidth, h = menu.offsetHeight;
       menu.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - (embaixo ? 0 : w / 2))) + 'px';
       menu.style.top = (embaixo ? Math.min(innerHeight - h - 8, y) : (y - h - 10 < 8 ? y + 28 : y - h - 10)) + 'px'; }
     menu.addEventListener('mousedown', e => e.preventDefault()); // não perde a seleção
-    menu.addEventListener('click', e => { const b = e.target.closest('[data-m]'); const c = selMenu; esconde(); if (!b || !c) return; FAZ[b.dataset.m](c, true); });
+    menu.addEventListener('click', e => { const b = e.target.closest('[data-m]'); const c = selMenu; esconde(); if (!b || !c) return; if (b.dataset.m === 'editaPers') return o.editaPers?.(b.dataset.nome); FAZ[b.dataset.m](c, true); });
     // mudança pelo menu (botão direito / seleção) pergunta antes, mostrando como a linha fica (pedido da dona)
     async function aplica(a, b, s, msg, perguntar) {
       if (perguntar && o.confirma) { const [i, f] = linhaDe(a), [i2, f2] = linhaDe(Math.max(a, b)); const antes = texto.slice(i, f2), depois = (texto.slice(i, a) + s + texto.slice(b, f2)).replace(/^\n+/, '');

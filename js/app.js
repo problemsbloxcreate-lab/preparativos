@@ -569,7 +569,7 @@ function pintaRoteiro(c) {
   gr.innerHTML = `<div class="g-tit">Títulos</div><div class="indice"></div><div class="g-tit g-pers">Personagens<span class="esp"></span><button class="g-mini" data-orgp title="Organização dos personagens">${ic('pasta', 15)}</button></div><div class="pfiltro"></div><div class="pers"></div>`;
   const cores = () => coresDoRoteiro();
   let t = 0, tPg = 0; const repagina = () => { cancelAnimationFrame(tPg); tPg = requestAnimationFrame(() => pagina(c)); };
-  const E = S.ed = Editor.cria($('.folha', c), { texto: P.roteiro || '', somenteLer: !ed, atalhos: mostraAtalhos,
+  const E = S.ed = Editor.cria($('.folha', c), { texto: P.roteiro || '', somenteLer: !ed, atalhos: mostraAtalhos, editaPers: n => editaPersRoteiro(n),
     cor: n => cores().get(Roteiro.chave(n)) || corOuPadrao(n),
     aoMudar: tx => { P.roteiro = tx; marcaSujo(); clearTimeout(t); t = setTimeout(() => { const antes = [...cores().keys()].join(); P.partes = Roteiro.separa(P.roteiro, P.partes); lado(); if ([...cores().keys()].join() !== antes) E.repinta(); }, 200); },
     aoMover: () => { const s = $('[data-estilo]', barra), l = E.linhas(), tp = E.tipoAtual(); if (s && tp) s.value = tp === 'h' ? (E.nivelAtual() === 1 ? 'capitulo' : 'parte') : ESTILO_DE[tp] || 'normal'; },
@@ -1127,6 +1127,51 @@ async function paraWebp(arq, lado = 256) {
 }
 const slug = s => Roteiro.chave(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'p';
 
+/* ---------- EDITAR PERSONAGEM SÓ NESTE ROTEIRO (menu da seleção, pedido da dona 06/11) ----------
+   Renomear em todas as falas, juntar com outro nome, cor da legenda (P.legenda.cores) e personagem do Ateliê (P.animador.pers) valem
+   SÓ para este roteiro; o padrão de todos fica na aba Personagens. No Animador: escolha do roteiro › padrão › mesmo nome. */
+async function editaPersRoteiro(nome) {
+  const P = S.P; if (!P) return; let k = Roteiro.chave(nome); const ed = pode('roteiro') || pode('organizar');
+  const outros = () => Roteiro.personagens(P.partes).filter(p => p.chave !== k);
+  const padraoAt = () => { const a = S.pers?.[k]?.atelie; return a === null ? 'Nenhum' : a?.id ? (a.nome || a.id) : 'Automático (mesmo nome)'; };
+  const m = h(`<div class="modal"><div class="caixa ep-caixa" role="dialog"><div class="ep-cab"><span data-ava></span><div><b data-nm></b><small class="ep-aviso">${ic('alerta', 13)} Vale só para este roteiro. O padrão fica na aba Personagens.</small></div><span class="esp"></span><button class="bt ic" data-x title="Fechar">${ic('voltar', 15)}</button></div>
+    <div class="ep-corpo">
+      <div class="pd-sec"><small>Nome nas falas</small><div class="ep-lin"><input type="text" class="dn-txt" data-novo maxlength="40"><button class="bt" data-ren ${ed ? '' : 'disabled'}>${ic('lapis', 14)} Renomear em todas as falas</button></div></div>
+      <div class="pd-sec"><small>Juntar com outro nome</small><div class="ep-lin"><select data-junta ${ed ? '' : 'disabled'}><option value="">Escolha…</option></select><button class="bt" data-jun ${ed ? '' : 'disabled'}>Juntar</button></div><small class="dica">Ex.: "Aluno vermelho" e "Aluno Vermelho" viram um só.</small></div>
+      <div class="pd-sec"><small>Cor da legenda neste roteiro</small><div class="paleta" data-pal></div><button class="link" data-cor-pad>Usar a cor padrão</button></div>
+      <div class="pd-sec"><small>No Animador (neste roteiro)</small><div class="ep-lin"><button class="el-esc" data-at ${ed ? '' : 'disabled'}><span class="ap-th p" data-th>${icAt(18)}</span><span data-at-n></span></button><button class="link" data-at-pad>Usar o padrão</button></div><small class="dica" data-at-av></small></div>
+    </div>
+    <div class="bts ep-rod"><button class="bt" data-aba>${ic('pessoa', 14)} Abrir na aba Personagens</button><button class="bt" data-nuvem ${pode('organizar') ? '' : 'disabled'}>${ic('nuvem', 14)} Salvar como personagem na nuvem</button><span class="esp"></span><button class="bt pri" data-x>Pronto</button></div></div></div>`);
+  const fim = () => m.remove(), muda = () => { marcaSujo(); S.ed?.repinta(); pintaLado(); pinta2(); };
+  const corAqui = () => P.legenda?.cores?.[k] || null, corV = () => corAqui() || corOuPadrao(nome);
+  const atAqui = () => P.animador?.pers && k in P.animador.pers ? P.animador.pers[k] : undefined;
+  const pinta2 = () => { $('[data-nm]', m).textContent = nome; $('[data-ava]', m).innerHTML = ava(nome, corV(), 'g'); $('[data-novo]', m).value = nome;
+    $('[data-junta]', m).innerHTML = '<option value="">Escolha…</option>' + outros().map(p => `<option value="${esc(p.nome)}">${esc(p.nome)}</option>`).join('');
+    $('[data-pal]', m).innerHTML = PALETA.map(x => `<button class="cor ${x === corV() ? 'on' : ''}" style="--c:${x}" data-c="${x}" ${ed ? '' : 'disabled'}></button>`).join('') + `<label class="cor-outra" title="Outra cor"><input type="color" value="${corV()}" ${ed ? '' : 'disabled'}><span>${ic('mais', 12)}</span></label>`;
+    $$('[data-c]', m).forEach(b => b.onclick = () => poeCor(b.dataset.c)); $('[data-pal] input', m).onchange = e => poeCor(e.target.value);
+    const a = atAqui(); $('[data-at-n]', m).textContent = a === undefined ? `Padrão: ${padraoAt()}` : a === null ? 'Nenhum (só aqui)' : a.nome + ' (só aqui)';
+    $('[data-at-av]', m).textContent = a === undefined ? '' : `Só neste roteiro — o padrão continua ${padraoAt()}.`; $('[data-at-pad]', m).hidden = a === undefined; $('[data-cor-pad]', m).hidden = !corAqui();
+    const th = $('[data-th]', m), id = a?.id || (a === undefined ? S.pers?.[k]?.atelie?.id : null); th.style.backgroundImage = ''; th.innerHTML = icAt(18);
+    if (id) atelie().then(L => { const x = L.find(y => y.id === id); if (x) thumbDe(x).then(u => { if (u && m.isConnected) { th.style.backgroundImage = `url("${u}")`; th.classList.add('com-th'); th.textContent = ''; } }); }).catch(() => { }); };
+  const poeCor = c => { P.legenda = { ...(P.legenda || { ativa: true, mostrarNome: false }), cores: { ...(P.legenda?.cores || {}), [k]: c } }; muda(); };
+  const renomeia = novo => { novo = String(novo || '').replace(/[:*#\[\]()]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40); if (!novo || novo === nome) return;
+    const n = renomeiaNoPrep(P, nome, novo); S.ed?.trocaTudo(P.roteiro); aviso(`${n} fala${n === 1 ? '' : 's'} agora ${n === 1 ? 'é' : 'são'} de ${novo} (só neste roteiro).`, 'ok'); nome = novo; k = Roteiro.chave(novo); muda(); };
+  $('[data-ren]', m).onclick = () => renomeia($('[data-novo]', m).value);
+  $('[data-jun]', m).onclick = () => { const alvo = $('[data-junta]', m).value; if (alvo) renomeia(alvo); };
+  $('[data-cor-pad]', m).onclick = () => { const c = { ...(P.legenda?.cores || {}) }; delete c[k]; P.legenda = { ...P.legenda, cores: c }; muda(); };
+  $('[data-at]', m).onclick = async () => { let L; try { L = await atelie(); } catch (e) { return aviso(e.message, 'erro'); } const r = await escolheNoAtelie(L, atAqui(), `Quem faz ${nome} no Animador (só neste roteiro)?`, `Usar o padrão (${padraoAt()})`); if (r === false) return;
+    const pers = { ...(P.animador?.pers || {}) }; if (r === undefined) delete pers[k]; else pers[k] = r === null ? null : { id: r.id, nome: r.nome }; P.animador = { ...(P.animador || {}), pers }; muda(); };
+  $('[data-at-pad]', m).onclick = () => { const pers = { ...(P.animador?.pers || {}) }; delete pers[k]; P.animador = { ...(P.animador || {}), pers }; muda(); };
+  $('[data-aba]', m).onclick = async () => { fim(); if (await sairDoPrep()) trocaAba('personagens'); };
+  // SALVAR NA NUVEM como personagem da equipe (padrão de todos os roteiros) com o nome, a cor e o Ateliê escolhidos aqui
+  $('[data-nuvem]', m).onclick = async () => { await carregaPers().catch(() => { }); let alvoNome = nome; const ja = S.pers?.[Roteiro.chave(alvoNome)];
+    if (ja) { const r = await pergunta(`Já existe "${ja.nome}" na aba Personagens`, 'Atualizar o padrão dele com o que está aqui, ou criar com outro nome?', [['Cancelar', null], ['Criar com outro nome', 'outro'], ['Atualizar o padrão', 'atualiza', 'pri']]); if (!r) return;
+      if (r === 'outro') { alvoNome = ((await pedeTexto('Personagem novo', 'Nome do personagem novo', 40)) || '').replace(/[:*#\[\]()<>]/g, '').trim(); if (!alvoNome) return; if (S.pers?.[Roteiro.chave(alvoNome)]) return aviso(`"${alvoNome}" também já existe.`, 'erro'); } }
+    const a = atAqui(), item = { nome: alvoNome, cor: corV(), ...(a !== undefined ? { atelie: a === null ? null : { id: a.id, nome: a.nome } } : {}) };
+    try { const r = await Nuvem.acao({ acao: 'personagens', itens: { [Roteiro.chave(alvoNome)]: item } }); S.pers = r.personagens || S.pers; aviso(`"${alvoNome}" salvo na aba Personagens (padrão de todos os roteiros).`, 'ok'); pinta2(); } catch (e) { aviso(e.message, 'erro'); } };
+  $$('[data-x]', m).forEach(b => b.onclick = fim); m.onclick = e => { if (e.target === m) fim(); }; m.onkeydown = e => { if (e.key === 'Escape') fim(); };
+  document.body.appendChild(m); pinta2(); $('[data-novo]', m).focus();
+}
 /* ---------- RENOMEAR / APAGAR um personagem ----------
    Muda na lista da equipe (mantém cor, foto, pasta e padrão do Animador) e nos roteiros que AINDA NÃO FORAM USADOS por um programa
    (os deste computador e os da nuvem). Os já usados não mudam (o programa já pegou o nome antigo). Os áudios continuam ligados às falas

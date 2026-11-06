@@ -986,3 +986,11 @@ table.atalhos kbd{display:inline-block;background:var(--panel-2);border:1px soli
 .pava.vivo::after{animation:vivo-pisca 1.6s ease-in-out infinite}
 @keyframes vivo-pisca{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.8)}}
 @media (prefers-reduced-motion:reduce){.pava.vivo::after{animation:none}}
+
+/* painel "Editar personagem (só neste roteiro)" */
+.modal .caixa.ep-caixa{width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:0;gap:0;text-align:left}
+.ep-cab{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}.ep-cab .ava{--ava:52px!important}.ep-cab b{display:block;font-size:19px}
+.ep-aviso{display:inline-flex;align-items:center;gap:5px;color:var(--aten);font-size:12.5px;margin-top:3px}
+.ep-corpo{padding:12px 16px;display:flex;flex-direction:column;gap:14px}.ep-lin{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ep-lin .dn-txt,.ep-lin select{flex:1 1 200px;height:34px;background:var(--panel-2);color:var(--text);border:1px solid #4a4d55;padding:0 8px}
+.ep-caixa .paleta{margin-left:0}.ep-caixa .paleta .cor{width:24px;height:24px;border-radius:50%!important}.ep-caixa .paleta .cor.on{border-color:#fff}
+.ep-rod{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
