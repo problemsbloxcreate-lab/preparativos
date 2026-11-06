@@ -872,7 +872,7 @@ const Falas = {
     if (this.quem && !ps.some(p => p.chave === this.quem)) this.quem = '';
     const locais = await this.locais(); this._loc = locais; let num = 0;
     const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.flatMap(f => { const n = ++num; if (this.quem) return Roteiro.quem(f).includes(this.quem) ? [{ f, n }] : [];
-      if (!this.varios(f)) return [{ f, n }]; return [...Roteiro.quem(f).map(k => ({ f: this.versao(f, k), n })), ...(f.audio ? [{ f: this.versao(f, ''), n }] : [])]; }) })).filter(p => p.falas.length);
+      if (!this.varios(f)) return [{ f, n }]; return [...Roteiro.quem(f).map(k => ({ f: this.versao(f, k), n })), ...(f.audio || locais.has(f.id) ? [{ f: this.versao(f, ''), n }] : [])]; }) })).filter(p => p.falas.length);
     const vagas = P.partes.flatMap(p => p.falas).flatMap(f => this.varios(f) ? Roteiro.quem(f).map(k => !!(f.audios?.[k]?.audio || f.audio)) : [!!f.audio]), total = vagas.length, feitas = vagas.filter(Boolean).length; // cada personagem da fala de vários conta
     const aberto = k => { try { return localStorage.getItem('ep-prep-sec-' + k) === '1'; } catch { return false; } };
     c.innerHTML = `<div class="falas falas2">
@@ -899,6 +899,9 @@ const Falas = {
       $$('[data-ouve-outro]', el).forEach(b => b.onclick = async () => { const a = await this.audioOutro(f, b.dataset.ouveOutro).catch(e => { aviso(e.message, 'erro'); return null; }); if (!a) return; if (S.tocando) S.tocando.pause(); S.tocando = a; a.play(); });
       $$('[data-grava-ouvindo]', el).forEach(b => b.onclick = () => this.grava(f, el, b.dataset.gravaOuvindo));
       $('[data-ouve-juntos]', el)?.addEventListener('click', e => this.ouveJuntos(f, e.currentTarget));
+      $('[data-move-de]', el)?.addEventListener('change', async e => { const k = e.target.value; if (!k) return; const de = S.P.id + '/' + f.id, para = de + '@' + k, l = await DB.get('aud', de); if (!l) return;
+        if (await DB.get('aud', para) && !await pergunta('Já existe uma gravação nessa versão', 'Trocar pela gravação de "todos juntos"?', [['Cancelar', false], ['Trocar', true, 'perigo']])) { e.target.value = ''; return; }
+        await DB.put('aud', para, l); await DB.del('aud', de); aviso('Gravação passada para a versão de ' + (f.personagens.find(x => Roteiro.chave(x) === k) || k) + '.', 'ok'); this.pinta(c); });
       // ANDAR PELO ÁUDIO: clicar/arrastar na onda vai para aquele ponto (tocando ou não)
       const bx = $('.onda-box', el); bx.onpointerdown = ev => { ev.preventDefault(); const fr = e2 => { const r = bx.getBoundingClientRect(); return Math.max(0, Math.min(1, (e2.clientX - r.left) / r.width)); };
         const vai = e2 => { const a = S.tocando; if (a && a._f === f.id && a.duration) a.currentTime = fr(e2) * a.duration; };
@@ -1035,7 +1038,7 @@ const Falas = {
     const outros = varios && vz ? f.personagens.filter(p => Roteiro.chave(p) !== vz) : [];
     const juntoH = outros.length ? `<div class="junto-de"><span>${ic('alerta', 13)} Esta fala é dita <b>ao mesmo tempo</b> que:</span>${outros.map(p => { const ko = Roteiro.chave(p), tem = f.audios?.[ko]?.audio || this._loc?.has(f.id + '@' + ko);
         return `<span class="jd-p" data-ko="${esc(ko)}" data-tem="${tem ? 1 : ''}">${ava(p, cs.get(ko) || corOuPadrao(p), 'p')}<b style="color:${cs.get(ko) || corOuPadrao(p)}">${esc(p)}</b>${tem ? `<button class="bt mini" data-ouve-outro="${esc(ko)}">${ic('play', 12)} Ouvir</button>${pode('gravar') ? `<button class="bt mini" data-grava-ouvindo="${esc(ko)}" title="Toca a gravação de ${esc(p)} enquanto você grava (use fone)">${ic('mic', 12)} Gravar ouvindo ${esc(p)}</button>` : ''}` : '<small>ainda não gravou</small>'}</span>`; }).join('')}${(local || au) && outros.some(p => f.audios?.[Roteiro.chave(p)]?.audio || this._loc?.has(f.id + '@' + Roteiro.chave(p))) ? `<button class="bt mini jd-juntos" data-ouve-juntos title="Toca a sua versão e a dos outros ao mesmo tempo">${ic('play', 12)} Ouvir juntos</button>` : ''}</div>` : '';
-    const dicaV = varios && !vz ? `<small class="dica-v">Gravação de todos juntos (opcional): cada personagem também tem a sua linha.</small>` : '';
+    const dicaV = varios && !vz ? `<div class="dica-v">Gravação de todos juntos. ${local && pode('gravar') ? `<label class="de-quem">Esta gravação é de: <select data-move-de><option value="">Todos juntos</option>${f.personagens.map(p => `<option value="${esc(Roteiro.chave(p))}">${esc(p)}</option>`).join('')}</select></label>` : 'Cada personagem também tem a sua linha.'}</div>` : '';
     return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}" data-f="${esc(f.id)}" ${varios ? `data-vez="${esc(vz)}"` : ''} style="--c:${cor}"><span class="num">${n}</span>
       ${quemH}
       <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}${juntoH}${dicaV}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>

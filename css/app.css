@@ -1147,3 +1147,5 @@ body.modo-doc.sem-guias .corpo.corpo-falas>.falas{max-width:none}
 .mp-mais{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}.mp-mais>small{display:block;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
 .mp-q{display:inline-flex;align-items:center;gap:8px}.mp-q small{color:var(--muted);font-size:12.5px}.mp-seg{display:inline-flex;gap:3px}.mp-seg button{border:0;background:var(--panel-2);color:var(--text);padding:5px 11px;font-size:12.5px;cursor:pointer}.mp-seg button.on{background:#ffd36b;color:#2a1f05;font-weight:600}
 .conta3{position:fixed;inset:0;z-index:300;display:grid;place-items:center;background:rgba(0,0,0,.55);pointer-events:none}.conta3 b{font:200 140px/1 "Segoe UI Light","Segoe UI",sans-serif;color:#fff}
+
+.fala .dica-v .de-quem{display:inline-flex;align-items:center;gap:6px;margin-left:6px;color:var(--text)}.fala .dica-v select{background:#2b2b2b;color:var(--text);border:1px solid #444;padding:3px 6px;font-size:12.5px}
