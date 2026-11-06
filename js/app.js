@@ -14,7 +14,7 @@ const quando = t => { if (!t) return ''; const d = new Date(t); return d.toLocal
 /* ---------- ícones de linha (iguais aos do menu) ---------- */
 const IC = {
   mais: '<path d="M12 5v14M5 12h14"/>', voltar: '<path d="M15 18l-6-6 6-6"/>', mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
-  play: '<path d="M7 5l12 7-12 7z"/>', parar: '<rect x="6" y="6" width="12" height="12" rx="2"/>', lixo: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  play: '<path d="M8 5.2v13.6a.6.6 0 0 0 .9.5l10.6-6.8a.6.6 0 0 0 0-1L8.9 4.7a.6.6 0 0 0-.9.5z" fill="currentColor" stroke="none"/>', parar: '<rect x="6" y="6" width="12" height="12" rx="2"/>', lixo: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
   nuvem: '<path d="M7 18a5 5 0 1 1 .9-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/>', enviar: '<path d="M12 16V5M7 10l5-5 5 5M5 19h14"/>', ok: '<path d="M5 12l5 5 9-10"/>',
   doc: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>', atualizar: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>', organizar: '<path d="M4 6h10M4 12h16M4 18h7"/><path d="M17 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/>',
   luz: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>', pessoa: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
@@ -339,7 +339,11 @@ function menus(nav, def) {
 const GUIAS = [['roteiro', 'Roteiro', 'doc'], ['falas', 'Falas e gravação', 'mic'], ['legendas', 'Legendas', 'legenda']];
 // com destino = Animador aparece a guia do ELENCO: qual personagem do Ateliê é cada nome do roteiro (prep.animador.pers)
 const guiasDe = P => P?.destino === 'animador' ? [...GUIAS, ['elenco', 'Elenco no Animador', 'pessoa']] : GUIAS;
-function irGuia(k) { S.sub = k; $$('.guias [data-sub]').forEach(x => x.classList.toggle('on', x.dataset.sub === k)); pintaCorpo(); }
+function irGuia(k) { S.sub = k; marcaGuias(); pintaCorpo(); window.scrollTo({ top: 0 }); }
+// a barra de guias de cima: qual está aberta, e Anterior/Próximo; o lado esquerdo só aparece no Roteiro (títulos e personagens)
+function marcaGuias() { const L = guiasDe(S.P).map(g => g[0]), i = L.indexOf(S.sub); $$('.dh-guias [data-sub]').forEach(x => x.classList.toggle('on', x.dataset.sub === S.sub));
+  const a = $('[data-guia-ant]'), b = $('[data-guia-prox]'); if (a) { a.disabled = i <= 0; a.onclick = () => i > 0 && irGuia(L[i - 1]); } if (b) { b.disabled = i >= L.length - 1; b.onclick = () => i < L.length - 1 && irGuia(L[i + 1]); }
+  document.body.classList.toggle('sem-guias', S.sub !== 'roteiro'); }
 function baixaTexto() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([S.P.roteiro || ''], { type: 'text/plain;charset=utf-8' })); a.download = (S.P.nome || 'roteiro').replace(/[^\w\- ]+/g, '_') + '.txt'; a.click(); }
 function mostraComo() { const m = h(`<div class="modal"><div class="caixa larga">${COMO}<div class="bts"><button class="bt pri">Entendi</button></div></div></div>`); $('button', m).onclick = () => m.remove(); m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
 addEventListener('keydown', e => { if (!S.P || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return; e.preventDefault(); if (S.sujo) salvaPrep($('.prep [data-salva]')); else aviso('Já está salvo na nuvem.', 'ok', 1800); });
@@ -363,11 +367,12 @@ function pintaPrep() {
       <span class="enviar"></span>
       <span class="dh-conta"></span>
     </header>
+    <nav class="dh-guias" aria-label="Guias do roteiro"><button class="bt dg-ant" data-guia-ant title="Guia anterior">${ic('voltar', 15)} Anterior</button>
+      <div class="dg-passos">${guiasDe(P).map(([k, n, i], x) => `${x ? '<span class="dg-seta" aria-hidden="true">›</span>' : ''}<button data-sub="${k}" class="dg-p ${S.sub === k ? 'on' : ''}" title="${esc(n)}"><i>${x + 1}</i>${ic(i, 15)}<span>${n}</span></button>`).join('')}</div>
+      <button class="bt pri dg-prox" data-guia-prox title="Próxima guia">Próximo <span class="dg-seta-d">${ic('voltar', 15)}</span></button></nav>
     <div class="dh-barra"></div></div>
     <div class="dh-area">
-      <aside class="guias"><div class="g-tit">Guias do roteiro</div>
-        ${guiasDe(P).map(([k, n, i]) => `<button data-sub="${k}" class="${S.sub === k ? 'on' : ''}">${ic(i, 16)} ${n}</button>`).join('')}
-        <div class="g-roteiro"></div></aside>
+      <aside class="guias"><div class="g-roteiro"></div></aside>
       <div class="corpo"></div>
     </div></section>`;
   modoDoc(true); window.EstudioIcones?.aplicar?.(); AoVivo.paraTudo();
@@ -404,7 +409,7 @@ function pintaPrep() {
   };
   $$('[data-destino]', el).forEach(b => b.onclick = () => mudaMarca('destino', P.destino === b.dataset.destino ? '' : b.dataset.destino));
   $$('[data-status]', el).forEach(b => b.onclick = () => mudaMarca('status', b.dataset.status));
-  $$('.guias [data-sub]', el).forEach(b => b.onclick = () => irGuia(b.dataset.sub));
+  $$('.dh-guias [data-sub]', el).forEach(b => b.onclick = () => irGuia(b.dataset.sub)); marcaGuias();
   const E = () => S.sub === 'roteiro' ? S.ed : null, edita = pode('roteiro');
   const naFolha = fn => () => { if (S.sub !== 'roteiro') irGuia('roteiro'); setTimeout(() => S.ed && fn(S.ed), 0); };
   menus($('.dh-menus', el), [
@@ -472,7 +477,7 @@ function pintaCorpo() {
   const c = $('.prep .corpo'); if (!c) return; if (S.sub !== 'roteiro') S.ed = null; if (S.sub !== 'falas') Mic.paraTeste();
   const barra = $('.prep .dh-barra'), gr = $('.prep .g-roteiro'); if (gr) gr.innerHTML = '';
   c.className = 'corpo corpo-' + S.sub;
-  if (S.sub !== 'roteiro' && barra) barra.innerHTML = `<div class="db-pilula"><span class="db-tit">${ic({ falas: 'mic', legendas: 'legenda', elenco: 'pessoa' }[S.sub] || 'doc', 16)} ${{ falas: 'Falas e gravação', legendas: 'Legendas', elenco: 'Elenco no Animador' }[S.sub] || ''}</span><span class="esp"></span><button class="bt" data-volta-rot>${ic('doc', 15)} Voltar ao roteiro</button></div>`;
+  if (S.sub !== 'roteiro' && barra) barra.innerHTML = ''; if (false) barra.innerHTML = `<div class="db-pilula"><span class="db-tit">${ic({ falas: 'mic', legendas: 'legenda', elenco: 'pessoa' }[S.sub] || 'doc', 16)} ${{ falas: 'Falas e gravação', legendas: 'Legendas', elenco: 'Elenco no Animador' }[S.sub] || ''}</span><span class="esp"></span><button class="bt" data-volta-rot>${ic('doc', 15)} Voltar ao roteiro</button></div>`;
   $('[data-volta-rot]', barra || document)?.addEventListener('click', () => irGuia('roteiro'));
   if (S.sub === 'elenco' && S.P.destino !== 'animador') S.sub = 'roteiro';
   if (S.sub === 'falas') return Falas.pinta(c); if (S.sub === 'legendas') return pintaLegendas(c); if (S.sub === 'elenco') return pintaElenco(c); return pintaRoteiro(c);

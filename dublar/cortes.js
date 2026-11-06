@@ -231,8 +231,9 @@ const Cortes = (() => {
     function fazZoom(z, foco) { const vis0 = dur() / zoom; zoom = Math.max(1, Math.min(400, z)); const vis = dur() / zoom; ini = foco - (foco - ini) * vis / vis0; desenha(); }
     // ---- tocar ----
     function para() { try { tocando?.s.stop(); } catch { } tocando = null; B.play.textContent = '▶ Tocar'; }
-    function toca(a = cab, b = dur()) { if (tocando) return para(); const x = ac(), buf = x.createBuffer(1, A.d.length, A.sr); buf.copyToChannel(A.d, 0); const s = x.createBufferSource(); s.buffer = buf; s.connect(x.destination);
-      const t0 = x.currentTime; s.start(0, a, Math.max(.01, b - a)); tocando = { s }; B.play.textContent = '❚❚ Parar'; s.onended = () => { if (tocando?.s === s) para(); desenha(); };
+    // tocar: no fim (ou com o cursor no fim) volta para onde começou, então "Tocar" toca de novo do início
+    function toca(a = cab, b = dur()) { if (tocando) return para(); if (a >= b - .02) a = b >= dur() - .001 ? 0 : a; const x = ac(), buf = x.createBuffer(1, A.d.length, A.sr); buf.copyToChannel(A.d, 0); const s = x.createBufferSource(); s.buffer = buf; s.connect(x.destination);
+      const t0 = x.currentTime, a0 = a; s.start(0, a, Math.max(.01, b - a)); tocando = { s }; B.play.textContent = '❚❚ Parar'; s.onended = () => { if (tocando?.s === s) { para(); cab = a0; } desenha(); };
       const anda = () => { if (tocando?.s !== s) return; cab = a + (x.currentTime - t0); const vis = dur() / zoom; if (cab > ini + vis) ini = cab - vis * .1; desenha(); requestAnimationFrame(anda); }; anda(); }
     // ---- mouse na onda: clique na linha vermelha = seleciona o corte (arrastar move); clique no resto = cursor; arrastar = selecionar ----
     let arr = null;
