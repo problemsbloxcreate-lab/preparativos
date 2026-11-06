@@ -751,7 +751,7 @@ const Dub = {
   },
   nomeFala(id) { for (const p of S.P.partes) for (const f of p.falas) if (f.id === id) return f; return null; },
   mostra(box, r) {
-    const corpo = $('.dp-corpo', box), links = r.links || [], pend = r.pend || [];
+    const corpo = $('.dp-corpo', box), links = r.links || [], pend = r.pend || []; { const d = box.closest('details'), pl = d && $('.fl-pend', d); if (pl) { pl.hidden = !pend.length; pl.textContent = pend.length + ' para aprovar'; if (pend.length) d.open = true; } }
     corpo.innerHTML = `${pend.length ? `<div class="dp-pend"><small class="dp-t">${ic('alerta', 13)} Chegaram ${pend.length} gravaç${pend.length === 1 ? 'ão' : 'ões'} esperando aprovação</small>${pend.map(x => { const f = this.nomeFala(x.fala);
         return `<div class="dp-item" data-k="${esc(x.k)}"><button class="redondo" data-ouve title="Ouvir">${ic('play', 15)}</button><div class="dp-tx"><b>${esc(f?.personagem || '?')}</b> ${esc((f?.texto || '').slice(0, 90))}<small>por ${esc(x.quem?.nome || 'alguém')}${x.quem?.conta ? '' : ' (sem conta)'} · ${tempo(x.dur)} · ${esc(quando(x.em))}</small></div>
           ${pode('gravar') ? `<button class="bt pri" data-aceita>${ic('ok', 14)} Aceitar</button><button class="bt" data-recusa>Recusar</button>` : ''}</div>`; }).join('')}</div>` : ''}
@@ -852,15 +852,16 @@ const Falas = {
     const locais = await this.locais(); this._loc = locais; let num = 0;
     const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.map(f => ({ f, n: ++num })).filter(({ f }) => !this.quem || Roteiro.quem(f).includes(this.quem)) })).filter(p => p.falas.length);
     const total = P.partes.reduce((s, p) => s + p.falas.length, 0), feitas = P.partes.reduce((s, p) => s + p.falas.filter(f => f.audio).length, 0);
-    c.innerHTML = `<div class="falas">
-      ${pode('gravar') ? '<div class="mic-painel"></div>' : ''}
-      ${pode('gravar') || pode('links') ? '<div class="dub-painel"></div>' : ''}
-      <h3>Quem vai gravar?</h3>
-      <div class="elenco-g">
-        <button class="pcard ${!this.quem ? 'on' : ''}" data-grava=""><span class="ava g todos">${ic('pessoa', 20)}</span><b>Todos</b><small>${feitas} de ${total} gravadas</small><div class="barra"><i style="width:${total ? feitas / total * 100 : 0}%"></i></div></button>
-        ${ps.map(p => `<button class="pcard ${this.quem === p.chave ? 'on' : ''}" data-grava="${esc(p.chave)}" style="--c:${cs.get(p.chave)}">${ava(p.nome, cs.get(p.chave), 'g')}<b>${esc(p.nome)}</b><small>${p.g} de ${p.n} gravada${p.n === 1 ? '' : 's'}</small><div class="barra"><i style="width:${p.n ? p.g / p.n * 100 : 0}%"></i></div></button>`).join('')}
+    const aberto = k => { try { return localStorage.getItem('ep-prep-sec-' + k) === '1'; } catch { return false; } };
+    c.innerHTML = `<div class="falas falas2">
+      <div class="fl-topo"><div class="fl-prog"><b>Falas e gravação</b><span><b>${feitas}</b> de <b>${total}</b> falas gravadas</span><div class="barra"><i style="width:${total ? feitas / total * 100 : 0}%"></i></div></div>
+        ${pode('gravar') && ps.length ? `<div class="fl-acoes"><button class="bt pri" data-seq title="Grava as falas ${this.quem ? 'deste personagem' : 'do roteiro'} uma atrás da outra; Enter passa para a próxima">${ic('mic', 15)} Gravar em sequência</button><button class="bt" data-varias title="Um ou VÁRIOS arquivos (um por personagem): o Preparativos separa cada um nas falas sozinho">${ic('baixo', 15)} Subir áudio(s) com várias falas</button>${this._lote?.length ? `<button class="bt" data-lote title="Ver como ficou o último envio de vários áudios">${ic('ok', 15)} Ver o último envio</button>` : ''}</div>` : ''}</div>
+      <div class="fl-quem" role="tablist" aria-label="Quem vai gravar">
+        <button class="fl-q ${!this.quem ? 'on' : ''}" data-grava="" role="tab"><span class="fl-q-ic">${ic('pessoa', 15)}</span><span>Todos</span><small>${feitas}/${total}</small></button>
+        ${ps.map(p => `<button class="fl-q ${this.quem === p.chave ? 'on' : ''}" data-grava="${esc(p.chave)}" role="tab" style="--c:${cs.get(p.chave)}">${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span><small>${p.g}/${p.n}</small><i class="fl-q-b" style="width:${p.n ? p.g / p.n * 100 : 0}%"></i></button>`).join('')}
       </div>
-      ${pode('gravar') && ps.length ? `<div class="falas-acoes"><button class="bt" data-seq title="Grava as falas ${this.quem ? 'deste personagem' : 'do roteiro'} uma atrás da outra; Enter passa para a próxima">${ic('mic', 15)} Gravar tudo em sequência</button><button class="bt" data-varias title="Um arquivo com várias falas gravadas em sequência: o Preparativos separa em cada fala">${ic('baixo', 15)} Subir um áudio com várias falas</button></div>` : ''}
+      ${pode('gravar') ? `<details class="fl-sec" data-sec="mic" ${aberto('mic') ? 'open' : ''}><summary>${ic('mic', 15)} Microfone <small>escolher, testar, filtros e volume</small></summary><div class="mic-painel"></div></details>` : ''}
+      ${pode('gravar') || pode('links') ? `<details class="fl-sec" data-sec="dub" ${aberto('dub') ? 'open' : ''}><summary>${ic('enviar', 15)} Links para dublar <small>para alguém de fora gravar</small><span class="fl-pend" hidden></span></summary><div class="dub-painel"></div></details>` : ''}
       <div class="seq-pend"></div>
       <div class="env"></div>
       ${P.novo || S.sujo && !P.mod ? `<p class="aviso-linha">${ic('alerta', 15)} Mande o roteiro para a nuvem antes de enviar as gravações (elas ficam guardadas aqui enquanto isso).</p>` : ''}
@@ -883,6 +884,8 @@ const Falas = {
     this.pintaEnvio(locais);
     $('[data-seq]', c)?.addEventListener('click', () => this.emSequencia());
     $('[data-varias]', c)?.addEventListener('click', () => this.variasFalas());
+    $('[data-lote]', c)?.addEventListener('click', () => this.mostraLote());
+    $$('.fl-sec', c).forEach(d => d.ontoggle = () => { try { localStorage.setItem('ep-prep-sec-' + d.dataset.sec, d.open ? '1' : '0'); } catch { } });
     // gravação em sequência que não chegou a ser revisada (a aba fechou no meio): continua daqui
     if (locais.has('_seq')) { const sq = locais.get('_seq'), bx = $('.seq-pend', c); bx.innerHTML = `<div class="faixa-env">${ic('alerta', 16)}<span>Há uma <b>gravação em sequência</b> que não foi revisada (${new Date(sq.em).toLocaleString('pt-BR')}).</span><span class="esp"></span><button class="bt pri" data-seq-rev>Revisar</button><button class="bt" data-seq-fora>Descartar</button></div>`;
       $('[data-seq-rev]', bx).onclick = () => this.revisaSeq(new Blob(sq.chunks, { type: sq.tipo || 'audio/webm' }), sq.trechos || []); $('[data-seq-fora]', bx).onclick = async () => { if (await pergunta('Descartar a gravação em sequência?', 'Ela ainda não foi separada nas falas.', [['Cancelar', false], ['Descartar', true, 'perigo']])) { await DB.del('aud', P.id + '/_seq'); this.pinta(c); } }; }
@@ -940,8 +943,8 @@ const Falas = {
     const fim = v => { m.remove(); ok(v); }; $('[data-n]', m).onclick = () => fim(null); m.onclick = e => { if (e.target === m) fim(null); }; m.onkeydown = e => { if (e.key === 'Escape') fim(null); };
     $('[data-s]', m).onclick = () => { const l = escolhidas(); if (!l.length) return aviso('Nenhuma fala com essa escolha.', 'info'); fim({ quem: quem(), falas: l, transcrever: !!$('[data-trans]', m)?.checked }); };
     document.body.appendChild(m); }); },
-  async variasFalas() { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
-    inp.onchange = async () => { const arq = inp.files[0]; if (!arq) return; if (arq.size > 200 * 1048576) return aviso('Esse arquivo é grande demais (máx. 200 MB).', 'erro');
+  async variasFalas() { const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
+    inp.onchange = async () => { if (inp.files.length > 1) return this.variosArquivos([...inp.files]); const arq = inp.files[0]; if (!arq) return; if (arq.size > 200 * 1048576) return aviso('Esse arquivo é grande demais (máx. 200 MB).', 'erro');
       const esc0 = await this.escolheFalas(arq.name); if (!esc0) return; this.quem = esc0.quem; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } // a versão certa (fala de vários) é a do personagem escolhido
       const fs = esc0.falas; aviso('Abrindo o áudio…', 'info', 2500);
       try { const A = await Cortes.decodifica(arq), marcas = Cortes.silencios(A, fs.length);
@@ -949,6 +952,42 @@ const Falas = {
           aoSalvar: ps => this.guardaPedacos(ps), aoFechar: () => this.pinta(this.c) }); }
       catch (e) { aviso(e.message, 'erro'); } };
     inp.click(); },
+  // VÁRIOS ÁUDIOS (um por personagem) DE UMA VEZ: cada um se configura sozinho (personagem pelo nome do arquivo, falas pelo texto ou pelas pausas)
+  variosArquivos(arqs) { const P = S.P, cs = coresDoRoteiro(), ps = Roteiro.personagens(P.partes);
+    if (arqs.some(a => a.size > 200 * 1048576)) return aviso('Algum arquivo passa de 200 MB.', 'erro');
+    const linhas = arqs.map(a => ({ arq: a, quem: this.pelaNomeArq(a.name, ps)?.chave || '' }));
+    const m = h(`<div class="modal"><div class="caixa dn-caixa va-caixa" role="dialog" aria-label="Vários áudios"><div class="dn-cab"><b>Separar ${arqs.length} áudios nas falas</b><small>Cada arquivo é de um personagem. O personagem vem do nome do arquivo: confira antes.</small></div>
+      <div class="dn-corpo"><div class="va-lista">${linhas.map((l, i) => `<div class="va-l"><span class="va-arq" title="${esc(l.arq.name)}">${ic('mic', 14)} ${esc(l.arq.name)}</span>
+        <select data-q="${i}"><option value="">— de quem? —</option>${ps.map(p => `<option value="${esc(p.chave)}" ${l.quem === p.chave ? 'selected' : ''}>${esc(p.nome)} (${p.n})</option>`).join('')}</select>
+        <select data-s="${i}"><option value="todas">todas as falas</option><option value="sem">só as sem áudio</option></select></div>`).join('')}</div>
+        ${pode('transcrever') ? `<label class="dn-op"><input type="checkbox" data-trans checked><span>Achar as falas pelo texto (transcrição; usa a cota, fica guardada neste navegador)</span></label>` : ''}
+        <small class="dn-exp">Depois você vê o resultado de cada um e pode revisar. Os áudios ficam neste computador até "Enviar agora".</small></div>
+      <div class="dn-rod"><button class="bt" data-n>Cancelar</button><button class="bt pri" data-s0>${ic('ok', 14)} Separar todos</button></div></div></div>`);
+    const fim = () => m.remove(); $('[data-n]', m).onclick = fim; m.onkeydown = e => { if (e.key === 'Escape') fim(); };
+    $('[data-s0]', m).onclick = async () => { const esc2 = linhas.map((l, i) => ({ ...l, quem: $(`[data-q="${i}"]`, m).value, modo: $(`[data-s="${i}"]`, m).value })), trans = !!$('[data-trans]', m)?.checked;
+      if (esc2.some(l => !l.quem)) return aviso('Escolha de quem é cada áudio.', 'info'); fim(); await this.processaLote(esc2, trans); };
+    document.body.appendChild(m); },
+  async processaLote(itens, trans) { const P = S.P, quem0 = this.quem, lote = [];
+    for (const [n, it] of itens.entries()) { aviso(`Separando ${n + 1} de ${itens.length}: ${it.arq.name}…`, 'info', 6000); this.quem = it.quem;
+      const base = P.partes.flatMap(p => p.falas).filter(f => Roteiro.quem(f).includes(it.quem)), temAudio = f => !!this.audioDe(f) || this._loc?.has(f.id + this.suf(f)), fs = it.modo === 'sem' ? base.filter(f => !temAudio(f)) : base;
+      const r = { nome: it.arq.name, quem: it.quem, rotulo: Roteiro.personagens(P.partes).find(p => p.chave === it.quem)?.nome || it.quem, falas: fs.map(f => this.paraCortes(f)), ids: fs.map(f => f.id) };
+      try { if (!fs.length) throw new Error('nenhuma fala para esse personagem'); const A = await Cortes.decodifica(it.arq); r.A = A; r.blob = it.arq;
+        const c = await Cortes.cortesAuto(A, r.falas, trans ? this.transcritor() : null); r.marcas = c.marcas; r.aviso = c.aviso; r.pedacos = (c.marcas.length + 1);
+        const ps = await Cortes.codifica(A, c.marcas, r.falas); for (const x of ps) { const f = this.acha(x.fala); if (f) await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); } r.feitas = ps.length; }
+      catch (e) { r.erro = e.message; } lote.push(r); }
+    this.quem = quem0; this._lote = lote; await this.pinta(this.c); this.mostraLote(); },
+  // o resultado de cada arquivo, com "Revisar" (abre a revisão com os cortes que foram usados)
+  mostraLote() { const L = this._lote || []; if (!L.length) return; const cs = coresDoRoteiro();
+    const m = h(`<div class="modal"><div class="caixa dn-caixa va-caixa" role="dialog" aria-label="Resultado"><div class="dn-cab"><b>Como ficou: ${L.length} áudio(s)</b><small>Cada fala já tem o seu pedaço neste computador. Confira ouvindo na lista de falas, revise o que precisar e depois clique em "Enviar agora".</small></div>
+      <div class="dn-corpo">${L.map((r, i) => `<div class="va-r ${r.erro ? 'erro' : r.feitas < r.falas.length ? 'meio' : 'ok'}" style="--c:${cs.get(r.quem) || '#888'}"><div class="va-r1">${ava(r.rotulo, cs.get(r.quem), 'p')}<b>${esc(r.rotulo)}</b><small>${esc(r.nome)}</small></div>
+        <div class="va-r2">${r.erro ? `Não deu: ${esc(r.erro)}` : `<b>${r.feitas}</b> de <b>${r.falas.length}</b> fala(s) com áudio · ${esc(r.aviso || '')}`}</div>${r.A ? `<button class="bt" data-rev="${i}">${ic('lapis', 14)} Revisar os cortes</button>` : ''}</div>`).join('')}</div>
+      <div class="dn-rod"><button class="bt pri" data-x>Fechar</button></div></div></div>`);
+    $('[data-x]', m).onclick = () => m.remove(); m.onkeydown = e => { if (e.key === 'Escape') m.remove(); };
+    $$('[data-rev]', m).forEach(b => b.onclick = async () => { const r = L[+b.dataset.rev], quem0 = this.quem; m.remove(); this.quem = r.quem;
+      await Cortes.revisao({ dados: { sr: r.A.sr, d: r.A.d.slice() }, blob: r.blob, falas: r.falas, marcas: r.marcas, titulo: `Revisar: ${r.nome} (${r.rotulo})`, aviso: r.aviso, transcrever: this.transcritor(),
+        aoSalvar: async ps => { for (const x of ps) { const f = this.acha(x.fala); if (f) await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); } r.feitas = ps.length; r.aviso = 'Revisado à mão.'; this.quem = quem0; await this.pinta(this.c); this.mostraLote(); },
+        aoFechar: () => { this.quem = quem0; } }); });
+    document.body.appendChild(m); },
   async emSequencia() { const fs = this.alvos(); if (!fs.length) return; Mic.paraTeste($('.mic-painel', this.c)); const P = S.P;
     try { await Cortes.sequencia({ falas: fs.map(f => this.paraCortes(f)), abreMic: async () => { const m = await Mic.abre(); return { stream: m.dest.stream, fecha: m.fecha }; },
       guarda: x => x ? DB.put('aud', P.id + '/_seq', x).catch(() => { }) : DB.del('aud', P.id + '/_seq').catch(() => { }),

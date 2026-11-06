@@ -94,7 +94,7 @@ const Cortes = (() => {
 .ct-ped select{background:#141518;color:#eceef2;border:1px solid #42454d;padding:4px 6px;min-width:0;width:100%;height:30px}
 .ct-ped .ct-d{font:12px ui-monospace,monospace;color:#9aa0ab}.ct-ped .ct-bts{display:flex;gap:4px}
 .ct-ped.sobra{--c:#ffb04a}.ct-ped.nao{--c:#5a5d66}
-.ct-falta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px dashed #ff6b81;background:rgba(255,77,94,.06);font-size:13px}.ct-falta .ct-n{width:26px;height:26px;display:grid;place-items:center;background:#ff4d5e;color:#fff;font-weight:700}.ct-falta span{flex:1 1 220px}
+.ct-falta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px dashed #ff6b81;background:rgba(255,77,94,.06);font-size:13px}.ct-falta .ct-n{width:26px;height:26px;display:grid;place-items:center;background:#ff4d5e;color:#fff;font-weight:700}.ct-falta>span:not(.ct-n){flex:1 1 220px}.ct-falta .ct-n{flex:none}
 .ct-extra{display:flex;gap:8px;align-items:center;margin-top:4px}.ct-extra select{flex:1;background:#141518;color:#eceef2;border:1px solid #42454d;padding:4px 6px;height:30px}
 .ct-rod{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid #2c2f35;background:#1d1f24}.ct-aviso{color:#ffb04a;font-size:12.5px;flex:1 1 280px}
 .ct-seq{width:min(760px,100%)}.ct-seq .ct-atual{padding:26px 22px 10px;text-align:center}.ct-seq .ct-quem{color:#ffd36b;font-weight:700;font-size:15px}.ct-seq .ct-nota{color:#e6d28a;font-style:italic}
@@ -245,8 +245,8 @@ const Cortes = (() => {
       else if (k === 'Delete' || k === 'Backspace') { if (selM >= 0) { e.preventDefault(); tiraMarca(selM); } else if (sel) { e.preventDefault(); apagaSel(); } } // o corte só sai se ele estiver SELECIONADO (clicado)
       else if (mod && k.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); desfaz(); } else if (mod && (k.toLowerCase() === 'y' || (k.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); refaz(); }
       else if (k === 'Escape') { if (selM >= 0 || sel) { selM = -1; sel = null; desenha(); pintaLista(); } else fecha(); } };
-    pilha.push(f); addEventListener('keydown', tecla); const rz = () => desenha(); addEventListener('resize', rz);
-    function fecha(semPerguntar) { if (!semPerguntar && hist.length && !confirm('Fechar sem salvar? As mudanças neste áudio se perdem.')) return; para(); removeEventListener('keydown', tecla); removeEventListener('resize', rz); f.remove(); const pi = pilha.indexOf(f); if (pi >= 0) pilha.splice(pi, 1); o.aoFechar?.(); }
+    pilha.push(f); addEventListener('keydown', tecla); const rz = () => desenha(); addEventListener('resize', rz); const ro = new ResizeObserver(() => desenha()); ro.observe(onda); // desenha de novo quando a área ganha tamanho
+    function fecha(semPerguntar) { if (!semPerguntar && hist.length && !confirm('Fechar sem salvar? As mudanças neste áudio se perdem.')) return; para(); removeEventListener('keydown', tecla); removeEventListener('resize', rz); ro.disconnect(); f.remove(); const pi = pilha.indexOf(f); if (pi >= 0) pilha.splice(pi, 1); o.aoFechar?.(); }
     // ---- transcrição ----
     async function transcreve(sozinho) { if (!o.transcrever) return; const bts = $$('button', rod); bts.forEach(b => b.disabled = true); const v = av.textContent; av.textContent = 'Transcrevendo… (pode levar um pouco)';
       try { energia._c = null; const palavras = await o.transcrever(A); const pos = alinha(palavras, falas); if (!pos.some(Boolean)) throw new Error('Não achei as falas na transcrição. Use as pausas ou corte à mão.');
@@ -303,7 +303,19 @@ const Cortes = (() => {
     const n = partes.reduce((s, d) => s + d.length, 0), d = new Float32Array(n); let o = 0; for (const p of partes) { d.set(p, o); o += p.length; } return { dados: { sr: A.sr, d }, marcas, quem }; }
   // áudio → pedaços de WAV 16 kHz em base64 (para a transcrição; até ~150 s cada)
   async function paraTranscrever(A, seg = 150) { const r = await reamostra({ sr: A.sr, d: A.d }, 16000), out = []; for (let a = 0; a < r.d.length; a += seg * 16000) { const b = wav({ sr: 16000, d: r.d.slice(a, a + seg * 16000) }), u8 = new Uint8Array(await b.arrayBuffer()); let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); out.push({ base64: btoa(s), desde: a / 16000 }); } return out; }
+  // ---------- SEPARAR SEM ABRIR A JANELA (vários arquivos de uma vez) ----------
+  // cortes pelo texto (transcrição + alinhamento) ou, sem ela, pelas pausas; devolve { marcas, aviso, achadas }
+  async function cortesAuto(A, falas, transcrever) { let marcas = silencios(A, falas.length), aviso = avisoPausas(marcas, falas.length), achadas = null;
+    if (transcrever) { try { energia._c = null; const pos = alinha(await transcrever(A), falas); achadas = pos.filter(Boolean).length;
+        if (achadas) { const novas = []; for (let k = 1; k < falas.length; k++) { const a = pos[k - 1], b = pos[k]; if (!b) continue; novas.push(quieto(A, a ? (a.fim + b.ini) / 2 : b.ini - .15)); }
+          marcas = [...new Set(novas.map(x => Math.round(x * 1000) / 1000))].sort((a, b) => a - b); aviso = `Pelo texto: ${achadas} de ${falas.length} fala(s) achadas.`; } else aviso = 'A transcrição não achou as falas; usei as pausas. ' + aviso; }
+      catch (e) { aviso = 'Transcrição falhou (' + e.message + '); usei as pausas. ' + aviso; } }
+    return { marcas, aviso, achadas }; }
+  // cada pedaço (na ordem) vira o áudio de uma fala, comprimido
+  async function codifica(A, marcas, falas) { const bs = [0, ...marcas, A.d.length / A.sr], out = [];
+    for (let k = 0; k < Math.min(bs.length - 1, falas.length); k++) { const p = await reamostra(pedaco(A, Math.max(0, bs[k] - .02), Math.min(A.d.length / A.sr, bs[k + 1] + .02)), 22050); if (p.d.length < 2205) continue;
+      let blob = null; try { blob = await opusOgg(p); } catch { } out.push({ fala: falas[k].id, blob: blob || wav(p), duracao: Math.round(p.d.length / p.sr * 100) / 100 }); } return out; }
   const avisoPausas = (m, n) => m.achados === n ? `Achei ${n} pedaço${n === 1 ? '' : 's'} pelas pausas (uma por fala). Confira ouvindo cada um.` : m.achados > n ? `Achei ${m.achados} pedaços para ${n} fala${n === 1 ? '' : 's'}: usei as ${n - 1} pausas mais longas. Confira e arraste os cortes.` : `Achei ${m.achados} pedaço${m.achados === 1 ? '' : 's'} para ${n} falas: faltam pausas. Ponha os cortes que faltam (M ou duplo clique).`;
-  return { avisoPausas, revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms, opusOgg, wav };
+  return { cortesAuto, codifica, avisoPausas, revisao, sequencia, paraRevisao, paraTranscrever, decodifica, alinha, silencios, tms, opusOgg, wav };
 })();
 if (typeof window !== 'undefined') window.Cortes = Cortes;
