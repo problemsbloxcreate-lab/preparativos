@@ -58,9 +58,22 @@ const Editor = (() => {
     function ponto(p) { // posição → (nó, deslocamento)
       const bs = [...ed.children]; let i = 0; for (; i < bs.length; i++) { const n = bs[i].textContent.length; if (p <= n) break; p -= n + 1; }
       const b = bs[Math.min(i, bs.length - 1)]; if (!b) return [ed, 0]; if (i >= bs.length) p = b.textContent.length;
-      const w = document.createTreeWalker(b, NodeFilter.SHOW_TEXT); let t; while ((t = w.nextNode())) { if (p <= t.nodeValue.length) return [t, p]; p -= t.nodeValue.length; }
-      return [b, 0];
+      const w = document.createTreeWalker(b, NodeFilter.SHOW_TEXT), ns = []; let t; while ((t = w.nextNode())) ns.push(t);
+      const esc0 = n => !!n.parentElement?.closest('.it .mk, .l.a .mk'); // sinais "*" que não aparecem
+      for (let j = 0; j < ns.length; j++) { const n = ns[j], L = n.nodeValue.length;
+        if (p < L) { if (p === 0 && esc0(n) && j > 0 && !esc0(ns[j - 1])) return [ns[j - 1], ns[j - 1].nodeValue.length]; return [n, p]; }
+        if (p === L && (!esc0(n) || j === ns.length - 1)) return [n, L];
+        p -= L; }
+      return ns.length ? [ns[ns.length - 1], ns[ns.length - 1].nodeValue.length] : [b, 0];
     }
+    // ---- OS "*" ESCONDIDOS (pedido da dona, 06/11): o cursor nunca fica "dentro" deles; Enter/Backspace/Delete agem no que se VÊ ----
+    function linhaInfo(p) { const ini = texto.lastIndexOf('\n', p - 1) + 1, f0 = texto.indexOf('\n', p), fim = f0 < 0 ? texto.length : f0, i = texto.slice(0, ini).split('\n').length - 1, x = info[i] || {}, L = texto.slice(ini, fim), H = new Set();
+      let vIni = ini, vFim = fim, acao = false;
+      if (x.t === 'a') { const m = L.match(/^(\s*)\*(.+)\*(\s*)$/); if (m) { acao = true; vIni = ini + m[1].length + 1; vFim = fim - m[3].length - 1; H.add(vIni - 1); H.add(vFim); } }
+      else if (x.t === 'f' || x.t === 'f2') { const marca = (txt, base) => { for (const mm of txt.matchAll(/\*([^*\n]+)\*/g)) { H.add(base + mm.index); H.add(base + mm.index + mm[0].length - 1); } };
+        if (x.t === 'f2') marca(L, ini); else { const b1 = ini + (x.pre || '').length + (x.nome || '').length; marca(x.meio || '', b1); marca(x.resto || '', b1 + (x.meio || '').length); } }
+      return { ini, fim, vIni, vFim, acao, H, i }; }
+    const visivel = p => { const l = linhaInfo(p); return l.acao ? Math.max(l.vIni, Math.min(l.vFim, p)) : p; };
     function poeCursor(a, b = a) { const s = getSelection(), r = document.createRange(); const [n1, o1] = ponto(a), [n2, o2] = ponto(b); r.setStart(n1, o1); r.setEnd(n2, o2); s.removeAllRanges(); s.addRange(r); }
     // ---- pinta (só as linhas que mudaram) ----
     function pinta() {
@@ -79,16 +92,41 @@ const Editor = (() => {
     ed.addEventListener('compositionend', () => { compondo = false; ed.dispatchEvent(new Event('input')); });
     ed.addEventListener('beforeinput', e => { if (/^format|^history/.test(e.inputType)) e.preventDefault(); });
     ed.addEventListener('input', () => { if (compondo) return; const c = cursor(); texto = leDom(); pinta(); if (c) poeCursor(c.a, c.b); guardaHist(c?.a || 0, true); avisa(); });
+    let semFormato = false, ajustando = false;
+    document.addEventListener('selectionchange', () => { if (ajustando || compondo || document.activeElement !== ed || o.somenteLer) return; const s0 = getSelection(); if (!s0.rangeCount || !s0.isCollapsed) return;
+      const c = cursor(); if (!c) return; const v = visivel(c.a); if (v !== c.a) { ajustando = true; poeCursor(v); setTimeout(() => { ajustando = false; }, 0); } });
+    const ehLinha = n => texto.split('\n')[n];
+    function moveLinha(d) { const c = cursor(); if (!c) return; const ls = texto.split('\n'), i = texto.slice(0, c.a).split('\n').length - 1, j = i + d; if (j < 0 || j >= ls.length) return;
+      const col = c.a - (texto.lastIndexOf('\n', c.a - 1) + 1); [ls[i], ls[j]] = [ls[j], ls[i]]; const nv = ls.join('\n'); texto = nv; pinta(); let pp = 0; for (let k = 0; k < j; k++) pp += ls[k].length + 1; poeCursor(pp + Math.min(col, ls[j].length)); guardaHist(pp, false); avisa(); }
     ed.addEventListener('keydown', e => {
       if (o.somenteLer) return; const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
-      if (e.key === 'Enter') { e.preventDefault(); const c = cursor(); if (c) troca(c.a, c.b, '\n'); return; }
+      if (mod && e.key === '/') { e.preventDefault(); o.atalhos?.(); return; }
+      if (e.altKey && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); moveLinha(e.key === 'ArrowUp' ? -1 : 1); return; }
+      if (mod && e.altKey && /^[012]$/.test(e.key)) { e.preventDefault(); const t = { 0: 'normal', 1: 'capitulo', 2: 'parte' }[e.key]; ed.dispatchEvent(new CustomEvent('estilo', { detail: t })); return; }
+      if (mod && e.shiftKey && k === 'v') { semFormato = true; setTimeout(() => { semFormato = false; }, 800); return; } // colar sem formatação
+      const c0 = cursor();
+      // ENTER: na borda de uma ação, a linha nova nasce antes/depois dela; no meio, as DUAS partes continuam sendo ação
+      if (e.key === 'Enter') { e.preventDefault(); if (!c0) return; if (c0.a !== c0.b) return troca(c0.a, c0.b, '\n');
+        const p = visivel(c0.a), l = linhaInfo(p);
+        if (l.acao) { if (p <= l.vIni) { texto = texto.slice(0, l.ini) + '\n' + texto.slice(l.ini); pinta(); poeCursor(l.vIni + 1); guardaHist(l.vIni + 1, false); avisa(); return; }
+          if (p >= l.vFim) return troca(l.fim, l.fim, '\n'); return troca(p, p, '*\n*'); }
+        return troca(p, p, '\n'); }
+      // BACKSPACE / DELETE pulam os "*" escondidos e, na borda da linha, só juntam as linhas
+      if ((e.key === 'Backspace' || e.key === 'Delete') && c0 && c0.a === c0.b && !mod && !e.altKey) {
+        const p = visivel(c0.a), l = linhaInfo(p);
+        if (e.key === 'Backspace') { let q = p - 1; while (q >= l.ini && l.H.has(q)) q--;
+          if (q < l.ini || (l.acao && p <= l.vIni)) { e.preventDefault(); if (l.ini > 0) { texto = texto.slice(0, l.ini - 1) + texto.slice(l.ini); pinta(); poeCursor(visivel(l.ini - 1)); guardaHist(l.ini - 1, false); avisa(); } return; }
+          if (q !== p - 1 || p !== c0.a) { e.preventDefault(); texto = texto.slice(0, q) + texto.slice(q + 1); pinta(); poeCursor(visivel(q)); guardaHist(q, false); avisa(); } return; }
+        let q = p; while (q < l.fim && l.H.has(q)) q++;
+        if (q >= l.fim || (l.acao && p >= l.vFim)) { e.preventDefault(); if (l.fim < texto.length) { texto = texto.slice(0, l.fim) + texto.slice(l.fim + 1); pinta(); poeCursor(visivel(p)); guardaHist(p, false); avisa(); } return; }
+        if (q !== p || p !== c0.a) { e.preventDefault(); texto = texto.slice(0, q) + texto.slice(q + 1); pinta(); poeCursor(visivel(p)); guardaHist(p, false); avisa(); } return; }
       if (e.key === 'Tab') { e.preventDefault(); return; }
       if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); vaiHist(-1); return; }
       if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); vaiHist(1); return; }
       if (mod && k === 'i') { e.preventDefault(); italico(); return; }
       if (mod && (k === 'b' || k === 'u')) { e.preventDefault(); return; }
     });
-    ed.addEventListener('paste', e => { if (o.somenteLer) return; e.preventDefault(); const d = e.clipboardData, h = d.getData('text/html'); const t = (h ? deHtml(h) : d.getData('text/plain')).replace(/\r/g, ''); const c = cursor() || { a: texto.length, b: texto.length }; troca(c.a, c.b, t); });
+    ed.addEventListener('paste', e => { if (o.somenteLer) return; e.preventDefault(); const d = e.clipboardData, h = d.getData('text/html'); const t = (h && !semFormato ? deHtml(h) : d.getData('text/plain')).replace(/\r/g, ''); semFormato = false; const c = cursor() || { a: texto.length, b: texto.length }; troca(c.a, c.b, t); });
     ed.addEventListener('drop', e => { e.preventDefault(); });
     ed.addEventListener('copy', e => { const c = cursor(); if (!c || c.a === c.b) return; e.preventDefault(); e.clipboardData.setData('text/plain', texto.slice(c.a, c.b)); });
     ed.addEventListener('cut', e => { const c = cursor(); if (!c || c.a === c.b || o.somenteLer) return; e.preventDefault(); e.clipboardData.setData('text/plain', texto.slice(c.a, c.b)); troca(c.a, c.b, ''); });

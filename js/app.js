@@ -423,7 +423,7 @@ function pintaPrep() {
     ['Formatar', () => [['Texto normal', '', naFolha(e => e.estilo('normal')), !edita], [`${ic('pessoa', 15)} Nome do personagem (seleção)`, '', naFolha(e => e.estilo('nome')), !edita],
       ['<i class="ital">I</i>&nbsp; Ação / explicação da cena', 'Ctrl+I', naFolha(e => e.estilo('acao')), !edita], [`${ic('titulo', 15)} Título do capítulo`, '', naFolha(e => e.estilo('capitulo')), !edita], [`${ic('titulo', 15)} Título de uma parte`, '', naFolha(e => e.estilo('parte')), !edita], ['// Comentário', '', naFolha(e => e.estilo('comentario')), !edita]]],
     ['Ferramentas', () => [[`${ic('organizar', 15)} Organizar o roteiro`, '', naFolha(e => Organizar.roda($('[data-org]') || h('<button></button>'), e)), !pode('organizar')], [`${ic('mic', 15)} Gravar as falas`, '', () => irGuia('falas')], [`${ic('legenda', 15)} Legendas`, '', () => irGuia('legendas')], [`${ic('pessoa', 15)} Personagens da equipe`, '', async () => { if (await sairDoPrep()) trocaAba('personagens'); }]]],
-    ['Ajuda', () => [[`${ic('ajuda', 15)} Como escrever o roteiro`, '', mostraComo]]],
+    ['Ajuda', () => [[`${ic('ajuda', 15)} Como escrever o roteiro`, '', mostraComo], [`${ic('ajuda', 15)} Atalhos do teclado`, 'Ctrl+/', mostraAtalhos]]],
   ]);
   pintaBarraPrep(); pintaCorpo();
 }
@@ -458,6 +458,12 @@ async function salvaPrep(bt, quieto) {
   } catch (e) { aviso(e.message, 'erro'); }
   finally { pintaBarraPrep(); }
 }
+// ATALHOS DO TECLADO do editor (os mesmos de editores de texto comuns)
+const ATALHOS = [['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Y ou Ctrl+Shift+Z'], ['Ação / como falar (itálico)', 'Ctrl+I'], ['Selecionar tudo', 'Ctrl+A'], ['Copiar · recortar · colar', 'Ctrl+C · Ctrl+X · Ctrl+V'], ['Colar sem formatação', 'Ctrl+Shift+V'],
+  ['Título de capítulo', 'Ctrl+Alt+1'], ['Título de parte', 'Ctrl+Alt+2'], ['Texto normal', 'Ctrl+Alt+0'], ['Apagar a palavra', 'Ctrl+Backspace · Ctrl+Delete'], ['Pular palavra', 'Ctrl+← · Ctrl+→'], ['Começo / fim da linha', 'Home · End'],
+  ['Começo / fim do roteiro', 'Ctrl+Home · Ctrl+End'], ['Selecionar', 'Shift+setas'], ['Selecionar por palavra', 'Ctrl+Shift+← · →'], ['Mover a linha', 'Alt+Shift+↑ · ↓'], ['Procurar', 'Ctrl+F'], ['Mandar para a nuvem', 'Ctrl+S'], ['Ver estes atalhos', 'Ctrl+/']];
+function mostraAtalhos() { const m = h(`<div class="modal"><div class="caixa larga"><b>Atalhos do teclado</b><table class="atalhos">${ATALHOS.map(([a, b]) => `<tr><td>${esc(a)}</td><td>${b.split(' · ').map(x => `<kbd>${esc(x)}</kbd>`).join(' ')}</td></tr>`).join('')}</table><div class="bts"><button class="bt pri" data-x>Fechar</button></div></div></div>`);
+  const fim = () => m.remove(); $('[data-x]', m).onclick = fim; m.onclick = e => { if (e.target === m) fim(); }; m.onkeydown = e => { if (e.key === 'Escape') fim(); }; document.body.appendChild(m); $('[data-x]', m).focus(); }
 function pintaCorpo() {
   const c = $('.prep .corpo'); if (!c) return; if (S.sub !== 'roteiro') S.ed = null; if (S.sub !== 'falas') Mic.paraTeste();
   const barra = $('.prep .dh-barra'), gr = $('.prep .g-roteiro'); if (gr) gr.innerHTML = '';
@@ -561,7 +567,7 @@ function pintaRoteiro(c) {
   gr.innerHTML = `<div class="g-tit">Títulos</div><div class="indice"></div><div class="g-tit g-pers">Personagens<span class="esp"></span><button class="g-mini" data-orgp title="Organização dos personagens">${ic('pasta', 15)}</button></div><div class="pfiltro"></div><div class="pers"></div>`;
   const cores = () => coresDoRoteiro();
   let t = 0, tPg = 0; const repagina = () => { cancelAnimationFrame(tPg); tPg = requestAnimationFrame(() => pagina(c)); };
-  const E = S.ed = Editor.cria($('.folha', c), { texto: P.roteiro || '', somenteLer: !ed,
+  const E = S.ed = Editor.cria($('.folha', c), { texto: P.roteiro || '', somenteLer: !ed, atalhos: mostraAtalhos,
     cor: n => cores().get(Roteiro.chave(n)) || corOuPadrao(n),
     aoMudar: tx => { P.roteiro = tx; marcaSujo(); clearTimeout(t); t = setTimeout(() => { const antes = [...cores().keys()].join(); P.partes = Roteiro.separa(P.roteiro, P.partes); lado(); if ([...cores().keys()].join() !== antes) E.repinta(); }, 200); },
     aoMover: () => { const s = $('[data-estilo]', barra), l = E.linhas(), tp = E.tipoAtual(); if (s && tp) s.value = tp === 'h' ? (E.nivelAtual() === 1 ? 'capitulo' : 'parte') : ESTILO_DE[tp] || 'normal'; },
@@ -569,6 +575,7 @@ function pintaRoteiro(c) {
     confirma: (msg, antes, depois) => perguntaMuda(msg, antes, depois),
     pedeTexto: (tit, rot) => pedeTexto(tit, rot, 200),
     autor: () => S.nomeEu || '' });
+  E.el.addEventListener('estilo', ev => E.estilo(ev.detail)); // Ctrl+Alt+1/2/0
   if (!P.roteiro && ed) E.el.dataset.vazio = 'Comece aqui. Ex.: "# Episódio 1", "## Parte 1" e depois "Problems: Oi, gente!"';
   const lado = pintaLado = () => {
     const ps = Roteiro.personagens(P.partes), cs = cores(), linhas = E.linhas();
