@@ -871,3 +871,10 @@ body.modo-doc .corpo.corpo-falas,body.modo-doc .corpo.corpo-legendas,body.modo-d
 .lg-falas{flex:1 1 100%;display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px}
 .lg-falas .lf{display:block;text-align:left;border:0;background:none;color:inherit;padding:6px 8px;border-radius:6px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid var(--c)}
 .lg-falas .lf b{color:var(--c);margin-right:4px}.lg-falas .lf:hover{background:rgba(127,127,127,.12)}.lg-falas .lf.on{background:rgba(127,127,127,.22)}
+/* filtros do início com cara de botão (pedido da dona, 06/11): borda + sombra + mudam ao passar o mouse */
+body:not(.modo-doc) .filtros-ini .seg button,body:not(.modo-doc) .chips-st button{border:1px solid #4a4d55!important;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 2px 4px rgba(0,0,0,.45);cursor:pointer;transition:background .12s,border-color .12s,transform .08s}
+body:not(.modo-doc) .filtros-ini .seg button:hover:not(.on),body:not(.modo-doc) .chips-st button:hover:not(.on){background:#34363c!important;border-color:#6a6e78!important;color:#fff}
+body:not(.modo-doc) .filtros-ini .seg button:active,body:not(.modo-doc) .chips-st button:active{transform:translateY(1px);box-shadow:0 1px 2px rgba(0,0,0,.4)}
+body:not(.modo-doc) .filtros-ini .seg button.on,body:not(.modo-doc) .chips-st button.on{border-color:transparent!important}
+body:not(.modo-doc) .filtros-ini .seg{gap:6px}
+body:not(.modo-doc) .filtros-ini .seg button:not(.on){background:#26282d!important}
