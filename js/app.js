@@ -1203,13 +1203,13 @@ async function pintaPersonagens() {
           <div class="pd-sec"><small>Pasta</small><select data-pasta ${ed ? '' : 'disabled'}><option value="">Fora de pastas</option>${listaPastas().map(g => `<option value="${esc(g)}" ${g === v.grupo ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></div></div>
       </div>
       <div class="bts"><button class="bt" data-ren ${ed ? '' : 'disabled'}>${ic('lapis', 14)} Renomear</button><button class="bt" data-apaga ${ed ? '' : 'disabled'}>${ic('lixo', 14)} Tirar da lista</button><span class="esp"></span><button class="bt pri" data-x>Pronto</button></div></div></div>`);
-    const cx = $('.pd-caixa', m), fim = () => { if (tSalva) { clearTimeout(tSalva); tSalva = 0; if (cor !== corP(todos[k])) manda(k, { cor }); } m.remove(); };
+    const cx = $('.pd-caixa', m), fim = () => { if (tSalva) { clearTimeout(tSalva); tSalva = 0; if (cor !== corP(todos[k])) manda(k, { cor }); } m._sai?.(); m.remove(); };
     // escolher a cor: muda na hora aqui e guarda logo depois (uma gravação só, mesmo clicando em várias)
     const poeCor = (c, guarda = true) => { cor = c; cx.style.setProperty('--c', c); $('.ava', cx)?.style.setProperty('--c', c); $$('[data-cor]', m).forEach(b => b.classList.toggle('on', b.dataset.cor === c)); $('input[type=color]', m).value = c;
       if (guarda && ed) { clearTimeout(tSalva); tSalva = setTimeout(() => { tSalva = 0; manda(k, { cor: c }); }, 700); } };
     poeCor(cor, false);
     $$('[data-cor]', m).forEach(b => b.onclick = () => poeCor(b.dataset.cor)); $('input[type=color]', m).oninput = e => poeCor(e.target.value);
-    m.onclick = e => { if (e.target === m || e.target.closest('[data-x]')) fim(); }; m.onkeydown = e => { if (e.key === 'Escape') fim(); };
+    m.onclick = e => { if (e.target === m || e.target.closest('[data-x]')) fim(); }; const esc0 = e => { if (e.key === 'Escape' && m.isConnected && !document.querySelector('.modal:not(:has(.pd-caixa))')) fim(); }; document.addEventListener('keydown', esc0); m._sai = () => document.removeEventListener('keydown', esc0);
     $('.foto', m).onclick = () => { fim(); trocaFoto(k); };
     $('[data-tira]', m)?.addEventListener('click', async () => { fim(); await tiraFoto(k); });
     $('[data-pad]', m).onclick = async () => { fim(); if (await escolhePadrao(k)) detalhe(k); };
