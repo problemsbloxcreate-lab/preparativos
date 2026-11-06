@@ -950,3 +950,8 @@ body:not(.modo-doc) .bt.pri:hover{filter:brightness(1.06)}
 .dn-url{display:flex;gap:8px}.dn-url input{flex:1;font-family:monospace;font-size:12px}
 /* as cores são sempre BOLINHAS (pedido da dona), mesmo no tema quadrado */
 body:not(.modo-doc) .pc3-cor,body:not(.modo-doc) .pd-caixa .paleta .cor,body:not(.modo-doc) .pd-caixa .cor-outra,body:not(.modo-doc) .pd-lupa i{border-radius:50%!important}
+.modal .caixa.dub-novo{width:min(620px,100%);max-height:90vh;overflow:auto;text-align:left;align-items:stretch}
+.dub-novo .dn-op{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:8px;text-align:left!important;text-transform:none!important;font-size:14px;width:100%}
+.dub-novo .dn-op input[type=radio],.dub-novo .dn-op input[type=checkbox]{flex:none;width:auto;height:auto;margin:0}
+.dub-novo select{height:32px!important;min-height:0!important;max-height:32px;padding:4px 6px!important;text-transform:none!important;font-size:13px;flex:1 1 220px;width:auto!important}
+.dub-novo .dica{text-transform:none!important;text-align:left}
