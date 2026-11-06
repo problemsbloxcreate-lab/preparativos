@@ -948,3 +948,5 @@ body:not(.modo-doc) .bt.pri:hover{filter:brightness(1.06)}
 .dn-op{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.dn-op.sub{padding-left:24px;color:var(--muted)}.dn-op select{max-width:100%;flex:1 1 200px;background:var(--panel-2);color:var(--text);border:1px solid var(--line);padding:5px}
 .dub-novo input[type=text],.dn-url input{background:var(--panel-2);color:var(--text);border:1px solid var(--line);padding:7px 9px;width:100%}
 .dn-url{display:flex;gap:8px}.dn-url input{flex:1;font-family:monospace;font-size:12px}
+/* as cores são sempre BOLINHAS (pedido da dona), mesmo no tema quadrado */
+body:not(.modo-doc) .pc3-cor,body:not(.modo-doc) .pd-caixa .paleta .cor,body:not(.modo-doc) .pd-caixa .cor-outra,body:not(.modo-doc) .pd-lupa i{border-radius:50%!important}

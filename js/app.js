@@ -1175,7 +1175,7 @@ async function pintaPersonagens() {
     <div class="pb-busca"><input type="search" data-busca placeholder="Buscar personagem em todas as pastas" aria-label="Buscar personagem"></div>
     <div class="pers-grade">${giroBloco()}</div>
     <input type="file" accept="image/*" data-arq hidden></section>`;
-  try { await carregaPers(true); if (!S.lista) S.lista = (await Nuvem.lista().catch(() => ({ itens: [] }))).itens || []; } catch (e) { $('.pers-grade', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
+  try { await carregaPers(true); if (!S.lista) S.lista = (await Nuvem.lista().catch(() => ({ itens: [] }))).itens || []; if (S.P || S.aba !== 'personagens' || !el.isConnected) return; } catch (e) { $('.pers-grade', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
   // os da equipe + os que aparecem nos roteiros e ainda não entraram na lista (ex.: roteiro só neste computador)
   const todos = { ...S.pers }; for (const it of S.lista) for (const n of it.pers || []) { const k = Roteiro.chave(n); if (!todos[k]) todos[k] = { nome: n, _fora: 1 }; }
   try { for (const [, v] of await DB.todos('rasc')) for (const p of Roteiro.personagens(v?.P?.partes)) if (!todos[p.chave]) todos[p.chave] = { nome: p.nome, _fora: 1 }; } catch { }
@@ -1193,8 +1193,8 @@ async function pintaPersonagens() {
   $('[data-novop]', el)?.addEventListener('click', () => novoPers(null));
   $('[data-pnova]', el)?.addEventListener('click', async () => { const g = await pastaNova(); if (!g) return; novas.add(g); pintaL(); aviso(`Pasta "${g}" criada. Arraste personagens para ela.`, 'info'); });
   // ===== PASTAS EM CARTÕES (como a tela inicial do Animador, pedido da dona 06/11): clicar abre a pasta; "‹ Personagens" volta =====
-  let aberta = null, busca = ''; try { aberta = localStorage.getItem('ep-prep-pers-aberta') || null; } catch { }
-  const abre = g => { aberta = g || null; try { aberta ? localStorage.setItem('ep-prep-pers-aberta', aberta) : localStorage.removeItem('ep-prep-pers-aberta'); } catch { } pintaL(); window.scrollTo({ top: 0 }); };
+  let aberta = null, busca = ''; // sempre começa nas pastas (pedido da dona); clicar em "Personagens" lá em cima volta para cá
+  const abre = g => { aberta = g || null; pintaL(); window.scrollTo({ top: 0 }); };
   const listaPastas = () => [...new Set([...GRUPOS_BASE, ...Object.values(todos).map(v => v.grupo).filter(Boolean), ...novas])];
   const membros = g => Object.entries(todos).filter(([, v]) => (v.grupo || '') === g).map(([k]) => k);
   const mandaVarios = async (itens, msg) => { try { const r = await Nuvem.acao({ acao: 'personagens', itens }); S.pers = r.personagens || S.pers; Object.assign(todos, S.pers); if (msg) aviso(msg, 'ok'); pintaL(); } catch (er) { aviso(er.message, 'erro'); } };
@@ -1205,9 +1205,9 @@ async function pintaPersonagens() {
     <span class="pc3-m"><i class="pc3-cor" title="Cor da legenda"></i>${v.atelie?.id ? `<span class="pc3-at" data-th="${esc(v.atelie.id)}" title="No Animador: ${esc(v.atelie.nome || v.atelie.id)}">${icAt(12)}</span>` : ''}</span></div>`;
   const grade = L => `<div class="pc3-grade">${L.map(cartao).join('')}</div>`;
   const renomeiaPasta = async g => { const ms = membros(g), nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 30)) || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (!nn || nn === g) return;
-    novas.delete(g); novas.add(nn); if (aberta === g) { aberta = nn; try { localStorage.setItem('ep-prep-pers-aberta', nn); } catch { } } if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: nn }])), `Pasta renomeada para ${nn}.`); };
+    novas.delete(g); novas.add(nn); if (aberta === g) aberta = nn; if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: nn }])), `Pasta renomeada para ${nn}.`); };
   const apagaPasta = async g => { const ms = membros(g); if (!await pergunta(`Apagar a pasta "${g}"?`, ms.length ? `${ms.length === 1 ? 'O personagem dela vai' : `Os ${ms.length} personagens dela vão`} para "Fora de pastas". Nenhum personagem é apagado.` : 'A pasta está vazia.', [['Cancelar', false], ['Apagar a pasta', true, 'perigo']])) return;
-    novas.delete(g); if (aberta === g) { aberta = null; try { localStorage.removeItem('ep-prep-pers-aberta'); } catch { } } if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: null }])), `Pasta "${g}" apagada.`); };
+    novas.delete(g); if (aberta === g) aberta = null; if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: null }])), `Pasta "${g}" apagada.`); };
   const menuPasta = (e, g) => { const base = GRUPOS_BASE.includes(g);
     popMenu(e, [[`${ic('pasta', 14)} Abrir a pasta`, '', () => abre(g)], [`${ic('mais', 14)} Personagem novo nesta pasta…`, '', () => novoPers(g), !ed], [`${ic('pasta', 14)} Pasta nova…`, '', () => $('[data-pnova]', el)?.click(), !ed], '-',
       [`${ic('lapis', 14)} Renomear…`, base ? 'fixa' : '', () => renomeiaPasta(g), base || !ed], [`${ic('lixo', 14)} Apagar a pasta`, base ? 'fixa' : '', () => apagaPasta(g), base || !ed]]); };
@@ -1274,7 +1274,7 @@ async function pintaPersonagens() {
     m.onclick = e => { if (e.target === m || e.target.closest('[data-x]')) fim(); }; const esc0 = e => { if (e.key === 'Escape' && m.isConnected && !document.querySelector('.modal:not(:has(.pd-caixa))')) fim(); }; document.addEventListener('keydown', esc0); m._sai = () => document.removeEventListener('keydown', esc0);
     $('.foto', m).onclick = () => { fim(); trocaFoto(k); };
     $('[data-tira]', m)?.addEventListener('click', async () => { fim(); await tiraFoto(k); });
-    $('[data-pad]', m).onclick = async () => { fim(); if (await escolhePadrao(k)) detalhe(k); };
+    $('[data-pad]', m).onclick = async () => { fim(); await escolhePadrao(k); detalhe(k); };
     $('[data-pasta]', m).onchange = e => moveP(k, e.target.value);
     $('[data-ren]', m).onclick = () => { fim(); renomeiaPersonagem(k, todos, () => pintaPersonagens()); };
     $('[data-apaga]', m).onclick = () => { fim(); apagaPersonagem(k, todos, () => pintaPersonagens()); };
@@ -1319,11 +1319,11 @@ const Ideias = {
       <h2 class="ids-tit">${ic('luz', 16)} Ideias para o nosso canal</h2>
       <div class="filtros">${[['todos', 'Todas', 'grade'], ['short', 'Shorts', 'celular'], ['longo', 'Vídeos longos', 'filme']].map(([k, n, i]) => `<button data-fo="${k}" class="${this.formato === k ? 'on' : ''}">${ic(i, 14)} ${n}</button>`).join('')}</div>
       <div class="ids grade">${giroBloco()}</div></section>`;
-    try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { T.mostra(); $('.ids', el).innerHTML = $('.analise-box', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
+    try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { if (S.P || S.aba !== 'ideias') return; T.mostra(); $('.ids', el).innerHTML = $('.analise-box', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
     // ideias que não foram para a nuvem (06/11/2026: as 8 ideias de 05/11 sumiram quando a nuvem estava no limite): manda de novo, UMA vez por página
     if (!this._pend) { this._pend = true; let p = null; try { p = JSON.parse(localStorage.getItem(PEND_IDEIAS) || 'null'); } catch { }
       if (p?.lista) { const s = this.S.ideias; if (!s || String(p.em || '') > String(s.em || '')) { this.S.ideias = p; return this.guarda(p, 'As ideias que não tinham ido para a nuvem foram salvas agora.'); } try { localStorage.removeItem(PEND_IDEIAS); } catch { } } }
-    T.mostra(); const A = this.S.analise, I = this.S.ideias || { lista: [] };
+    if (S.P || S.aba !== 'ideias') return; T.mostra(); const A = this.S.analise, I = this.S.ideias || { lista: [] };
     this.pintaAnalise($('.analise-box', el), A, I);
     $('[data-canais]', el)?.addEventListener('click', () => this.canais());
     $('[data-an]', el)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r = await Nuvem.json('/ideias', 'POST', { acao: 'atualizar', canais: this.S.canais || [] }); aviso(r.ja ? 'A análise já foi pedida há pouco.' : 'Análise pedida. Ela chega em alguns minutos.', 'ok'); } catch (er) { aviso(er.message, 'erro'); } });
