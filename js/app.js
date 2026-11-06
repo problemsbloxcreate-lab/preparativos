@@ -916,13 +916,21 @@ const Falas = {
       for (const sg of r.segments || []) { const ws = sg.words?.length ? sg.words : [{ w: sg.text, s: sg.start, e: sg.end }]; for (const w of ws) palavras.push({ w: w.w, s: (+w.s || 0) + p.desde, e: (+w.e || 0) + p.desde }); } }
     TH.put(k, { palavras, em: Date.now() }).catch(() => { }); return palavras; }; },
   // ANTES de analisar: de quem é o áudio e quais falas (a separação só usa ESSAS, na ordem do roteiro; nunca põe pedaço em fala de outro)
-  escolheFalas() { return new Promise(ok => { const P = S.P, cs = coresDoRoteiro(), ps = Roteiro.personagens(P.partes), todas = P.partes.flatMap(p => p.falas);
-    const m = h(`<div class="modal"><div class="caixa dn-caixa" role="dialog" aria-label="Subir um áudio com várias falas"><div class="dn-cab"><b>Subir um áudio com várias falas</b><small>Escolha antes de quem é o áudio e quais falas ele tem, na ordem do roteiro.</small></div>
-      <div class="dn-corpo"><fieldset class="dn-sec"><legend>De quem é este áudio?</legend><div class="vf-quem">${ps.map(p => `<label class="vf-p" style="--c:${cs.get(p.chave)}"><input type="radio" name="vq" value="${esc(p.chave)}" ${this.quem === p.chave ? 'checked' : ''}>${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span><small>${p.n}</small></label>`).join('')}
-        <label class="vf-p"><input type="radio" name="vq" value="" ${!this.quem ? 'checked' : ''}><span>Vários personagens (o roteiro inteiro, em ordem)</span></label></div></fieldset>
+  // o personagem cujo nome mais parece com o nome do arquivo ("stick_falas_ep3.mp3" → Stick)
+  pelaNomeArq(nome, ps) { const n = Roteiro.chave(String(nome || '').replace(/\.[a-z0-9]{2,5}$/i, '')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(), toks = n.split(' ').filter(Boolean); if (!toks.length) return null;
+    const dist = (a, b) => { const d = [...Array(b.length + 1).keys()]; for (let i = 1; i <= a.length; i++) { let p = d[0]; d[0] = i; for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, p + (a[i - 1] === b[j - 1] ? 0 : 1)); p = t; } } return d[b.length]; };
+    let melhor = null, nota = 0; for (const p of ps) { const pk = p.chave.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(), junto = pk.replace(/ /g, '');
+      let sc = n.includes(pk) || n.replace(/ /g, '').includes(junto) ? 1 : 0; for (const t of toks) if (t.length >= 3) { const r = 1 - dist(t, junto) / Math.max(t.length, junto.length); if (r > sc) sc = r; }
+      if (sc > nota) { nota = sc; melhor = p; } } return nota >= .7 ? melhor : null; },
+  escolheFalas(nomeArq) { return new Promise(ok => { const P = S.P, cs = coresDoRoteiro(), ps = Roteiro.personagens(P.partes), todas = P.partes.flatMap(p => p.falas);
+    const sug = nomeArq ? this.pelaNomeArq(nomeArq, ps) : null, marcado = sug ? sug.chave : this.quem;
+    const m = h(`<div class="modal"><div class="caixa dn-caixa" role="dialog" aria-label="Subir um áudio com várias falas"><div class="dn-cab"><b>Subir um áudio com várias falas</b><small>${nomeArq ? `Arquivo: <b>${esc(nomeArq)}</b>. ` : ''}De quem é o áudio e quais falas ele tem, na ordem do roteiro.</small></div>
+      <div class="dn-corpo"><fieldset class="dn-sec"><legend>De quem é este áudio?</legend><div class="vf-quem">${ps.map(p => `<label class="vf-p" style="--c:${cs.get(p.chave)}"><input type="radio" name="vq" value="${esc(p.chave)}" ${marcado === p.chave ? 'checked' : ''}>${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span>${sug?.chave === p.chave ? '<em class="vf-sug">sugerido pelo nome do arquivo</em>' : ''}<small>${p.n}</small></label>`).join('')}
+        <label class="vf-p"><input type="radio" name="vq" value="" ${!marcado ? 'checked' : ''}><span>Vários personagens (o roteiro inteiro, em ordem)</span></label></div></fieldset>
       <fieldset class="dn-sec"><legend>Quais falas?</legend><label class="dn-op"><input type="radio" name="vs" value="todas" checked><span>Todas desse personagem</span></label><label class="dn-op"><input type="radio" name="vs" value="sem"><span>Só as que ainda não têm áudio</span></label><label class="dn-op"><input type="radio" name="vs" value="lista"><span>Escolher na lista</span></label>
-        <div class="vf-lista" hidden></div><small class="dn-exp" data-conta></small></fieldset></div>
-      <div class="dn-rod"><button class="bt" data-n>Cancelar</button><button class="bt pri" data-s>${ic('baixo', 14)} Escolher o arquivo</button></div></div></div>`);
+        <div class="vf-lista" hidden></div><small class="dn-exp" data-conta></small></fieldset>
+      ${pode('transcrever') ? `<fieldset class="dn-sec"><legend>Como achar as falas</legend><label class="dn-op"><input type="checkbox" data-trans checked><span>Pelo texto (transcrição: mais certo; usa a cota e fica guardada neste navegador)</span></label><small class="dn-exp">Sem isso, separa pelas pausas, e dá para ajustar à mão.</small></fieldset>` : ''}</div>
+      <div class="dn-rod"><button class="bt" data-n>Cancelar</button><button class="bt pri" data-s>${ic('ok', 14)} Separar</button></div></div></div>`);
     const quem = () => $('input[name=vq]:checked', m)?.value || '', modo = () => $('input[name=vs]:checked', m).value;
     const base = () => todas.filter(f => !quem() || Roteiro.quem(f).includes(quem())), temAudio = f => { const v = quem() && this.varios(f) ? f.audios?.[quem()]?.audio : f.audio; return !!v || this._loc?.has(f.id + (quem() && this.varios(f) ? '@' + quem() : '')); };
     const pintaL = () => { const l = $('.vf-lista', m); l.hidden = modo() !== 'lista'; if (!l.hidden) { const marc = new Set($$('input[data-f]:checked', l).map(x => x.dataset.f)); l.innerHTML = base().map(f => `<label class="dn-op"><input type="checkbox" data-f="${esc(f.id)}" ${!l.dataset.ja || marc.has(f.id) ? 'checked' : ''}><span><b>${esc(f.personagem)}:</b> ${esc(f.texto.slice(0, 70))}</span></label>`).join(''); l.dataset.ja = 1; }
@@ -930,14 +938,14 @@ const Falas = {
     const escolhidas = () => modo() === 'lista' ? base().filter(f => $(`.vf-lista input[data-f="${CSS.escape(f.id)}"]`, m)?.checked) : modo() === 'sem' ? base().filter(f => !temAudio(f)) : base();
     m.addEventListener('change', e => { if (e.target.name === 'vq') delete $('.vf-lista', m).dataset.ja; pintaL(); }); pintaL();
     const fim = v => { m.remove(); ok(v); }; $('[data-n]', m).onclick = () => fim(null); m.onclick = e => { if (e.target === m) fim(null); }; m.onkeydown = e => { if (e.key === 'Escape') fim(null); };
-    $('[data-s]', m).onclick = () => { const l = escolhidas(); if (!l.length) return aviso('Nenhuma fala com essa escolha.', 'info'); fim({ quem: quem(), falas: l }); };
+    $('[data-s]', m).onclick = () => { const l = escolhidas(); if (!l.length) return aviso('Nenhuma fala com essa escolha.', 'info'); fim({ quem: quem(), falas: l, transcrever: !!$('[data-trans]', m)?.checked }); };
     document.body.appendChild(m); }); },
-  async variasFalas() { const esc0 = await this.escolheFalas(); if (!esc0) return; this.quem = esc0.quem; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } // a versão certa (fala de vários) é a do personagem escolhido; a tela passa a mostrar as falas dele
-    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
+  async variasFalas() { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
     inp.onchange = async () => { const arq = inp.files[0]; if (!arq) return; if (arq.size > 200 * 1048576) return aviso('Esse arquivo é grande demais (máx. 200 MB).', 'erro');
+      const esc0 = await this.escolheFalas(arq.name); if (!esc0) return; this.quem = esc0.quem; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } // a versão certa (fala de vários) é a do personagem escolhido
       const fs = esc0.falas; aviso('Abrindo o áudio…', 'info', 2500);
       try { const A = await Cortes.decodifica(arq), marcas = Cortes.silencios(A, fs.length);
-        await Cortes.revisao({ dados: A, blob: arq, falas: fs.map(f => this.paraCortes(f)), marcas, titulo: `Separar "${arq.name}" em ${fs.length} fala(s)${esc0.quem ? ' de ' + (fs[0] ? (this.paraCortes(fs[0]).rotulo) : '') : ''}`, aviso: Cortes.avisoPausas(marcas, fs.length) + ' Ou use "Transcrever para acertar".', transcrever: this.transcritor(),
+        await Cortes.revisao({ dados: A, blob: arq, falas: fs.map(f => this.paraCortes(f)), marcas, titulo: `Separar "${arq.name}" em ${fs.length} fala(s)${esc0.quem ? ' de ' + (fs[0] ? (this.paraCortes(fs[0]).rotulo) : '') : ''}`, aviso: esc0.transcrever ? 'Transcrevendo para achar cada fala pelo texto… enquanto isso, os cortes são pelas pausas.' : Cortes.avisoPausas(marcas, fs.length) + ' Ou use "Transcrever para acertar".', transcrever: this.transcritor(), autoTranscrever: esc0.transcrever,
           aoSalvar: ps => this.guardaPedacos(ps), aoFechar: () => this.pinta(this.c) }); }
       catch (e) { aviso(e.message, 'erro'); } };
     inp.click(); },

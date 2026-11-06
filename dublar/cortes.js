@@ -200,11 +200,11 @@ const Cortes = (() => {
     pilha.push(f); addEventListener('keydown', tecla); const rz = () => desenha(); addEventListener('resize', rz);
     function fecha(semPerguntar) { if (!semPerguntar && hist.length && !confirm('Fechar sem salvar? As mudanças neste áudio se perdem.')) return; para(); removeEventListener('keydown', tecla); removeEventListener('resize', rz); f.remove(); const pi = pilha.indexOf(f); if (pi >= 0) pilha.splice(pi, 1); o.aoFechar?.(); }
     // ---- transcrição (só quando a pessoa pede) ----
-    async function transcreve() { if (!o.transcrever) return; const bts = $$('button', rod); bts.forEach(b => b.disabled = true); const v = av.textContent; av.textContent = 'Transcrevendo… (pode levar um pouco)';
+    async function transcreve(sozinho) { if (!o.transcrever) return; const bts = $$('button', rod); bts.forEach(b => b.disabled = true); const v = av.textContent; av.textContent = 'Transcrevendo… (pode levar um pouco)';
       try { energia._c = null; const palavras = await o.transcrever(A); const pos = alinha(palavras, falas); if (!pos.some(Boolean)) throw new Error('Não achei as falas na transcrição. Use os silêncios ou marque à mão.');
         guarda(); const novas = []; for (let k = 1; k < falas.length; k++) { const a = pos[k - 1], b = pos[k]; if (!b) continue; const t = a ? (a.fim + b.ini) / 2 : b.ini - .15; novas.push(quieto(A, t)); }
         marcas = [...new Set(novas.map(x => Math.round(x * 1000) / 1000))].sort((a, b) => a - b); dono = null; aviso = `Cortes sugeridos pela transcrição (${pos.filter(Boolean).length} de ${falas.length} falas achadas). Confira e arraste se precisar.`; tudo(); }
-      catch (e) { av.textContent = v; alert(e.message); } bts.forEach(b => b.disabled = false); }
+      catch (e) { if (sozinho) { aviso = 'A transcrição não deu certo (' + e.message + '). Fiquei com os cortes pelas pausas: confira, ou tente "Transcrever para acertar" de novo.'; pintaLista(); } else { av.textContent = v; alert(e.message); } } bts.forEach(b => b.disabled = false); }
     // ---- salvar: cada pedaço vira o áudio de uma fala (WAV mono 22 kHz) ----
     async function salva() { para(); if (o.cru) { o.aoSalvar([{ dados: { sr: A.sr, d: A.d.slice() } }]); return fecha(true); }
       const bs = uma ? [0, dur()] : [0, ...marcas, dur()], out = [], salvaBt = rod.lastChild; salvaBt.disabled = true; salvaBt.textContent = 'Preparando…';
@@ -213,7 +213,7 @@ const Cortes = (() => {
         if (!out.length) throw new Error('Nenhum pedaço para salvar.'); const ok = await o.aoSalvar(out); if (ok !== false) fecha(true); }
       catch (e) { alert(e.message); salvaBt.disabled = false; salvaBt.textContent = uma ? 'Salvar' : 'Separar nas falas'; } }
     info.textContent = `${tms(dur())}${o.blob ? ' · ' + mb(o.blob.size) : ''}${uma ? '' : ` · ${falas.length} fala(s)`}`;
-    document.body.append(f); requestAnimationFrame(tudo); return { fecha };
+    document.body.append(f); requestAnimationFrame(tudo); if (o.autoTranscrever && o.transcrever && !uma) setTimeout(() => transcreve(true), 300); return { fecha };
   }
 
   /* ================= GRAVAR TUDO EM SEQUÊNCIA ================= */
