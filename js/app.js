@@ -1016,8 +1016,8 @@ const Falas = {
         return `<span class="jd-p">${ava(p, cs.get(ko) || corOuPadrao(p), 'p')}<b style="color:${cs.get(ko) || corOuPadrao(p)}">${esc(p)}</b>${tem ? `<button class="bt mini" data-ouve-outro="${esc(ko)}">${ic('play', 12)} Ouvir</button>${pode('gravar') ? `<button class="bt mini" data-grava-ouvindo="${esc(ko)}" title="Toca a gravação de ${esc(p)} enquanto você grava (use fone)">${ic('mic', 12)} Gravar ouvindo ${esc(p)}</button>` : ''}` : '<small>ainda não gravou</small>'}</span>`; }).join('')}</div>` : '';
     const dicaV = varios && !vz ? `<small class="dica-v">Gravação de todos juntos (opcional): cada personagem também tem a sua linha.</small>` : '';
     return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}" data-f="${esc(f.id)}" ${varios ? `data-vez="${esc(vz)}"` : ''} style="--c:${cor}"><span class="num">${n}</span>
-      ${quemH}${dicaV}${juntoH}
-      <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
+      ${quemH}
+      <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}${juntoH}${dicaV}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
       <div class="bts">${local || au ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
       ${gravar ? `<button class="redondo gravar ${local || au ? 'de-novo' : ''}" data-gravar title="${local || au ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
       ${gravar ? `<button class="redondo subir" data-subir title="Usar um áudio já gravado (mp3, wav, ogg, m4a, webm)">${ic('baixo', 16)}</button>` : ''}

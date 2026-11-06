@@ -1055,3 +1055,4 @@ table.atalhos kbd{display:inline-block;background:var(--panel-2);border:1px soli
 /* fala de vários: cada nome na cor dele, o "e" neutro; na versão de um, os outros nomes mais apagados */
 .fala .quem.varios .nm-v{font-weight:700;font-size:13px}.fala .quem.varios .nm-e{color:var(--muted);font-weight:400}.fala .quem.varios .nm-outro{opacity:.55}
 .folha-txt .nm-sep{color:var(--muted)!important;font-weight:400!important;opacity:1}
+.fala .txt .junto-de{margin-top:6px}.fala .txt .dica-v{display:block;margin-top:4px}
