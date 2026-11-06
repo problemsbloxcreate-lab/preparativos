@@ -268,6 +268,7 @@ async function pintaInicio(novo) {
     if (fora.length) { corpo.appendChild(h(`<h3 class="pb-h">${pastas.length ? 'Fora de pastas' : 'Todos os roteiros'} <small>${fora.length}</small></h3>`)); corpo.appendChild(grade(fora)); }
     if (!L.length && !erro) corpo.appendChild(h(`<div class="vazio">${todos.length ? 'Nenhum roteiro com esses filtros.' : 'Ainda não há roteiros. Clique em "Novo roteiro".'}</div>`));
   }
+  if (S.P || (S.aba && S.aba !== 'roteiros')) return; // a pessoa já foi para outra aba (ou abriu um roteiro) enquanto carregava: não cobre a tela
   T.mostra();
   // AO VIVO: quem está com cada roteiro aberto agora (some sozinho quando a pessoa fecha)
   AoVivo.ouveTudo(m => { if (!el.isConnected || S.P) return AoVivo.paraTudo(); $$('[data-vivo]', el).forEach(d => { const g = Object.values(m[d.dataset.vivo] || {});
