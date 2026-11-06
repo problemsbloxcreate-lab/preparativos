@@ -204,7 +204,7 @@ const ST_IC = { todos: 'grade', rascunho: 'lapis', gravando: 'mic', pronto: 'ok'
 // monta a tela nova FORA da página e troca de uma vez só, sem piscar; se demorar mais de 0,35 s, mostra o carregando no lugar
 function telaNova() { const alvo = tela(), el = document.createElement('div'); el.className = 'tela-in';
   const t = setTimeout(() => { if (!el.isConnected) alvo.replaceChildren(h(`<div class="tela-in">${giroBloco()}</div>`)); }, 350);
-  return { el, mostra: () => { clearTimeout(t); if (!el.isConnected) alvo.replaceChildren(el); } }; }
+  return { el, mostra: () => { clearTimeout(t); if (!el.isConnected) alvo.replaceChildren(el); }, cancela: () => clearTimeout(t) }; }
 // TELA DE ROTEIROS (pedido da dona, 06/11): filtros em cima (onde está + situação), "continuar de onde parou", PASTAS em cartões
 // (como o Animador: clicar abre, "‹ Roteiros" volta, arrastar um roteiro para cima de uma pasta) e "fora de pastas". Seção vazia não aparece.
 // As pastas são da equipe toda: preparativos/pastas.json = { ordem: [nome…], de: { <id do roteiro>: nome } } (ação "pastas").
@@ -272,7 +272,7 @@ async function pintaInicio(novo) {
     if (fora.length) { corpo.appendChild(h(`<h3 class="pb-h">${pastas.length ? 'Fora de pastas' : 'Todos os roteiros'} <small>${fora.length}</small></h3>`)); corpo.appendChild(grade(fora)); }
     if (!L.length && !erro) corpo.appendChild(h(`<div class="vazio">${todos.length ? 'Nenhum roteiro com esses filtros.' : 'Ainda não há roteiros. Clique em "Novo roteiro".'}</div>`));
   }
-  if (S.P || (S.aba && S.aba !== 'roteiros')) return; // a pessoa já foi para outra aba (ou abriu um roteiro) enquanto carregava: não cobre a tela
+  if (S.P || (S.aba && S.aba !== 'roteiros')) return T.cancela(); // a pessoa já foi para outra aba (ou abriu um roteiro) enquanto carregava: não cobre a tela
   T.mostra();
   // AO VIVO: quem está com cada roteiro aberto agora (some sozinho quando a pessoa fecha)
   // (a mesma presença do Firebase que já existia: sem pedido novo à nuvem e sem consultar em intervalo)
@@ -1406,11 +1406,11 @@ const Ideias = {
       <h2 class="ids-tit">${ic('luz', 16)} Ideias para o nosso canal</h2>
       <div class="filtros">${[['todos', 'Todas', 'grade'], ['short', 'Shorts', 'celular'], ['longo', 'Vídeos longos', 'filme']].map(([k, n, i]) => `<button data-fo="${k}" class="${this.formato === k ? 'on' : ''}">${ic(i, 14)} ${n}</button>`).join('')}</div>
       <div class="ids grade">${giroBloco()}</div></section>`;
-    try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { if (S.P || S.aba !== 'ideias') return; T.mostra(); $('.ids', el).innerHTML = $('.analise-box', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
+    try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { if (S.P || S.aba !== 'ideias') return T.cancela(); T.mostra(); $('.ids', el).innerHTML = $('.analise-box', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
     // ideias que não foram para a nuvem (06/11/2026: as 8 ideias de 05/11 sumiram quando a nuvem estava no limite): manda de novo, UMA vez por página
     if (!this._pend) { this._pend = true; let p = null; try { p = JSON.parse(localStorage.getItem(PEND_IDEIAS) || 'null'); } catch { }
       if (p?.lista) { const s = this.S.ideias; if (!s || String(p.em || '') > String(s.em || '')) { this.S.ideias = p; return this.guarda(p, 'As ideias que não tinham ido para a nuvem foram salvas agora.'); } try { localStorage.removeItem(PEND_IDEIAS); } catch { } } }
-    if (S.P || S.aba !== 'ideias') return; T.mostra(); const A = this.S.analise, I = this.S.ideias || { lista: [] };
+    if (S.P || S.aba !== 'ideias') return T.cancela(); T.mostra(); const A = this.S.analise, I = this.S.ideias || { lista: [] };
     this.pintaAnalise($('.analise-box', el), A, I);
     $('[data-canais]', el)?.addEventListener('click', () => this.canais());
     $('[data-an]', el)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r = await Nuvem.json('/ideias', 'POST', { acao: 'atualizar', canais: this.S.canais || [] }); aviso(r.ja ? 'A análise já foi pedida há pouco.' : 'Análise pedida. Ela chega em alguns minutos.', 'ok'); } catch (er) { aviso(er.message, 'erro'); } });
