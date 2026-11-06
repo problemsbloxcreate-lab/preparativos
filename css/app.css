@@ -1118,3 +1118,13 @@ body.modo-doc.sem-guias .corpo.corpo-falas>.falas,body.modo-doc.sem-guias .corpo
 body.modo-doc.sem-guias .corpo.corpo-legendas>*{max-width:1200px;margin-left:auto;margin-right:auto}
 
 .dh-guias .dg-prox.feito{background:#60a917!important;border-color:#60a917!important;color:#fff!important}
+
+/* botões das falas: gravar em vermelho só sem áudio; apagar neutro (vermelho só ao passar o mouse); upload sem girar */
+.redondo.subir svg{transform:none!important}
+.falas2 .fala .redondo.gravar.de-novo{background:#3a3a3a!important;color:#fff!important}.falas2 .fala .redondo.gravar.de-novo:hover{background:#4a4a4a!important}
+.falas2 .fala .redondo.tirar{background:#3a3a3a!important;color:#fff!important}.falas2 .fala .redondo.tirar:hover{background:#e51400!important}
+
+/* selo "ao vivo" ao lado de quem está com o roteiro aberto (no cartão) */
+.vivo-selo{display:inline-flex;align-items:center;gap:5px;margin-left:8px;padding:2px 8px;background:#e51400;color:#fff;font:700 10.5px/1.4 "Segoe UI",sans-serif;text-transform:uppercase;letter-spacing:.6px;vertical-align:middle}
+.vivo-selo i{width:7px;height:7px;border-radius:50%;background:#fff;animation:vivo-pisca 1.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.vivo-selo i{animation:none}}

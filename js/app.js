@@ -24,7 +24,7 @@ const IC = {
   pasta: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', mais3: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   junto: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20a6 6 0 0 1 12 0M10 20a6 6 0 0 1 12 0"/>', camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   grade: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
-  lapis: '<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>', play: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/>',
+  lapis: '<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>', video: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/>', upload: '<path d="M12 15V4M7 9l5-5 5 5"/><path d="M5 14v5h14v-5"/>',
   mover: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
   celular: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>', filme: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M3 15h18M8 5v4M16 5v4M8 15v4M16 15v4"/>',
   grafico: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
@@ -214,7 +214,7 @@ const abrePastaRot = g => { pastaRot = g || null; try { pastaRot ? localStorage.
 async function pastasRot(novo) { if (S.pastasR && !novo) return S.pastasR; try { const r = await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent('preparativos/pastas.json')); S.pastasR = r && typeof r === 'object' ? { ordem: r.ordem || [], de: r.de || {} } : { ordem: [], de: {} }; } catch { S.pastasR = S.pastasR || { ordem: [], de: {} }; } return S.pastasR; }
 async function mudaPastasRot(o, msg) { try { const r = await Nuvem.acao({ acao: 'pastas', ...o }); S.pastasR = r.pastas || S.pastasR; if (msg) aviso(msg, 'ok'); } catch (e) { aviso(e.message, 'erro'); } pintaInicio(); }
 async function pintaInicio(novo) {
-  const ONDES = [['tudo', 'Tudo', 'grade'], ['pc', 'Neste computador', 'pc'], ['nuvem', 'Na nuvem', 'nuvem'], ['uso', 'Em uso', 'play']], ed = pode('roteiro');
+  const ONDES = [['tudo', 'Tudo', 'grade'], ['pc', 'Neste computador', 'pc'], ['nuvem', 'Na nuvem', 'nuvem'], ['uso', 'Em uso', 'video']], ed = pode('roteiro');
   const T = telaNova(), el = T.el; el.innerHTML = `<section class="inicio">
     <div class="cab topo-ini"><span class="cab-ic t-rot">${ic('doc', 24)}</span><div class="cab-txt"><h1>Roteiros</h1><p>Escreva, separe as falas de cada personagem e grave.</p></div><span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button>${ed ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button><button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
     <div class="filtros-ini">
@@ -279,7 +279,7 @@ async function pintaInicio(novo) {
   // (a mesma presença do Firebase que já existia: sem pedido novo à nuvem e sem consultar em intervalo)
   AoVivo.ouveTudo(m => { if (!el.isConnected || S.P) return AoVivo.paraTudo(); $$('.cartao[data-vivo]', el).forEach(card => { const g = Object.values(m[card.dataset.vivo] || {}), q = $('.quem-c', card); if (!q) return;
     card.classList.toggle('ao-vivo', !!g.length);
-    q.innerHTML = g.length ? `<span class="quem-l quem-vivo" title="Com o roteiro aberto agora: ${esc(g.map(x => x.n).join(', '))}"><span class="vivo-fotos">${g.slice(0, 4).map(x => pava(x, 'p vivo')).join('')}</span><span><b>${esc(g[0].n || 'Alguém')}</b>${g.length > 1 ? ` e mais ${g.length - 1}` : ''}</span></span>` : q.dataset.quemOrig || ''; }); });
+    q.innerHTML = g.length ? `<span class="quem-l quem-vivo" title="Com o roteiro aberto agora: ${esc(g.map(x => x.n).join(', '))}"><span class="vivo-fotos">${g.slice(0, 4).map(x => pava(x, 'p vivo')).join('')}</span><span><b>${esc(g[0].n || 'Alguém')}</b>${g.length > 1 ? ` e mais ${g.length - 1}` : ''}</span><span class="vivo-selo" title="Com o roteiro aberto agora"><i></i>ao vivo</span></span>` : q.dataset.quemOrig || ''; }); });
 }
 // onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem' | 'uso' (um programa já usou)
 function cartao(it, onde) {
@@ -287,7 +287,7 @@ function cartao(it, onde) {
   const n = fs ? fs.length : it.n || 0, g = fs ? fs.filter(f => f.audio).length : it.g || 0, np = Array.isArray(it.partes) ? it.partes.length : it.partes || 0;
   const pers = fs ? Roteiro.personagens(it.partes).map(p => p.nome) : it.pers || [], pct = n ? Math.round(g / n * 100) : 0, st = it.status || 'rascunho';
   const uso = onde === 'uso' ? (it.uso || []) : [];
-  const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · termina de salvar ao abrir`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('play', 13)} Em uso` };
+  const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · termina de salvar ao abrir`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('video', 13)} Em uso` };
   const autor = it.autor || (it.quem?.a ? { id: it.quem.a.i, nome: it.quem.a.n } : null), eds = it.edicoes || (it.quem?.e || []).map(x => ({ id: x.i, nome: x.n }));
   return h(`<button class="cartao ${esc(st)}" data-id="${esc(it.id || '')}" data-vivo="${esc(it.id || '')}"><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
     <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div></div>
@@ -885,7 +885,7 @@ const Falas = {
     $$('.fala', c).forEach(el => { const f0 = this.acha(el.dataset.f); if (!f0) return; const f = el.dataset.vez != null && this.varios(f0) ? this.versao(f0, el.dataset.vez) : f0;
       $('[data-gravar]', el)?.addEventListener('click', () => this.grava(f, el));
       $('[data-ouvir]', el)?.addEventListener('click', e => this.ouve(f, e.currentTarget));
-      $('[data-tirar]', el)?.addEventListener('click', async () => { await DB.del('aud', this.chaveL(f)); this.pinta(c); });
+      $('[data-tirar]', el)?.addEventListener('click', async () => { const KL = this.chaveL(f); if (!await pergunta('Apagar esta gravação?', 'Ela ainda não foi enviada e vai ser apagada deste computador. Isso não dá para desfazer.', [['Cancelar', false], ['Apagar', true, 'perigo']])) return; await DB.del('aud', KL); this.pinta(c); });
       $('[data-subir]', el)?.addEventListener('click', () => this.sobe(f));
       $('[data-edita]', el)?.addEventListener('click', () => this.editaAudio(f));
       $$('[data-ouve-outro]', el).forEach(b => b.onclick = async () => { const a = await this.audioOutro(f, b.dataset.ouveOutro).catch(e => { aviso(e.message, 'erro'); return null; }); if (!a) return; if (S.tocando) S.tocando.pause(); S.tocando = a; a.play(); });
@@ -1031,10 +1031,10 @@ const Falas = {
       ${quemH}
       <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}${juntoH}${dicaV}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
       <div class="bts">${local || au ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
-      ${gravar ? `<button class="redondo gravar ${local || au ? 'de-novo' : ''}" data-gravar title="${local || au ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
-      ${gravar ? `<button class="redondo subir" data-subir title="Usar um áudio já gravado (mp3, wav, ogg, m4a, webm)">${ic('baixo', 16)}</button>` : ''}
+      ${gravar ? `<button class="redondo gravar ${local || au ? 'de-novo' : 'sem-audio'}" data-gravar title="${local || au ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
+      ${gravar ? `<button class="redondo subir" data-subir title="Enviar um arquivo de áudio já gravado (mp3, wav, mpeg, vídeo…)">${ic('upload', 16)}</button>` : ''}
       ${gravar && (local || au) ? `<button class="redondo" data-edita title="Editar o áudio: aparar, cortar trecho, volume, zoom">${ic('lapis', 15)}</button>` : ''}
-      ${local ? `<button class="redondo" data-tirar title="Jogar fora esta gravação">${ic('lixo', 15)}</button>` : ''}</div></div>`;
+      ${local ? `<button class="redondo tirar" data-tirar title="Apagar esta gravação">${ic('lixo', 15)}</button>` : ''}</div></div>`;
   },
   // a gravação de OUTRO personagem da mesma fala (deste computador ou da nuvem), para ouvir/gravar junto
   async audioOutro(f, ko) { const l = await DB.get('aud', S.P.id + '/' + f.id + '@' + ko).catch(() => null), k = f.audios?.[ko]?.audio; const b = l?.blob || (k ? await Nuvem.audio(k) : null); if (!b) throw new Error('Esse personagem ainda não gravou esta fala.'); const a = new Audio(URL.createObjectURL(b)); return a; },
