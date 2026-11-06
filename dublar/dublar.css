@@ -41,3 +41,4 @@ input[type=text]{flex:1 1 220px}
 @media (max-width:560px){.fala .texto{font-size:18px}.topo .tempo{display:none}}
 .faixa-erro{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 12px}.faixa-erro p{flex:1 1 260px;margin:0}
 .junto{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0 10px;padding:8px 10px;border:1px dashed rgba(255,176,74,.5);color:var(--aten);font-size:13.5px}.junto .jp{display:inline-flex;align-items:center;gap:6px;color:var(--text)}.junto .bt{padding:4px 10px;font-size:13px}
+.acoes-varias{margin:0 0 12px}

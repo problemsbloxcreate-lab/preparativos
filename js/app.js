@@ -860,6 +860,8 @@ const Falas = {
         <button class="pcard ${!this.quem ? 'on' : ''}" data-grava=""><span class="ava g todos">${ic('pessoa', 20)}</span><b>Todos</b><small>${feitas} de ${total} gravadas</small><div class="barra"><i style="width:${total ? feitas / total * 100 : 0}%"></i></div></button>
         ${ps.map(p => `<button class="pcard ${this.quem === p.chave ? 'on' : ''}" data-grava="${esc(p.chave)}" style="--c:${cs.get(p.chave)}">${ava(p.nome, cs.get(p.chave), 'g')}<b>${esc(p.nome)}</b><small>${p.g} de ${p.n} gravada${p.n === 1 ? '' : 's'}</small><div class="barra"><i style="width:${p.n ? p.g / p.n * 100 : 0}%"></i></div></button>`).join('')}
       </div>
+      ${pode('gravar') && ps.length ? `<div class="falas-acoes"><button class="bt" data-seq title="Grava as falas ${this.quem ? 'deste personagem' : 'do roteiro'} uma atrás da outra; Enter passa para a próxima">${ic('mic', 15)} Gravar tudo em sequência</button><button class="bt" data-varias title="Um arquivo com várias falas gravadas em sequência: o Preparativos separa em cada fala">${ic('baixo', 15)} Subir um áudio com várias falas</button></div>` : ''}
+      <div class="seq-pend"></div>
       <div class="env"></div>
       ${P.novo || S.sujo && !P.mod ? `<p class="aviso-linha">${ic('alerta', 15)} Mande o roteiro para a nuvem antes de enviar as gravações (elas ficam guardadas aqui enquanto isso).</p>` : ''}
       ${!ps.length ? '<div class="vazio">Ainda não há falas. Escreva o roteiro como <b>Nome: fala</b>.</div>' : ''}
@@ -870,6 +872,7 @@ const Falas = {
       $('[data-ouvir]', el)?.addEventListener('click', e => this.ouve(f, e.currentTarget));
       $('[data-tirar]', el)?.addEventListener('click', async () => { await DB.del('aud', this.chaveL(f)); this.pinta(c); });
       $('[data-subir]', el)?.addEventListener('click', () => this.sobe(f));
+      $('[data-edita]', el)?.addEventListener('click', () => this.editaAudio(f));
       $$('[data-ouve-outro]', el).forEach(b => b.onclick = async () => { const a = await this.audioOutro(f, b.dataset.ouveOutro).catch(e => { aviso(e.message, 'erro'); return null; }); if (!a) return; if (S.tocando) S.tocando.pause(); S.tocando = a; a.play(); });
       $$('[data-grava-ouvindo]', el).forEach(b => b.onclick = () => this.grava(f, el, b.dataset.gravaOuvindo));
       // ANDAR PELO ÁUDIO: clicar/arrastar na onda vai para aquele ponto (tocando ou não)
@@ -878,6 +881,11 @@ const Falas = {
         if (S.tocando?._f === f.id) vai(ev); else this.ouve(f, $('[data-ouvir]', el), fr(ev));
         const mv = e2 => vai(e2), fim = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', fim); }; addEventListener('pointermove', mv); addEventListener('pointerup', fim); }; });
     this.pintaEnvio(locais);
+    $('[data-seq]', c)?.addEventListener('click', () => this.emSequencia());
+    $('[data-varias]', c)?.addEventListener('click', () => this.variasFalas());
+    // gravação em sequência que não chegou a ser revisada (a aba fechou no meio): continua daqui
+    if (locais.has('_seq')) { const sq = locais.get('_seq'), bx = $('.seq-pend', c); bx.innerHTML = `<div class="faixa-env">${ic('alerta', 16)}<span>Há uma <b>gravação em sequência</b> que não foi revisada (${new Date(sq.em).toLocaleString('pt-BR')}).</span><span class="esp"></span><button class="bt pri" data-seq-rev>Revisar</button><button class="bt" data-seq-fora>Descartar</button></div>`;
+      $('[data-seq-rev]', bx).onclick = () => this.revisaSeq(new Blob(sq.chunks, { type: sq.tipo || 'audio/webm' }), sq.trechos || []); $('[data-seq-fora]', bx).onclick = async () => { if (await pergunta('Descartar a gravação em sequência?', 'Ela ainda não foi separada nas falas.', [['Cancelar', false], ['Descartar', true, 'perigo']])) { await DB.del('aud', P.id + '/_seq'); this.pinta(c); } }; }
     Mic.pinta($('.mic-painel', c)); Dub.pinta($('.dub-painel', c));
     // a onda das gravações deste computador (e das da nuvem que já foram ouvidas nesta aba)
     for (const el of $$('.fala', c)) { const f = this.acha(el.dataset.f); if (!f) continue; const l = locais.get(f.id + this.suf(f)), au = this.audioDe(f), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f';
@@ -893,6 +901,40 @@ const Falas = {
   chaveL(f) { return S.P.id + '/' + f.id + this.suf(f); },
   audioDe(f) { const v = this.vez(f); return v ? f.audios?.[v]?.audio || null : f.audio; },
   durDe(f) { const v = this.vez(f); return v ? f.audios?.[v]?.duracao || 0 : f.duracao; },
+  // ---------- áudio com várias falas, gravar em sequência, editar um áudio (js: dublar/cortes.js) ----------
+  alvos() { const fs = []; for (const p of S.P.partes) for (const f of p.falas) if (!this.quem || Roteiro.quem(f).includes(this.quem)) fs.push(f); return fs; },
+  paraCortes(f) { const vz = this.vez(f), outros = this.varios(f) ? f.personagens.filter(p => Roteiro.chave(p) !== vz) : [];
+    return { id: f.id, rotulo: vz ? (f.personagens.find(p => Roteiro.chave(p) === vz) || f.personagem) : f.personagem, texto: f.texto, nota: f.nota, junto: vz ? outros.join(', ') : '' }; },
+  async guardaPedacos(ps) { for (const x of ps) { const f = this.acha(x.fala); if (f) await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); }
+    aviso(`${ps.length} fala${ps.length === 1 ? '' : 's'} com áudio novo neste computador. Ouça e clique em "Enviar agora".`, 'ok', 5000); this.pinta(this.c); },
+  // TRANSCRIÇÃO só quando a pessoa pede; o resultado fica guardado neste navegador (não repete a mesma)
+  transcritor() { if (!pode('transcrever')) return null; return async A => {
+    let h = A.d.length + ':' + A.sr; for (let i = 0; i < A.d.length; i += Math.max(1, A.d.length >> 12)) h += ':' + Math.round(A.d[i] * 1e4); const k = 'tr:' + h.length + ':' + [...h].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    try { const g = await TH.get(k); if (g?.palavras) return g.palavras; } catch { }
+    const ps = await Cortes.paraTranscrever(A), palavras = [];
+    for (const [i, p] of ps.entries()) { aviso(`Transcrevendo ${i + 1} de ${ps.length}…`, 'info', 4000); const r = await Nuvem.pede('/transcrever', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ audio: p.base64, language: 'pt', de: 'preparativos', prompt: this.alvos().slice(0, 8).map(f => f.texto).join(' ').slice(0, 280) }) });
+      for (const sg of r.segments || []) { const ws = sg.words?.length ? sg.words : [{ w: sg.text, s: sg.start, e: sg.end }]; for (const w of ws) palavras.push({ w: w.w, s: (+w.s || 0) + p.desde, e: (+w.e || 0) + p.desde }); } }
+    TH.put(k, { palavras, em: Date.now() }).catch(() => { }); return palavras; }; },
+  variasFalas() { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm';
+    inp.onchange = async () => { const arq = inp.files[0]; if (!arq) return; if (arq.size > 200 * 1048576) return aviso('Esse arquivo é grande demais (máx. 200 MB).', 'erro');
+      const fs = this.alvos(); aviso('Abrindo o áudio…', 'info', 2500);
+      try { const A = await Cortes.decodifica(arq), marcas = Cortes.silencios(A, fs.length);
+        await Cortes.revisao({ dados: A, blob: arq, falas: fs.map(f => this.paraCortes(f)), marcas, titulo: `Separar "${arq.name}" nas falas`, aviso: 'Cortes sugeridos pelas pausas mais longas (aproximado). Confira, arraste, ou use "Transcrever para acertar".', transcrever: this.transcritor(), aoSalvar: ps => this.guardaPedacos(ps) }); }
+      catch (e) { aviso(e.message, 'erro'); } };
+    inp.click(); },
+  async emSequencia() { const fs = this.alvos(); if (!fs.length) return; Mic.paraTeste($('.mic-painel', this.c)); const P = S.P;
+    try { await Cortes.sequencia({ falas: fs.map(f => this.paraCortes(f)), abreMic: async () => { const m = await Mic.abre(); return { stream: m.dest.stream, fecha: m.fecha }; },
+      guarda: x => x ? DB.put('aud', P.id + '/_seq', x).catch(() => { }) : DB.del('aud', P.id + '/_seq').catch(() => { }),
+      aoTerminar: (blob, trechos) => this.revisaSeq(blob, trechos), aoCancelar: () => this.pinta(this.c) }); } catch (e) { aviso(e.message, 'erro'); } },
+  async revisaSeq(blob, trechos) { const P = S.P; await DB.put('aud', P.id + '/_seq', { chunks: [blob], tipo: blob.type, trechos, em: Date.now() }).catch(() => { });
+    const fs = this.alvos(), ids = fs.map(f => f.id);
+    try { const R = await Cortes.paraRevisao(blob, trechos, ids);
+      await Cortes.revisao({ dados: R.dados, falas: fs.map(f => this.paraCortes(f)), marcas: R.marcas, dono: R.quem.map(id => ids.indexOf(id)), titulo: 'Revisar a gravação em sequência', aviso: 'Os cortes são os Enter que você apertou. Arraste para acertar.', transcrever: this.transcritor(),
+        aoSalvar: async ps => { await DB.del('aud', P.id + '/_seq').catch(() => { }); await this.guardaPedacos(ps); } }); } catch (e) { aviso(e.message, 'erro'); } },
+  async editaAudio(f) { const l = await DB.get('aud', this.chaveL(f)).catch(() => null), au = this.audioDe(f);
+    try { const blob = l?.blob || (au ? await Nuvem.audio(au) : null); if (!blob) return; await Cortes.revisao({ blob, uma: true, titulo: `Editar o áudio: ${f.personagem}: "${String(f.texto).slice(0, 40)}"`,
+      aoSalvar: async ([x]) => { await DB.put('aud', this.chaveL(f), { blob: x.blob, duracao: x.duracao, em: Date.now() }); aviso('Áudio editado. Ele fica neste computador até você clicar em "Enviar agora".', 'ok', 5000); this.pinta(this.c); } }); }
+    catch (e) { aviso(e.message, 'erro'); } },
   async locais() { const m = new Map(); try { for (const [k, v] of await DB.todos('aud')) if (String(k).startsWith(S.P.id + '/')) m.set(String(k).slice(S.P.id.length + 1), v); } catch { } return m; },
   linha(f, n, local, cs) {
     const vz = this.vez(f), varios = this.varios(f), au = this.audioDe(f), cor = varios ? (vz ? cs.get(vz) : '#9aa0ab') : cs.get(Roteiro.chave(f.personagem)), gravar = pode('gravar');
@@ -909,6 +951,7 @@ const Falas = {
       <div class="bts">${local || au ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
       ${gravar ? `<button class="redondo gravar ${local || au ? 'de-novo' : ''}" data-gravar title="${local || au ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
       ${gravar ? `<button class="redondo subir" data-subir title="Usar um áudio já gravado (mp3, wav, ogg, m4a, webm)">${ic('baixo', 16)}</button>` : ''}
+      ${gravar && (local || au) ? `<button class="redondo" data-edita title="Editar o áudio: aparar, cortar trecho, volume, zoom">${ic('lapis', 15)}</button>` : ''}
       ${local ? `<button class="redondo" data-tirar title="Jogar fora esta gravação">${ic('lixo', 15)}</button>` : ''}</div></div>`;
   },
   // a gravação de OUTRO personagem da mesma fala (deste computador ou da nuvem), para ouvir/gravar junto

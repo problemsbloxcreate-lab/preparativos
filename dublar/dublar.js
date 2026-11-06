@@ -54,6 +54,12 @@
     // FALAS
     const n = d.falas.length, env = Object.keys(d.enviadas || {}).length;
     app.append(el('p', 'prog', `${env} de ${n} fala${n === 1 ? '' : 's'} enviada${env === 1 ? '' : 's'}.`));
+    if (window.Cortes && n > 1) { const ac = el('div', 'linha acoes-varias'), paraC = f => ({ id: f.id, rotulo: f.voce || f.personagem, texto: f.texto, nota: f.nota, junto: (f.juntoCom || []).map(x => x.nome).join(', ') });
+      const recebe = ps => { for (const x of ps) poeLocal(x.fala, x.blob, x.duracao); };
+      ac.append(bt('Gravar tudo em sequência', '', async () => { try { await Cortes.sequencia({ falas: d.falas.map(paraC), abreMic: async () => ({ stream: await abreMic() }), aoTerminar: async (blob, tr) => { const R = await Cortes.paraRevisao(blob, tr, d.falas.map(f => f.id)); Cortes.revisao({ dados: R.dados, falas: d.falas.map(paraC), marcas: R.marcas, dono: R.quem.map(id => d.falas.findIndex(f => f.id === id)), titulo: 'Revisar a gravação', aviso: 'Os cortes são os Enter que você apertou. Arraste para acertar.', aoSalvar: recebe }); } }); } catch (e) { faixa(e.message); } }),
+        bt('Subir um áudio com várias falas', '', () => { const i = el('input'); i.type = 'file'; i.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.webm'; i.onchange = async () => { const a = i.files[0]; if (!a) return; if (a.size > (d.maxMb || 20) * 1048576 * 5) return faixa('Esse arquivo é grande demais.');
+          try { const A = await Cortes.decodifica(a); await Cortes.revisao({ dados: A, blob: a, falas: d.falas.map(paraC), marcas: Cortes.silencios(A, d.falas.length), titulo: 'Separar o áudio nas falas', aviso: 'Cortes pelas pausas mais longas (aproximado): confira e arraste.', aoSalvar: recebe }); } catch (e) { faixa(e.message); } }; i.click(); }));
+      app.append(ac); }
     for (const f of d.falas) app.append(cartao(f));
     // TERMINEI
     const fim = el('div', 'fim'), bf = bt('Terminei', 'pri', termina); bf.title = 'Avisa que você acabou. Gravações que ainda não foram enviadas são enviadas antes.'; fim.append(bf); app.append(fim);
