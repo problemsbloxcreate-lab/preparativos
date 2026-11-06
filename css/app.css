@@ -1112,3 +1112,7 @@ body.modo-doc .corpo.corpo-falas{background:none}
 .falas2 .onda-box{background:#1a1a1a!important;border:0!important;border-radius:0}
 .falas2 .junto-de{border:0;background:#3a2a10;color:#f0a30a;border-radius:0}
 .falas2 .faixa-env,.falas2 .aviso-linha{border-radius:0}
+
+/* sem o lado esquerdo (Falas, Legendas, Elenco): o conteúdo fica no meio */
+body.modo-doc.sem-guias .corpo.corpo-falas>.falas,body.modo-doc.sem-guias .corpo.corpo-elenco>*{max-width:980px;margin-left:auto;margin-right:auto}
+body.modo-doc.sem-guias .corpo.corpo-legendas>*{max-width:1200px;margin-left:auto;margin-right:auto}
