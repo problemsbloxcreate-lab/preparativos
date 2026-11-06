@@ -275,8 +275,10 @@ async function pintaInicio(novo) {
   if (S.P || (S.aba && S.aba !== 'roteiros')) return; // a pessoa já foi para outra aba (ou abriu um roteiro) enquanto carregava: não cobre a tela
   T.mostra();
   // AO VIVO: quem está com cada roteiro aberto agora (some sozinho quando a pessoa fecha)
-  AoVivo.ouveTudo(m => { if (!el.isConnected || S.P) return AoVivo.paraTudo(); $$('[data-vivo]', el).forEach(d => { const g = Object.values(m[d.dataset.vivo] || {});
-    d.innerHTML = g.length ? `<span class="vivo-tag" title="Ao vivo agora: ${esc(g.map(x => x.n).join(', '))}"><i></i> ao vivo</span>${g.slice(0, 4).map(x => pava(x, 'p vivo')).join('')}` : ''; d.parentElement.classList.toggle('tem-vivo', !!g.length); }); });
+  // (a mesma presença do Firebase que já existia: sem pedido novo à nuvem e sem consultar em intervalo)
+  AoVivo.ouveTudo(m => { if (!el.isConnected || S.P) return AoVivo.paraTudo(); $$('.cartao[data-vivo]', el).forEach(card => { const g = Object.values(m[card.dataset.vivo] || {}), q = $('.quem-c', card); if (!q) return;
+    card.classList.toggle('ao-vivo', !!g.length);
+    q.innerHTML = g.length ? `<span class="quem-l quem-vivo" title="Com o roteiro aberto agora: ${esc(g.map(x => x.n).join(', '))}"><span class="vivo-fotos">${g.slice(0, 4).map(x => pava(x, 'p vivo')).join('')}</span><span><b>${esc(g[0].n || 'Alguém')}</b>${g.length > 1 ? ` e mais ${g.length - 1}` : ''}</span></span>` : q.dataset.quemOrig || ''; }); });
 }
 // onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem' | 'uso' (um programa já usou)
 function cartao(it, onde) {
@@ -286,11 +288,11 @@ function cartao(it, onde) {
   const uso = onde === 'uso' ? (it.uso || []) : [];
   const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · termina de salvar ao abrir`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('play', 13)} Em uso` };
   const autor = it.autor || (it.quem?.a ? { id: it.quem.a.i, nome: it.quem.a.n } : null), eds = it.edicoes || (it.quem?.e || []).map(x => ({ id: x.i, nome: x.n }));
-  return h(`<button class="cartao ${esc(st)}" data-id="${esc(it.id || '')}"><div class="vivo-c" data-vivo="${esc(it.id || '')}"></div><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
+  return h(`<button class="cartao ${esc(st)}" data-id="${esc(it.id || '')}" data-vivo="${esc(it.id || '')}"><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
     <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div></div>
     <div class="grav ${n && g === n ? 'todas' : ''}" title="${g} de ${n} falas já têm áudio gravado">${ic(n && g === n ? 'ok' : 'mic', 14)}<span>${!n ? 'ainda sem falas' : g === n ? 'todas as falas gravadas' : `<b>${g}</b> de <b>${n}</b> falas gravadas`}</span><div class="barra"><i style="width:${pct}%"></i></div></div>
     <div class="elenco">${pers.slice(0, 6).map(p => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
-    ${quemHtml(autor, eds, true) ? `<div class="quem-c">${quemHtml(autor, eds, true)}</div>` : ''}
+    <div class="quem-c" data-quem-orig="${esc(quemHtml(autor, eds, true))}">${quemHtml(autor, eds, true)}</div>
     ${uso.length ? `<div class="usos">${uso.map(u => `<span class="uso">${progIc(u, 16)} usado no ${esc(DESTINOS[u] || u)}</span>`).join('')}</div>` : ''}
     <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
 }
@@ -763,29 +765,38 @@ const Dub = {
   // CRIAR: escolher o alcance (todas / um personagem / uma fala) e o prazo ANTES de gerar
   novo(box) {
     const P = S.P, ps = Roteiro.personagens(P.partes), todas = P.partes.flatMap(p => p.falas);
-    const m = h(`<div class="modal"><div class="caixa larga dub-novo"><b>Criar link para dublar</b>
-      <p class="dica">A pessoa abre o link, vê só as falas escolhidas, grava cada uma e envia. Não precisa de conta. O que ela enviar fica esperando você aceitar.</p>
-      <div class="dn-sec"><small>Quais falas</small>
-        <label class="dn-op"><input type="radio" name="alc" value="pers" checked> Só as falas de um personagem <select data-pers>${ps.map(p => `<option value="${esc(p.chave)}">${esc(p.nome)} (${p.n})</option>`).join('')}</select></label>
-        <label class="dn-op"><input type="radio" name="alc" value="fala"> Só uma fala <select data-fala>${todas.map((f, i) => `<option value="${esc(f.id)}">${i + 1}. ${esc(f.personagem)}: ${esc(f.texto.slice(0, 60))}</option>`).join('')}</select></label>
-        <label class="dn-op"><input type="radio" name="alc" value="todas"> Todas as falas do roteiro (${todas.length})</label>
-        <label class="dn-op sub"><input type="checkbox" data-sem checked> Só as que ainda não têm áudio</label></div>
-      <div class="dn-sec"><small>Prazo</small>
-        <label class="dn-op"><input type="radio" name="prazo" value="hora" checked> 1 hora (depois é apagado sozinho)</label>
-        <label class="dn-op"><input type="radio" name="prazo" value="sempre"> Sem prazo</label>
-        <small class="dica" data-quem-fecha></small></div>
-      <div class="dn-sec"><small>Nome do link (só para você)</small><input type="text" data-rot maxlength="60" placeholder="Ex.: Clara — episódio 3"></div>
-      <div class="bts"><button class="bt" data-n>Cancelar</button><button class="bt pri" data-s>${ic('enviar', 14)} Gerar o link</button></div></div></div>`);
+    // janela compacta: cabeçalho, corpo que rola por dentro e rodapé SEMPRE visível (cabe em notebook e celular)
+    const m = h(`<div class="modal"><div class="caixa dn-caixa" role="dialog" aria-label="Criar link para dublar">
+      <div class="dn-cab"><b>Criar link para dublar</b><small>A pessoa vê só estas falas, grava e envia, sem conta. O que chegar espera você aceitar.</small></div>
+      <div class="dn-corpo">
+        <fieldset class="dn-sec"><legend>Quais falas</legend>
+          <label class="dn-op"><input type="radio" name="alc" value="pers" checked><span>De um personagem</span></label>
+          <div class="dn-campo" data-campo="pers"><select data-pers>${ps.map(p => `<option value="${esc(p.chave)}">${esc(p.nome)} · ${p.n} fala${p.n === 1 ? '' : 's'}</option>`).join('')}</select></div>
+          <label class="dn-op"><input type="radio" name="alc" value="fala"><span>Uma fala só</span></label>
+          <div class="dn-campo" data-campo="fala" hidden><select data-fala>${todas.map((f, n) => `<option value="${esc(f.id)}">${n + 1}. ${esc(f.personagem)}: ${esc(f.texto.slice(0, 50))}</option>`).join('')}</select></div>
+          <label class="dn-op"><input type="radio" name="alc" value="todas"><span>Todas as falas (${todas.length})</span></label>
+          <label class="dn-op dn-chk" data-so><input type="checkbox" data-sem checked><span>Só as que ainda não têm áudio</span></label></fieldset>
+        <fieldset class="dn-sec"><legend>Prazo</legend>
+          <div class="dn-seg" role="radiogroup"><button type="button" class="on" data-prazo="hora" role="radio" aria-checked="true">1 hora</button><button type="button" data-prazo="sempre" role="radio" aria-checked="false">Sem prazo</button></div>
+          <small class="dn-exp" data-quem-fecha></small></fieldset>
+        <fieldset class="dn-sec"><legend>Nome do link <span>(só para você)</span></legend><input type="text" class="dn-txt" data-rot maxlength="60" placeholder="Ex.: Clara — episódio 3"></fieldset>
+      </div>
+      <div class="dn-rod"><button class="bt" data-n>Cancelar</button><button class="bt pri" data-s>${ic('enviar', 14)} Criar link</button></div></div></div>`);
+    let prazo = 'hora';
     const fecha = () => m.remove(), alc = () => $('input[name=alc]:checked', m).value;
     const escolhidas = () => { const so = $('[data-sem]', m).checked, l = alc() === 'fala' ? todas.filter(f => f.id === $('[data-fala]', m).value) : alc() === 'pers' ? todas.filter(f => Roteiro.chave(f.personagem) === $('[data-pers]', m).value) : todas; return alc() === 'fala' ? l : l.filter(f => !so || !f.audio); };
-    const explica = () => { const l = escolhidas(), varios = new Set(l.map(f => Roteiro.chave(f.personagem))).size > 1; $('[data-quem-fecha]', m).textContent = `${l.length} fala${l.length === 1 ? '' : 's'}. ` + (varios ? 'Vários personagens: o link só acaba quando VOCÊ encerrar (ou a hora passar).' : 'Um personagem só: o link morre quando a pessoa clicar em "Terminei".');
-      if (!$('[data-rot]', m).dataset.mexeu) $('[data-rot]', m).value = alc() === 'todas' ? 'Todas as falas' : alc() === 'pers' ? (ps.find(p => p.chave === $('[data-pers]', m).value)?.nome || '') : 'Uma fala'; };
-    m.addEventListener('change', explica); $('[data-rot]', m).oninput = e => { e.target.dataset.mexeu = 1; }; explica();
+    const explica = () => { const a = alc(), l = escolhidas(), varios = new Set(l.map(f => Roteiro.chave(f.personagem))).size > 1;
+      $$('[data-campo]', m).forEach(c => { c.hidden = c.dataset.campo !== a; }); $('[data-so]', m).hidden = a === 'fala';
+      $('[data-quem-fecha]', m).textContent = `${l.length} fala${l.length === 1 ? '' : 's'}. ` + (prazo === 'hora' ? 'Vale 1 hora e depois é apagado. ' : 'Sem prazo. ') + (varios ? 'Vários personagens: acaba quando VOCÊ encerrar.' : 'Morre quando a pessoa clicar em "Terminei".');
+      const rot = $('[data-rot]', m); if (!rot.dataset.mexeu) rot.value = a === 'todas' ? 'Todas as falas' : a === 'pers' ? (ps.find(p => p.chave === $('[data-pers]', m).value)?.nome || '') : 'Uma fala'; };
+    m.addEventListener('change', explica); $('[data-rot]', m).oninput = e => { e.target.dataset.mexeu = 1; };
+    $$('[data-prazo]', m).forEach(b => b.onclick = () => { prazo = b.dataset.prazo; $$('[data-prazo]', m).forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b); }); explica(); });
+    explica();
     $('[data-n]', m).onclick = fecha; m.onclick = e => { if (e.target === m) fecha(); }; m.onkeydown = e => { if (e.key === 'Escape') fecha(); };
-    $('[data-s]', m).onclick = async e => { const l = escolhidas(); if (!l.length) return aviso('Nenhuma fala com essa escolha (todas já têm áudio?).', 'info'); const b = e.currentTarget; b.disabled = true; b.innerHTML = giro('Gerando');
-      try { const r = await Nuvem.acao({ acao: 'dublar', op: 'novo', id: P.id, falas: l.map(f => f.id), rotulo: $('[data-rot]', m).value, prazo: $('input[name=prazo]:checked', m).value });
-        const url = location.origin + '/dublar/#t=' + r.token; fecha(); this.mostra(box, r); this.mostraLink(url); } catch (er) { aviso(er.message, 'erro'); b.disabled = false; b.innerHTML = 'Gerar o link'; } };
-    document.body.appendChild(m); },
+    $('[data-s]', m).onclick = async e => { const l = escolhidas(); if (!l.length) return aviso('Nenhuma fala com essa escolha (todas já têm áudio?).', 'info'); const b = e.currentTarget; b.disabled = true; b.innerHTML = giro('Criando');
+      try { const r = await Nuvem.acao({ acao: 'dublar', op: 'novo', id: P.id, falas: l.map(f => f.id), rotulo: $('[data-rot]', m).value, prazo });
+        const url = location.origin + '/dublar/#t=' + r.token; fecha(); this.mostra(box, r); this.mostraLink(url); } catch (er) { aviso(er.message, 'erro'); b.disabled = false; b.innerHTML = `${ic('enviar', 14)} Criar link`; } };
+    document.body.appendChild(m); $('input[name=alc]:checked', m).focus(); },
   mostraLink(url) {
     const m = h(`<div class="modal"><div class="caixa larga"><b>Link pronto</b><p>Copie e mande para quem vai dublar. <b>Ele só aparece agora</b>: se perder, crie outro.</p>
       <div class="dn-url"><input type="text" readonly value="${esc(url)}"><button class="bt pri" data-cp>${ic('copiar', 14)} Copiar</button></div><div class="bts"><button class="bt" data-n>Fechar</button></div></div></div>`);
