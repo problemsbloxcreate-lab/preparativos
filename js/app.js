@@ -187,7 +187,10 @@ async function sairDoPrep(semHist) {
 function pinta() { Mic.paraTeste(); if (S.P) return pintaPrep(); modoDoc(false); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
 // bolinha com as iniciais do personagem, na cor dele; com foto, a foto (carrega sozinha quando a bolinha aparece)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
-const ava = (nome, cor, tam = '') => { const f = persDe(nome)?.foto; return `<span class="ava ${tam}" style="--c:${cor}" title="${esc(nome)}"${f ? ` data-foto="${esc(f)}"` : ''}>${esc(iniciais(nome))}</span>`; };
+// cor da letra sobre um fundo: fundo escuro → branca, fundo claro → quase preta (luminância relativa, WCAG)
+const txSobre = c => { const m = /^#?([0-9a-f]{6})$/i.exec(String(c || '').trim()); if (!m) return '#111'; const n = parseInt(m[1], 16), L = [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }), Y = .2126 * L[0] + .7152 * L[1] + .0722 * L[2];
+  return (1.05 / (Y + .05)) > ((Y + .05) / .05) ? '#ffffff' : '#111111'; };
+const ava = (nome, cor, tam = '') => { const f = persDe(nome)?.foto; return `<span class="ava ${tam}" style="--c:${cor};--tx:${txSobre(cor)}" title="${esc(nome)}"${f ? ` data-foto="${esc(f)}"` : ''}>${esc(iniciais(nome))}</span>`; };
 new MutationObserver(() => { for (const el of document.querySelectorAll('.ava[data-foto]:not([data-foto-ok])')) { el.dataset.fotoOk = '1'; Nuvem.foto(el.dataset.foto).then(u => { el.style.backgroundImage = `url("${u}")`; el.classList.add('com-foto'); }).catch(() => { }); } })
   .observe(document.documentElement, { childList: true, subtree: true });
 const icProg = d => ({ animador: 'an', shorts: 'sh', editor: 'ed' }[d]);
@@ -929,7 +932,7 @@ const TH = { _db: null, abre() { return this._db || (this._db = new Promise((ok,
 const thPedidos = new Map(); let thFila = Promise.resolve(), thAtivos = 0; const thEspera = [];
 const thCor = new Map(); // id do personagem do Ateliê → cor principal (do Animador)
 async function thumbDe(x) {
-  try { const g = await TH.get(x.id); if (g && g.mod === x.mod) { if (g.cor) thCor.set(x.id, g.cor); return g.thumb || null; } } catch { }
+  try { const g = await TH.get(x.id); if (g && g.mod === x.mod && 'cor' in g) { if (g.cor) thCor.set(x.id, g.cor); return g.thumb || null; } } catch { }
   if (thPedidos.has(x.id)) return thPedidos.get(x.id);
   const pr = (async () => { if (thAtivos >= 4) await new Promise(r => thEspera.push(r)); thAtivos++; // no máximo 4 de uma vez
     try { const d = await Nuvem.pede('/personagens/arquivo?k=' + encodeURIComponent(`personagens/${x.id}/personagem.json`)); const th = typeof d?.thumb === 'string' && d.thumb.startsWith('data:image/') ? d.thumb : null;
@@ -1215,6 +1218,7 @@ async function pintaPersonagens() {
   const tiraFoto = async k => { if (await pergunta('Tirar a foto?', `${todos[k].nome} volta a aparecer com as iniciais.`, [['Cancelar', false], ['Tirar', true, 'perigo']])) await manda(k, { foto: null }, 'Foto tirada.'); };
   const escolhePadrao = async k => { let L; try { L = await atelie(); } catch (er) { aviso(er.message, 'erro'); return false; }
     const r = await escolheNoAtelie(L, todos[k].atelie, `Padrão de ${todos[k].nome} no Animador (todos os roteiros)`, 'Automático (personagem com o mesmo nome)'); if (r === false) return false;
+    { const n = { ...todos[k] }; if (r === undefined) delete n.atelie; else n.atelie = r === null ? null : { id: r.id, nome: r.nome }; todos[k] = n; S.pers = { ...(S.pers || {}), [k]: n }; pintaL(); }
     await manda(k, { atelie: r === undefined ? 'auto' : r === null ? null : { id: r.id, nome: r.nome } }, r === undefined ? 'Padrão: automático (mesmo nome).' : r === null ? 'Padrão: nenhum personagem na cena.' : `Padrão no Animador: ${r.nome}.`); return true; };
   const menuPers = (e, k) => { const v = todos[k];
     popMenu(e, [[`${ic('lapis', 14)} Ver / mudar a cor e o resto…`, '', () => detalhe(k)], [`${ic('camera', 14)} ${v.foto ? 'Trocar a foto…' : 'Pôr uma foto…'}`, '', () => trocaFoto(k), !ed],
@@ -1259,7 +1263,7 @@ async function pintaPersonagens() {
       <div class="pd-corpo">
         <div class="pd-sec"><small>Cor da legenda</small><div class="paleta">${PALETA.map(x => `<button class="cor" style="--c:${x}" data-cor="${x}" ${ed ? '' : 'disabled'} title="${x}"></button>`).join('')}<label class="cor-outra" title="Outra cor"><input type="color" value="${cor}" ${ed ? '' : 'disabled'}><span>${ic('mais', 12)}</span></label></div></div>
         <div class="pd-sec pd-at" hidden><small>Cores do personagem <b data-at-nome></b> <span class="pd-carr">${giro()}</span></small><div class="pd-at-l"><canvas class="pd-cv" width="150" height="150" title="Clique para pegar a cor deste ponto"></canvas>
-          <div class="pd-at-d"><div class="paleta" data-cores></div><span class="dica">As cores que mais aparecem no personagem do Ateliê. Ou clique na imagem para pegar a cor daquele ponto.</span><span class="pd-lupa"><i></i><b></b></span></div></div></div>
+          <div class="pd-at-d"><div class="paleta" data-cores></div><span class="dica">As cores que mais aparecem no personagem do Ateliê. Ou clique na imagem para pegar a cor daquele ponto. Rodinha (ou pinça) = zoom, arrastar = mover, duplo clique = ver inteiro.</span><span class="pd-lupa"><i></i><b></b></span></div></div></div>
         <div class="pd-leg"><span>Exemplo de legenda</span></div>
         <div class="pd-2"><div class="pd-sec"><small>No Animador</small><button class="el-esc" data-pad ${ed ? '' : 'disabled'}><span class="ap-th p ${v.atelie?.id ? '' : 'sem-th'}" ${v.atelie?.id ? `data-th="${esc(v.atelie.id)}"` : ''}>${v.atelie?.id ? esc(iniciais(v.atelie.nome || v.atelie.id)) : icAt(20)}</span><span>${v.atelie === null ? 'Nenhum' : v.atelie?.id ? esc(v.atelie.nome || v.atelie.id) : 'Automático (mesmo nome)'}</span></button></div>
           <div class="pd-sec"><small>Pasta</small><select data-pasta ${ed ? '' : 'disabled'}><option value="">Fora de pastas</option>${listaPastas().map(g => `<option value="${esc(g)}" ${g === v.grupo ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></div></div>
@@ -1280,20 +1284,40 @@ async function pintaPersonagens() {
     $('[data-apaga]', m).onclick = () => { fim(); apagaPersonagem(k, todos, () => pintaPersonagens()); };
     document.body.appendChild(m); $('[data-x]', m).focus();
     // personagem do Ateliê ligado a ele: o escolhido, senão o de MESMO nome (sem gastar nuvem: a miniatura já vem guardada)
-    if (v.atelie !== null) atelie().then(async L => { const x = v.atelie?.id ? L.find(y => y.id === v.atelie.id) : L.find(y => Roteiro.chave(y.nome) === k); if (!x || !m.isConnected) return;
+    // A seção aparece SEMPRE: carregando → cores + imagem; sem personagem ligado ou sem miniatura, diz o porquê (antes ficava vazia)
+    const sec = $('.pd-at', m), boxC = $('[data-cores]', m), cv = $('.pd-cv', m), g = cv.getContext('2d', { willReadFrequently: true }), cores = [];
+    const msgAt = t => { $('.pd-carr', m)?.remove(); boxC.innerHTML = `<small class="dica">${esc(t)}</small>`; };
+    sec.hidden = false;
+    const pintaCores = () => { $('.pd-carr', m)?.remove(); boxC.innerHTML = cores.slice(0, 8).map(c => `<button class="cor" style="--c:${c}" data-cor="${c}" ${ed ? '' : 'disabled'} title="${c}"></button>`).join('') || '<small class="dica">Não achei cores nessa imagem.</small>';
+      $$('[data-cor]', boxC).forEach(b => { b.onclick = () => poeCor(b.dataset.cor); b.classList.toggle('on', b.dataset.cor === cor); }); };
+    if (v.atelie === null) { cv.hidden = true; $('.pd-lupa', m).hidden = true; msgAt('Sem personagem do Ateliê ("Nenhum" em No Animador).'); }
+    else atelie().then(async L => { const x = v.atelie?.id ? L.find(y => y.id === v.atelie.id) : L.find(y => Roteiro.chave(y.nome) === k); if (!m.isConnected) return;
+      if (!x) { cv.hidden = true; $('.pd-lupa', m).hidden = true; return msgAt(v.atelie?.id ? 'O personagem do Ateliê ligado a ele não foi achado (foi apagado?).' : 'Ligue um personagem do Ateliê em "No Animador" para ver as cores dele.'); }
+      $('[data-at-nome]', m).textContent = '(' + x.nome + ')';
       const pa = $('[data-pad] [data-th]', m); const u = await thumbDe(x); if (!m.isConnected) return; if (pa && u) { pa.style.backgroundImage = `url("${u}")`; pa.classList.add('com-th'); pa.textContent = ''; }
-      const sec = $('.pd-at', m); $('[data-at-nome]', m).textContent = '(' + x.nome + ')'; sec.hidden = false; $('.pd-carr', m).remove();
-      const cv = $('.pd-cv', m), g = cv.getContext('2d', { willReadFrequently: true }), cores = [];
       if (thCor.get(x.id)) cores.push(thCor.get(x.id)); // a cor principal que o Animador já calculou
-      const pintaCores = () => { const box = $('[data-cores]', m); box.innerHTML = cores.slice(0, 8).map(c => `<button class="cor" style="--c:${c}" data-cor="${c}" ${ed ? '' : 'disabled'} title="${c}"></button>`).join('') || '<small>Sem cores para mostrar.</small>';
-        $$('[data-cor]', box).forEach(b => b.onclick = () => poeCor(b.dataset.cor)); $$('[data-cor]', box).forEach(b => b.classList.toggle('on', b.dataset.cor === cor)); };
-      if (u) { const im = new Image(); im.onload = () => { const r = Math.min(cv.width / im.width, cv.height / im.height); g.drawImage(im, (cv.width - im.width * r) / 2, (cv.height - im.height * r) / 2, im.width * r, im.height * r);
-          for (const c of coresDaImagem(g, cv.width, cv.height)) if (!cores.includes(c)) cores.push(c); pintaCores(); }; im.src = u; } else { cv.hidden = true; $('.pd-lupa', m).hidden = true; pintaCores(); }
-      // CONTA-GOTAS na imagem (funciona em qualquer navegador)
-      const ponto = e => { const r = cv.getBoundingClientRect(), d = g.getImageData(Math.floor((e.clientX - r.left) * cv.width / r.width), Math.floor((e.clientY - r.top) * cv.height / r.height), 1, 1).data; return d[3] > 100 ? '#' + [d[0], d[1], d[2]].map(n => n.toString(16).padStart(2, '0')).join('') : null; };
-      cv.onmousemove = e => { const c = ponto(e); if (!c) return; $('.pd-lupa i', m).style.background = c; $('.pd-lupa b', m).textContent = c; };
-      cv.onclick = e => { if (!ed) return; const c = ponto(e); if (c) poeCor(c); };
-    }).catch(() => { });
+      if (!u) { cv.hidden = true; $('.pd-lupa', m).hidden = true; if (cores.length) pintaCores(); else msgAt('Esse personagem do Ateliê ainda não tem miniatura (abra e salve ele no Ateliê).'); return; }
+      const im = new Image(); im.onerror = () => { cv.hidden = true; cores.length ? pintaCores() : msgAt('Não consegui ler a imagem dele.'); };
+      // ZOOM no conta-gotas: rodinha (ou pinça) = zoom no ponto; arrastar = mover; clique sem arrastar = pegar a cor
+      const V = { z: 1, x: 0, y: 0 }, W = cv.width = 300, H = cv.height = 300;
+      const desenha = () => { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); const r = Math.min(W / im.width, H / im.height) * V.z; g.imageSmoothingEnabled = V.z < 3;
+        g.drawImage(im, W / 2 - im.width * r / 2 + V.x, H / 2 - im.height * r / 2 + V.y, im.width * r, im.height * r); };
+      const zoomEm = (fx, fy, f) => { const z2 = Math.max(1, Math.min(16, V.z * f)), k2 = z2 / V.z; V.x = (V.x - (fx - W / 2)) * k2 + (fx - W / 2); V.y = (V.y - (fy - H / 2)) * k2 + (fy - H / 2); V.z = z2; if (V.z === 1) V.x = V.y = 0; desenha(); };
+      const naTela = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; };
+      im.onload = () => { desenha(); for (const c of coresDaImagem(g, W, H)) if (!cores.includes(c)) cores.push(c); pintaCores(); };
+      im.src = u;
+      const ponto = e => { const [px, py] = naTela(e), d = g.getImageData(Math.max(0, Math.min(W - 1, Math.floor(px))), Math.max(0, Math.min(H - 1, Math.floor(py))), 1, 1).data; return d[3] > 100 ? '#' + [d[0], d[1], d[2]].map(n => n.toString(16).padStart(2, '0')).join('') : null; };
+      cv.onwheel = e => { e.preventDefault(); const [px, py] = naTela(e); zoomEm(px, py, e.deltaY < 0 ? 1.25 : 1 / 1.25); };
+      const toques = new Map(); let arr = null, mexeu = false, pin = 0;
+      cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); toques.set(e.pointerId, [e.clientX, e.clientY]); mexeu = false; arr = { x: e.clientX, y: e.clientY, vx: V.x, vy: V.y };
+        if (toques.size === 2) { const [a, b] = [...toques.values()]; pin = Math.hypot(a[0] - b[0], a[1] - b[1]); } };
+      cv.onpointermove = e => { const c = ponto(e); if (c) { $('.pd-lupa i', m).style.background = c; $('.pd-lupa b', m).textContent = c; }
+        if (!toques.has(e.pointerId)) return; toques.set(e.pointerId, [e.clientX, e.clientY]); const r = cv.getBoundingClientRect(), k2 = W / r.width;
+        if (toques.size === 2) { const [a, b] = [...toques.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pin) { const [px, py] = naTela({ clientX: (a[0] + b[0]) / 2, clientY: (a[1] + b[1]) / 2 }); zoomEm(px, py, d / pin); } pin = d; mexeu = true; return; }
+        if (arr && V.z > 1 && Math.hypot(e.clientX - arr.x, e.clientY - arr.y) > 3) { mexeu = true; V.x = arr.vx + (e.clientX - arr.x) * k2; V.y = arr.vy + (e.clientY - arr.y) * k2; desenha(); } };
+      cv.onpointerup = cv.onpointercancel = e => { toques.delete(e.pointerId); if (toques.size < 2) pin = 0; if (!toques.size) { if (!mexeu && e.type === 'pointerup' && ed) { const c = ponto(e); if (c) poeCor(c); } arr = null; } };
+      cv.ondblclick = () => { V.z = 1; V.x = V.y = 0; desenha(); };
+    }).catch(() => msgAt('Não consegui abrir a lista do Ateliê agora.'));
   };
   pintaL();
 }

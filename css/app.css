@@ -955,3 +955,7 @@ body:not(.modo-doc) .pc3-cor,body:not(.modo-doc) .pd-caixa .paleta .cor,body:not
 .dub-novo .dn-op input[type=radio],.dub-novo .dn-op input[type=checkbox]{flex:none;width:auto;height:auto;margin:0}
 .dub-novo select{height:32px!important;min-height:0!important;max-height:32px;padding:4px 6px!important;text-transform:none!important;font-size:13px;flex:1 1 220px;width:auto!important}
 .dub-novo .dica{text-transform:none!important;text-align:left}
+
+/* iniciais legíveis: a cor da letra vem do contraste com o fundo (--tx) */
+.ava:not(.com-foto){color:var(--tx,#111)!important}
+.pd-cv{touch-action:none;cursor:crosshair}
