@@ -312,6 +312,7 @@ async function abrePrep(P, base, semHist) {
   if (!S.pers) carregaPers().then(() => { if (S.P) { S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } }).catch(() => { S.pers = {}; });
   if (!S.nomeEu) window.EstudioLogin?.perfil?.().then(p => { S.nomeEu = String(p?.nome || '').split(' ')[0]; }).catch(() => { });
   { const u = './?id=' + encodeURIComponent(P.id); if (new URLSearchParams(location.search).get('id') !== P.id) history[semHist ? 'replaceState' : 'pushState'](null, '', u); } pintaPrep();
+  carregaPers().catch(() => { }).then(() => Varios.confere()); // "Stick e Bob" com nome desconhecido: pergunta já ao abrir
 }
 // MODO DOCUMENTO (pedido da dona, 05/11/2026): com um roteiro aberto a tela inteira vira um editor de documento, com UM cabeçalho só
 // (o do Preparativos some e o botão da conta /estudio-conta.js vem para o canto deste)
