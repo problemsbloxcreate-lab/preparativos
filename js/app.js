@@ -242,15 +242,12 @@ async function pintaInicio(novo) {
   if (pastaRot && !pastas.includes(pastaRot)) pastaRot = null;
   const corpo = $('.rot-corpo', el), grade = arr => { const g = h('<div class="grade"></div>'); for (const x of arr) g.appendChild(liga(x)); return g; };
   const liga = x => { const c = cartao(x.it, x.onde); c.onclick = async () => { $$('.dh-menu.pop').forEach(y => y.remove()); c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } };
-    if (ed) { c.draggable = true; c.ondragstart = e => { e.dataTransfer.setData('text/rot-prep', x.it.id); e.dataTransfer.effectAllowed = 'move'; c.classList.add('arrastando'); }; c.ondragend = () => c.classList.remove('arrastando'); }
+    if (ed) arrastavel(c, x.it.nome || 'Roteiro', g => { if ((PR.de[x.it.id] || '') === (g || '')) return; mudaPastasRot({ mover: { [x.it.id]: g || null } }, g ? `"${x.it.nome || 'Roteiro'}" foi para ${g}.` : 'Saiu da pasta.'); });
     c.oncontextmenu = e => { if (!ed) return; e.preventDefault(); const atual = pastaDe(x);
-      popMenu(e, [...(x.onde === 'nuvem' || x.onde === 'uso' ? [[`${ic('pc', 14)} Tirar da nuvem e manter neste computador…`, '', () => tiraDaNuvem(x.it.id)], '-'] : []),...pastas.map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, atual === g ? '✓' : '', () => mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`), atual === g]),
-        [`${ic('pasta', 14)} Tirar da pasta`, !atual ? '✓' : '', () => mudaPastasRot({ mover: { [x.it.id]: null } }, 'Saiu da pasta.'), !atual],
-        [`${ic('mais', 14)} Pasta nova com este roteiro…`, '', async () => { const g = await pastaNova(); if (g) mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`); }], '-',
+      popMenu(e, [...(x.onde === 'nuvem' || x.onde === 'uso' ? [[`${ic('pc', 14)} Tirar da nuvem e manter neste computador…`, '', () => tiraDaNuvem(x.it.id)], '-'] : []),[`${ic('pasta', 14)} Mover para pasta…`, atual || '', async () => { const g = await escolhePasta(`Mover "${x.it.nome || 'Roteiro'}"`, pastas, atual); if (g != null) mudaPastasRot({ mover: { [x.it.id]: g || null } }, g ? `"${x.it.nome || 'Roteiro'}" foi para ${g}.` : 'Saiu da pasta.'); }], '-',
         [`${ic('lixo', 14)} Apagar roteiro…`, '', () => apagaRoteiro(x.it, x.onde)]]); };
     return c; };
-  const alvo = (a, g) => { if (!ed) return; a.ondragover = e => { if (!e.dataTransfer.types.includes('text/rot-prep')) return; e.preventDefault(); a.classList.add('alvo'); }; a.ondragleave = e => { if (!a.contains(e.relatedTarget)) a.classList.remove('alvo'); };
-    a.ondrop = e => { e.preventDefault(); a.classList.remove('alvo'); const id = e.dataTransfer.getData('text/rot-prep'); if (!id || (PR.de[id] || '') === (g || '')) return; mudaPastasRot({ mover: { [id]: g || null } }, g ? `Foi para ${g}.` : 'Saiu da pasta.'); }; };
+  const alvo = (a, g) => { if (ed) a.dataset.solta = g || ''; };
   const menuPasta = (e, g) => popMenu(e, [[`${ic('pasta', 14)} Abrir a pasta`, '', () => abrePastaRot(g)], '-',
     [`${ic('lapis', 14)} Renomear…`, '', async () => { const nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 40)) || '').trim(); if (nn && nn !== g) { if (pastaRot === g) { pastaRot = nn; try { localStorage.setItem('ep-prep-rot-pasta', nn); } catch { } } mudaPastasRot({ renomear: { de: g, para: nn } }, `Pasta renomeada para ${nn}.`); } }, !ed],
     [`${ic('lixo', 14)} Apagar a pasta (os roteiros ficam)`, '', async () => { if (await pergunta(`Apagar a pasta "${g}"?`, 'Os roteiros dela vão para "Fora de pastas". Nenhum roteiro é apagado.', [['Cancelar', false], ['Apagar a pasta', true, 'perigo']])) { if (pastaRot === g) abrePastaRot(null); mudaPastasRot({ apagar: g }, `Pasta "${g}" apagada.`); } }, !ed]]);
@@ -550,10 +547,37 @@ function arrastaMargem(ev, lado, c) {
   addEventListener('pointermove', move); addEventListener('pointerup', fim);
 }
 // um menuzinho no lugar do clique (pastas dos personagens, organização)
+// ARRASTAR COM O MOUSE (o arraste nativo do navegador falha em <button>): só começa depois de andar 6 px, mostra uma miniatura seguindo o
+// cursor, acende o alvo embaixo (elemento com data-solta="<pasta>"; "" = fora de pastas), rola a tela perto das bordas e não deixa virar clique.
+function arrastavel(c, rotulo, aoSoltar) {
+  c.addEventListener('dragstart', e => e.preventDefault());
+  c.addEventListener('pointerdown', e0 => { if (e0.button !== 0 || e0.pointerType === 'touch' || e0.target.closest('input,select,a')) return;
+    let fant = null, alvo = null, y = e0.clientY, raf = 0;
+    const limpa = () => { alvo?.classList.remove('alvo'); alvo = null; };
+    const roda = () => { if (!fant) return; const d = y < 70 ? -14 : y > innerHeight - 70 ? 14 : 0; if (d) { const a = $('.dh-area'); (a && a.scrollHeight > a.clientHeight ? a : window).scrollBy(0, d); } raf = requestAnimationFrame(roda); };
+    const mv = e => { y = e.clientY; if (!fant) { if (Math.hypot(e.clientX - e0.clientX, e.clientY - e0.clientY) < 6) return; $$('.dh-menu.pop').forEach(m => m.remove()); fant = h(`<div class="arr-fant">${ic('doc', 14)}<span></span></div>`); $('span', fant).textContent = rotulo; document.body.append(fant); document.body.classList.add('arrastando-item'); c.classList.add('arrastando'); raf = requestAnimationFrame(roda); }
+      fant.style.left = e.clientX + 12 + 'px'; fant.style.top = e.clientY + 12 + 'px'; const a = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-solta]') || null; if (a !== alvo) { limpa(); alvo = a; alvo?.classList.add('alvo'); } };
+    const sai = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', cancela); removeEventListener('keydown', tecla, true); cancelAnimationFrame(raf); fant?.remove(); document.body.classList.remove('arrastando-item'); c.classList.remove('arrastando'); };
+    const cancela = () => { const f = fant; limpa(); fant = null; sai(); f?.remove(); }, tecla = e => { if (e.key === 'Escape') { e.stopPropagation(); cancela(); } };
+    const up = () => { const foi = !!fant, g = alvo ? alvo.dataset.solta : null; limpa(); const f = fant; fant = null; sai(); f?.remove(); if (!foi) return;
+      addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true }); setTimeout(() => addEventListener('click', () => { }, { once: true }), 0); if (g != null) aoSoltar(g); };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', cancela); addEventListener('keydown', tecla, true); });
+}
+// JANELA "MOVER PARA PASTA": lista que rola, com busca, no lugar de uma linha por pasta no menu. Devolve o nome da pasta, '' (fora de pastas) ou null (cancelou)
+function escolhePasta(titulo, pastas, atual) { return new Promise(ok => { const lista = [...new Set(pastas)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const m = h(`<div class="modal"><div class="caixa dn-caixa ep-pastas" role="dialog"><div class="dn-cab"><b></b><small>Escolha a pasta.</small></div><div class="dn-corpo">${lista.length > 6 ? '<input type="search" class="dn-txt" data-b placeholder="Procurar pasta">' : ''}<div class="epp-l"></div></div><div class="dn-rod"><button class="bt" data-nova>${ic('mais', 14)} Pasta nova…</button><span class="esp"></span><button class="bt" data-n>Cancelar</button></div></div></div>`);
+  $('.dn-cab b', m).textContent = titulo; const fim = v => { m.remove(); ok(v); }, l = $('.epp-l', m);
+  const pinta = q => { l.replaceChildren(); const item = (nome, v) => { const b = h(`<button class="epp ${v === (atual || '') ? 'on' : ''}">${ic('pasta', 15)}<span></span>${v === (atual || '') ? `<small>aqui agora</small>` : ''}</button>`); $('span', b).textContent = nome; b.disabled = v === (atual || ''); b.onclick = () => fim(v); l.append(b); };
+    item('Fora de pastas', ''); const k = Roteiro.chave(q || ''); for (const g of lista) if (!k || Roteiro.chave(g).includes(k)) item(g, g); };
+  pinta(''); $('[data-b]', m)?.addEventListener('input', e => pinta(e.target.value));
+  $('[data-n]', m).onclick = () => fim(null); m.onclick = e => { if (e.target === m) fim(null); }; m.onkeydown = e => { if (e.key === 'Escape') fim(null); };
+  $('[data-nova]', m).onclick = async () => { const g = await pastaNova(); if (g) fim(g); };
+  document.body.appendChild(m); ($('[data-b]', m) || $('[data-n]', m)).focus(); }); }
 function popMenu(ancora, itens) {
   $$('.dh-menu.pop').forEach(x => x.remove()); const caixa = h('<div class="dh-menu pop" role="menu"></div>');
   const fora = e => { if (!e.target.closest?.('.dh-menu.pop')) fecha(); }, tecla = e => { if (e.key === 'Escape') fecha(); }, fecha = () => { caixa.remove(); removeEventListener('pointerdown', fora, true); removeEventListener('dragstart', fecha, true); removeEventListener('keydown', tecla, true); removeEventListener('blur', fecha); };
-  for (const it of itens) { if (it === '-') { caixa.appendChild(h('<hr>')); continue; } const [rot, marca, fn, off] = it; const b = h(`<button role="menuitem" ${off ? 'disabled' : ''}><span>${rot}</span><small>${esc(marca || '')}</small></button>`); b.onclick = () => { fecha(); fn(); }; caixa.appendChild(b); }
+  for (const it of itens) { if (it === '-') { caixa.appendChild(h('<hr>')); continue; } const [rot, marca, fn, off] = it; const b = h(`<button role="menuitem" class="${off ? 'off' : ''}" ${off ? 'aria-disabled="true"' : ''}><span>${rot}</span><small>${esc(marca || '')}</small></button>`); b.onclick = () => { fecha(); if (!off) fn(); }; caixa.appendChild(b); }
+  caixa.addEventListener('click', e => { if (!e.target.closest('button')) fecha(); }); caixa.addEventListener('contextmenu', e => { e.preventDefault(); fecha(); }); // qualquer clique no menu fecha o menu (opção apagada e espaços também)
   const r = ancora instanceof Event ? { left: ancora.clientX, bottom: ancora.clientY } : ancora.getBoundingClientRect(); document.body.appendChild(caixa); caixa.style.left = Math.min(innerWidth - caixa.offsetWidth - 8, r.left) + 'px'; caixa.style.top = Math.min(innerHeight - caixa.offsetHeight - 8, r.bottom + 4) + 'px';
   setTimeout(() => { if (!caixa.isConnected) return; addEventListener('pointerdown', fora, true); addEventListener('dragstart', fecha, true); addEventListener('keydown', tecla, true); addEventListener('blur', fecha); }, 0);
 }
@@ -615,8 +639,7 @@ function pintaRoteiro(c) {
     $$('[data-pasta]', gr).forEach(b => b.onclick = () => { const k = b.dataset.pasta; fechadas[k] = !fechadas[k]; try { localStorage.setItem('ep-prep-pastas', JSON.stringify(fechadas)); } catch { } b.parentElement.classList.toggle('fechada', !!fechadas[k]); });
     $$('.prow', gr).forEach(r => r.oncontextmenu = e => { e.preventDefault(); const n = $('[data-pers]', r).dataset.pers, g0 = grupoDe(n);
       popMenu(e, [[`${ic('pessoa', 14)} Nova fala de ${esc(n)}`, '', () => E.novaLinha(n + ': '), !ed], '-',
-        ...[...new Set([...GRUPOS_BASE, ...pastas])].map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, g === g0 ? '✓' : '', () => mudaGrupo(n, g), g === g0]),
-        [`${ic('pasta', 14)} Tirar da pasta`, !g0 ? '✓' : '', () => mudaGrupo(n, ''), !g0], [`${ic('mais', 14)} Pasta nova…`, '', async () => { const g = await pastaNova(); if (g) mudaGrupo(n, g); }]]); });
+        [`${ic('pasta', 14)} Mover para pasta…`, g0 || '', async () => { const g = await escolhePasta(`Mover ${n}`, [...GRUPOS_BASE, ...pastas], g0); if (g != null) mudaGrupo(n, g); }]]); });
     $$('[data-pasta]', gr).forEach(b => b.oncontextmenu = e => { e.preventDefault(); const fe = b.parentElement.classList.contains('fechada');
       popMenu(e, [[`${ic('baixo', 14)} ${fe ? 'Abrir a pasta' : 'Fechar a pasta'}`, '', () => b.click()], [`${ic('pessoa', 14)} Organizar as pastas (aba Personagens)`, '', async () => { if (await sairDoPrep()) trocaAba('personagens'); }]]); });
     $$('[data-pmenu]', gr).forEach(b => b.onclick = () => { const n = b.dataset.pmenu, g0 = grupoDe(n);
@@ -1498,7 +1521,7 @@ async function pintaPersonagens() {
   const corP = v => v.cor || corPadrao(v.nome);
   const ordena = E => E.sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
   const moveP = (k, g) => { if (!todos[k] || (todos[k].grupo || '') === (g || '')) return; todos[k] = { ...todos[k], grupo: g || undefined }; pintaL(); manda(k, { grupo: g || null }, g ? `${todos[k].nome} foi para ${g}.` : `${todos[k].nome} saiu da pasta.`); };
-  const cartao = ([k, v]) => `<div class="pc3" data-k="${esc(k)}" style="--c:${corP(v)}" ${ed ? 'draggable="true"' : ''} role="button" tabindex="0" title="Ver ${esc(v.nome)} (cor da legenda, foto, Animador)">${ava(v.nome, corP(v), 'g')}<b>${esc(v.nome)}</b>
+  const cartao = ([k, v]) => `<div class="pc3" data-k="${esc(k)}" style="--c:${corP(v)}" role="button" tabindex="0" title="Ver ${esc(v.nome)} (cor da legenda, foto, Animador)">${ava(v.nome, corP(v), 'g')}<b>${esc(v.nome)}</b>
     <span class="pc3-m"><i class="pc3-cor" title="Cor da legenda"></i>${v.atelie?.id ? `<span class="pc3-at" data-th="${esc(v.atelie.id)}" title="No Animador: ${esc(v.atelie.nome || v.atelie.id)}">${icAt(12)}</span>` : ''}</span></div>`;
   const grade = L => `<div class="pc3-grade">${L.map(cartao).join('')}</div>`;
   const renomeiaPasta = async g => { const ms = membros(g), nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 30)) || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (!nn || nn === g) return;
@@ -1517,15 +1540,11 @@ async function pintaPersonagens() {
   const menuPers = (e, k) => { const v = todos[k];
     popMenu(e, [[`${ic('lapis', 14)} Ver / mudar a cor e o resto…`, '', () => detalhe(k)], [`${ic('camera', 14)} ${v.foto ? 'Trocar a foto…' : 'Pôr uma foto…'}`, '', () => trocaFoto(k), !ed],
       ...(v.foto ? [[`${ic('lixo', 14)} Tirar a foto`, '', () => tiraFoto(k), !ed]] : []), [`${icAt(14)} Padrão no Animador…`, '', () => escolhePadrao(k), !ed], '-',
-      ...listaPastas().map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, (v.grupo || '') === g ? '✓' : '', () => moveP(k, g), !ed || (v.grupo || '') === g]),
-      [`${ic('pasta', 14)} Tirar da pasta`, !v.grupo ? '✓' : '', () => moveP(k, ''), !ed || !v.grupo],
-      [`${ic('mais', 14)} Pasta nova com ${esc(v.nome)}…`, '', async () => { const g = await pastaNova(); if (g) { novas.add(g); moveP(k, g); } }, !ed], '-',
+      [`${ic('pasta', 14)} Mover para pasta…`, v.grupo || '', async () => { const g = await escolhePasta(`Mover ${v.nome}`, listaPastas(), v.grupo || ''); if (g != null) { if (g) novas.add(g); moveP(k, g); } }, !ed], '-',
       [`${ic('lapis', 14)} Renomear…`, '', () => renomeiaPersonagem(k, todos, () => pintaPersonagens()), !ed],
       [`${ic('lixo', 14)} Tirar da lista…`, '', () => apagaPersonagem(k, todos, () => pintaPersonagens()), !ed]]); };
   // solta um personagem (arrastado) em cima de um elemento = vai para a pasta g
-  const alvoSoltar = (alvoEl, g) => { if (!ed) return; alvoEl.ondragover = e => { if (!e.dataTransfer.types.includes('text/pers-prep')) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; alvoEl.classList.add('alvo'); };
-    alvoEl.ondragleave = e => { if (!alvoEl.contains(e.relatedTarget)) alvoEl.classList.remove('alvo'); };
-    alvoEl.ondrop = e => { e.preventDefault(); alvoEl.classList.remove('alvo'); const k = e.dataTransfer.getData('text/pers-prep'); if (k) moveP(k, g); }; };
+  const alvoSoltar = (alvoEl, g) => { if (ed) alvoEl.dataset.solta = g || ''; };
   const pintaL = () => {
     const box = $('.pers-grade', el), E = ordena(Object.entries(todos)), pastas = listaPastas(); if (aberta && !pastas.includes(aberta)) aberta = null;
     if (busca) { const q = Roteiro.chave(busca), L = E.filter(([, v]) => Roteiro.chave(v.nome).includes(q)); box.innerHTML = L.length ? grade(L) : '<div class="vazio">Ninguém com esse nome.</div>'; }
@@ -1541,7 +1560,7 @@ async function pintaPersonagens() {
         ${soltos.length ? `<h3 class="pb-h">Fora de pastas <small>${soltos.length}</small></h3>${grade(soltos)}` : ''}`; }
     // cartões dos personagens: clicar abre os detalhes; arrastar leva para uma pasta
     $$('.pc3', box).forEach(cd => { const k = cd.dataset.k; cd.onclick = () => detalhe(k); cd.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); detalhe(k); } }; cd.oncontextmenu = e => { e.preventDefault(); menuPers(e, k); };
-      cd.ondragstart = e => { e.dataTransfer.setData('text/pers-prep', k); e.dataTransfer.effectAllowed = 'move'; cd.classList.add('arrastando'); }; cd.ondragend = () => cd.classList.remove('arrastando'); });
+      if (ed) { cd.draggable = false; arrastavel(cd, todos[k]?.nome || k, g => moveP(k, g)); } });
     const ths = $$('.pc3-at[data-th]', box); if (ths.length) atelie().then(L => ths.forEach(t => { const x = L.find(y => y.id === t.dataset.th); if (x) thumbDe(x).then(u => { if (u) { t.style.backgroundImage = `url("${u}")`; t.classList.add('com-th'); t.innerHTML = ''; } }); })).catch(() => { });
     $$('.pb-card', box).forEach(c => { const g = c.dataset.pasta; c.onclick = e => { if (e.target.closest('.pb-mn')) return; abre(g); }; c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abre(g); } };
       $('.pb-mn', c).onclick = e => { e.stopPropagation(); menuPasta(e.currentTarget, g); }; c.oncontextmenu = e => { e.preventDefault(); menuPasta(e, g); }; alvoSoltar(c, g); });
