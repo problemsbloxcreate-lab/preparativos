@@ -1783,8 +1783,8 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
   pintaInicio();
 })();
 // SEGURAR E ARRASTAR A PÁGINA (pedido da dona, 09/11/2026): nas telas de lista, com o roteiro fechado. Campos, botões e o que já se arrasta (cartões para as pastas) seguem normais.
-(() => { let ini = null, moveu = false, semClique = false; const NAO = 'input,textarea,select,button,a,label,[contenteditable],[draggable="true"],.dh-menu,.modal,canvas,audio,video';
-  addEventListener('mousedown', e => { if (e.button !== 0 || S.P || !e.target.closest?.('.tela-in') || e.target.closest(NAO)) return; ini = { x: e.clientX, y: e.clientY, sx: scrollX, sy: scrollY }; moveu = false; });
+(() => { let ini = null, moveu = false, semClique = false; const NAO = 'input,textarea,select,button,a,label,[contenteditable],[draggable="true"],.dh-menu,.modal,canvas,audio,video,header,nav,[id^="ep-"]';
+  addEventListener('mousedown', e => { if (e.button !== 0 || S.P || !e.target.closest || e.target.closest(NAO)) return; ini = { x: e.clientX, y: e.clientY, sx: scrollX, sy: scrollY }; moveu = false; });
   const solta = () => { if (moveu) { semClique = true; setTimeout(() => { semClique = false; }, 0); } ini = null; moveu = false; document.body.classList.remove('arrastando-pag'); };
   addEventListener('mousemove', e => { if (!ini) return; if (!e.buttons) return solta(); const dx = e.clientX - ini.x, dy = e.clientY - ini.y; if (!moveu) { if (Math.hypot(dx, dy) < 6) return; moveu = true; document.body.classList.add('arrastando-pag'); getSelection()?.removeAllRanges(); } e.preventDefault(); scrollTo(ini.sx - dx, ini.sy - dy); });
   addEventListener('mouseup', solta); addEventListener('blur', solta);
