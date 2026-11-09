@@ -241,12 +241,13 @@ async function pintaInicio(novo) {
   const pastaDe = x => PR.de[x.it.id] || '', pastas = [...new Set([...PR.ordem, ...Object.values(PR.de)])].filter(Boolean);
   if (pastaRot && !pastas.includes(pastaRot)) pastaRot = null;
   const corpo = $('.rot-corpo', el), grade = arr => { const g = h('<div class="grade"></div>'); for (const x of arr) g.appendChild(liga(x)); return g; };
-  const liga = x => { const c = cartao(x.it, x.onde); c.onclick = async () => { c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } };
+  const liga = x => { const c = cartao(x.it, x.onde); c.onclick = async () => { $$('.dh-menu.pop').forEach(y => y.remove()); c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } };
     if (ed) { c.draggable = true; c.ondragstart = e => { e.dataTransfer.setData('text/rot-prep', x.it.id); e.dataTransfer.effectAllowed = 'move'; c.classList.add('arrastando'); }; c.ondragend = () => c.classList.remove('arrastando'); }
     c.oncontextmenu = e => { if (!ed) return; e.preventDefault(); const atual = pastaDe(x);
       popMenu(e, [...(x.onde === 'nuvem' || x.onde === 'uso' ? [[`${ic('pc', 14)} Tirar da nuvem e manter neste computador…`, '', () => tiraDaNuvem(x.it.id)], '-'] : []),...pastas.map(g => [`${ic('pasta', 14)} Mover para ${esc(g)}`, atual === g ? '✓' : '', () => mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`), atual === g]),
         [`${ic('pasta', 14)} Tirar da pasta`, !atual ? '✓' : '', () => mudaPastasRot({ mover: { [x.it.id]: null } }, 'Saiu da pasta.'), !atual],
-        [`${ic('mais', 14)} Pasta nova com este roteiro…`, '', async () => { const g = await pastaNova(); if (g) mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`); }]]); };
+        [`${ic('mais', 14)} Pasta nova com este roteiro…`, '', async () => { const g = await pastaNova(); if (g) mudaPastasRot({ mover: { [x.it.id]: g } }, `"${x.it.nome || 'Roteiro'}" foi para ${g}.`); }], '-',
+        [`${ic('lixo', 14)} Apagar roteiro…`, '', () => apagaRoteiro(x.it, x.onde)]]); };
     return c; };
   const alvo = (a, g) => { if (!ed) return; a.ondragover = e => { if (!e.dataTransfer.types.includes('text/rot-prep')) return; e.preventDefault(); a.classList.add('alvo'); }; a.ondragleave = e => { if (!a.contains(e.relatedTarget)) a.classList.remove('alvo'); };
     a.ondrop = e => { e.preventDefault(); a.classList.remove('alvo'); const id = e.dataTransfer.getData('text/rot-prep'); if (!id || (PR.de[id] || '') === (g || '')) return; mudaPastasRot({ mover: { [id]: g || null } }, g ? `Foi para ${g}.` : 'Saiu da pasta.'); }; };
@@ -551,9 +552,10 @@ function arrastaMargem(ev, lado, c) {
 // um menuzinho no lugar do clique (pastas dos personagens, organização)
 function popMenu(ancora, itens) {
   $$('.dh-menu.pop').forEach(x => x.remove()); const caixa = h('<div class="dh-menu pop" role="menu"></div>');
-  for (const it of itens) { if (it === '-') { caixa.appendChild(h('<hr>')); continue; } const [rot, marca, fn, off] = it; const b = h(`<button role="menuitem" ${off ? 'disabled' : ''}><span>${rot}</span><small>${esc(marca || '')}</small></button>`); b.onclick = () => { caixa.remove(); fn(); }; caixa.appendChild(b); }
+  const fora = e => { if (!e.target.closest?.('.dh-menu.pop')) fecha(); }, tecla = e => { if (e.key === 'Escape') fecha(); }, fecha = () => { caixa.remove(); removeEventListener('pointerdown', fora, true); removeEventListener('dragstart', fecha, true); removeEventListener('keydown', tecla, true); removeEventListener('blur', fecha); };
+  for (const it of itens) { if (it === '-') { caixa.appendChild(h('<hr>')); continue; } const [rot, marca, fn, off] = it; const b = h(`<button role="menuitem" ${off ? 'disabled' : ''}><span>${rot}</span><small>${esc(marca || '')}</small></button>`); b.onclick = () => { fecha(); fn(); }; caixa.appendChild(b); }
   const r = ancora instanceof Event ? { left: ancora.clientX, bottom: ancora.clientY } : ancora.getBoundingClientRect(); document.body.appendChild(caixa); caixa.style.left = Math.min(innerWidth - caixa.offsetWidth - 8, r.left) + 'px'; caixa.style.top = Math.min(innerHeight - caixa.offsetHeight - 8, r.bottom + 4) + 'px';
-  setTimeout(() => addEventListener('mousedown', function fora(e) { if (!e.target.closest('.dh-menu.pop')) { caixa.remove(); removeEventListener('mousedown', fora); } }), 0);
+  setTimeout(() => { if (!caixa.isConnected) return; addEventListener('pointerdown', fora, true); addEventListener('dragstart', fecha, true); addEventListener('keydown', tecla, true); addEventListener('blur', fecha); }, 0);
 }
 // muda a pasta de um personagem: na organização deste roteiro (P.org) ou na da equipe (personagens.json)
 async function mudaGrupo(nome, grupo) {
@@ -829,6 +831,18 @@ const Dub = {
 /* ---------- TIRAR DA NUVEM E MANTER NESTE COMPUTADOR (pedido da dona via Animador, 06/11) ----------
    Sempre pergunta (avisa se um programa já usou). PRIMEIRO guarda a cópia local com os áudios (rascunho + gravações deste computador,
    aparece em "Neste computador"); SÓ ENTÃO apaga da nuvem. Se apagar falhar, a cópia local sai (para não ficar duplicado). */
+// APAGAR PELO BOTÃO DIREITO (pedido da dona, 09/11/2026): sempre pergunta antes. Na nuvem, o servidor só deixa quem criou o roteiro ou um ADM.
+async function apagaRoteiro(it, onde) {
+  if (!pode('roteiro')) return aviso('Sua conta não pode mudar roteiros.', 'erro');
+  const naNuvem = onde !== 'pc', usos = it.uso || [], nome = it.nome || 'Roteiro';
+  const ok = await confirmaHtml('Apagar este roteiro?', `<p>"${esc(nome)}" e os áudios gravados nele serão apagados ${naNuvem ? 'da nuvem, para a equipe inteira' : 'deste computador'}. Não dá para desfazer.</p>
+    ${usos.length ? `<p class="aten-box">${ic('alerta', 15)} Já foi usado: <b>${esc(usos.map(u => DESTINOS[u] || u).join(', '))}</b>. Esses programas não vão mais achar o roteiro.</p>` : ''}`, 'Apagar', true);
+  if (!ok) return;
+  if (naNuvem) { try { await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(`preparativos/${it.id}/`), { method: 'DELETE' }); } catch (e) { return aviso('Não apaguei: ' + e.message, 'erro', 6000); } }
+  await DB.del('rasc', it.id).catch(() => { }); await DB.op('aud', 'readwrite', s => s.delete(IDBKeyRange.bound(it.id + '/', it.id + '/\uffff'))).catch(() => { });
+  if (S.pastasR?.de?.[it.id]) { try { const r = await Nuvem.acao({ acao: 'pastas', mover: { [it.id]: null } }); S.pastasR = r.pastas || S.pastasR; } catch { } }
+  S.lista = null; aviso(`"${nome}" foi apagado.`, 'ok'); if (!S.P) pintaInicio(true);
+}
 async function tiraDaNuvem(id) {
   if (!pode('roteiro')) return aviso('Sua conta não pode mudar roteiros.', 'erro');
   let P; try { P = S.P?.id === id && S.P.mod && !S.P.novo ? JSON.parse(JSON.stringify(S.P)) : await Nuvem.abre(id); } catch (e) { return aviso(e.message, 'erro'); }
@@ -1767,4 +1781,12 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
     catch (e) { const r = await DB.get('rasc', id).catch(() => null); if (r?.P) { history.replaceState(null, '', './?id=' + encodeURIComponent(id)); return abrePrep(r.P, r.base, true); } msg = e.status === 404 ? 'Esse roteiro não existe mais (foi apagado).' : e.message; }
     history.replaceState(null, '', './'); pintaInicio(); return aviso(msg, 'erro', 7000); }
   pintaInicio();
+})();
+// SEGURAR E ARRASTAR A PÁGINA (pedido da dona, 09/11/2026): nas telas de lista, com o roteiro fechado. Campos, botões e o que já se arrasta (cartões para as pastas) seguem normais.
+(() => { let ini = null, moveu = false, semClique = false; const NAO = 'input,textarea,select,button,a,label,[contenteditable],[draggable="true"],.dh-menu,.modal,canvas,audio,video';
+  addEventListener('mousedown', e => { if (e.button !== 0 || S.P || !e.target.closest?.('.tela-in') || e.target.closest(NAO)) return; ini = { x: e.clientX, y: e.clientY, sx: scrollX, sy: scrollY }; moveu = false; });
+  const solta = () => { if (moveu) { semClique = true; setTimeout(() => { semClique = false; }, 0); } ini = null; moveu = false; document.body.classList.remove('arrastando-pag'); };
+  addEventListener('mousemove', e => { if (!ini) return; if (!e.buttons) return solta(); const dx = e.clientX - ini.x, dy = e.clientY - ini.y; if (!moveu) { if (Math.hypot(dx, dy) < 6) return; moveu = true; document.body.classList.add('arrastando-pag'); getSelection()?.removeAllRanges(); } e.preventDefault(); scrollTo(ini.sx - dx, ini.sy - dy); });
+  addEventListener('mouseup', solta); addEventListener('blur', solta);
+  addEventListener('click', e => { if (semClique) { e.stopPropagation(); e.preventDefault(); semClique = false; } }, true);
 })();

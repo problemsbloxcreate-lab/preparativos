@@ -1149,3 +1149,4 @@ body.modo-doc.sem-guias .corpo.corpo-falas>.falas{max-width:none}
 .conta3{position:fixed;inset:0;z-index:300;display:grid;place-items:center;background:rgba(0,0,0,.55);pointer-events:none}.conta3 b{font:200 140px/1 "Segoe UI Light","Segoe UI",sans-serif;color:#fff}
 
 .fala .dica-v .de-quem{display:inline-flex;align-items:center;gap:6px;margin-left:6px;color:var(--text)}.fala .dica-v select{background:#2b2b2b;color:var(--text);border:1px solid #444;padding:3px 6px;font-size:12.5px}
+body.arrastando-pag,body.arrastando-pag *{cursor:grabbing!important;user-select:none}
