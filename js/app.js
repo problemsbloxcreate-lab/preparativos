@@ -560,7 +560,7 @@ function arrastavel(c, rotulo, aoSoltar) {
     const sai = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', cancela); removeEventListener('keydown', tecla, true); cancelAnimationFrame(raf); fant?.remove(); document.body.classList.remove('arrastando-item'); c.classList.remove('arrastando'); };
     const cancela = () => { const f = fant; limpa(); fant = null; sai(); f?.remove(); }, tecla = e => { if (e.key === 'Escape') { e.stopPropagation(); cancela(); } };
     const up = () => { const foi = !!fant, g = alvo ? alvo.dataset.solta : null; limpa(); const f = fant; fant = null; sai(); f?.remove(); if (!foi) return;
-      addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true }); setTimeout(() => addEventListener('click', () => { }, { once: true }), 0); if (g != null) aoSoltar(g); };
+      const trava = ev => { ev.stopPropagation(); ev.preventDefault(); removeEventListener('click', trava, true); }; addEventListener('click', trava, true); setTimeout(() => removeEventListener('click', trava, true), 60); if (g != null) aoSoltar(g); }; // o clique que vem junto com o soltar não abre o cartão (e não pode sobrar para o próximo clique)
     addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', cancela); addEventListener('keydown', tecla, true); });
 }
 // JANELA "MOVER PARA PASTA": lista que rola, com busca, no lugar de uma linha por pasta no menu. Devolve o nome da pasta, '' (fora de pastas) ou null (cancelou)
