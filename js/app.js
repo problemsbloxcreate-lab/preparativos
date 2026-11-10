@@ -41,6 +41,11 @@ const ic = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" f
 
 /* ---------- avisos ---------- */
 function aviso(t, tipo = 'info', ms = 4200) { const el = h(`<div class="aviso ${tipo}">${esc(t)}</div>`); $('#avisos').appendChild(el); setTimeout(() => { el.classList.add('sai'); setTimeout(() => el.remove(), 300); }, ms); }
+// canal do YouTube do roteiro: devolve { id, nome }, '' (sem canal) ou null (cancelou)
+async function escolheCanalYt(P) {
+  const id = await pergunta('Em qual canal vai sair?', `O vídeo deste roteiro vai para este canal do YouTube.${P.destino === 'shorts' ? ' Os Shorts não têm canal padrão.' : ''}`, [...PREP_CONFIG.canais.map(c => [c.nome, c.id, P.canal?.id === c.id ? 'pri' : '']), ['Sem canal', ''], ['Cancelar', null]]);
+  return id === null ? null : PREP_CONFIG.canais.find(c => c.id === id) || '';
+}
 function pergunta(titulo, msg, botoes) {
   return new Promise(ok => { const el = h(`<div class="modal"><div class="caixa"><b>${esc(titulo)}</b><p>${esc(msg)}</p><div class="bts"></div></div></div>`);
     for (const [rot, val, cls] of botoes) { const b = h(`<button class="bt ${cls || ''}">${esc(rot)}</button>`); b.onclick = () => { el.remove(); ok(val); }; $('.bts', el).appendChild(b); }
@@ -117,7 +122,7 @@ function novoPrep(nome = 'Roteiro novo', texto = '') {
 // rascunho deste navegador (guardado a cada mudança, sem gastar a nuvem). "Trabalhar junto" (P.junto) manda sozinho 20 s depois da última mudança.
 let tGuarda = 0, tJunto = 0, ultAuto = 0;
 // o que conta como mudança: o conteúdo do roteiro (não a hora, o autor etc.). S.marco = como estava ao abrir / no último envio.
-const assinatura = P => P ? JSON.stringify([P.nome, (P.roteiro || '').trim(), P.destino, P.status, P.legenda, P.pagina, P.org, P.animador]) : '';
+const assinatura = P => P ? JSON.stringify([P.nome, (P.roteiro || '').trim(), P.destino, P.canal, P.status, P.legenda, P.pagina, P.org, P.animador]) : '';
 const prepVazio = P => !!P?.novo && !(P.roteiro || '').trim();
 // só pergunta ao sair se há mudança de verdade ainda não mandada para a nuvem
 function mudouDeVerdade() { const P = S.P; if (!P || !S.sujo) return false; if (P.novo) return !prepVazio(P); return S.marco == null || assinatura(P) !== S.marco; }
@@ -293,7 +298,7 @@ function cartao(it, onde) {
     <div class="elenco">${pers.slice(0, 6).map(p => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
     <div class="quem-c" data-quem-orig="${esc(quemHtml(autor, eds, true))}">${quemHtml(autor, eds, true)}</div>
     ${uso.length ? `<div class="usos">${uso.map(u => `<span class="uso">${progIc(u, 16)} usado no ${esc(DESTINOS[u] || u)}</span>`).join('')}</div>` : ''}
-    <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
+    <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${it.canal ? `canal ${esc(it.canal)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
 }
 
 /* ---------- um preparativo ---------- */
@@ -370,6 +375,7 @@ function pintaPrep() {
       <span class="esp"></span>
       <div class="quem-doc"><div class="aovivo-doc"></div><button class="g-mini" data-hist title="Quem criou e quem editou">${ic('relogio', 18)}</button></div>
       <div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 20)}</button>`).join('')}</div>
+      <button class="dh-canal${P.canal ? '' : ' sem'}" data-canal-yt ${pp ? '' : 'disabled'} title="Canal do YouTube em que o vídeo vai sair">${P.canal ? esc(P.canal.nome) : 'Canal?'}</button>
       <span class="enviar"></span>
       <span class="dh-conta"></span>
     </header>
@@ -401,20 +407,25 @@ function pintaPrep() {
       const falta = P.partes.reduce((s, p) => s + p.falas.filter(f => !f.audio).length, 0);
       if (falta && !await pergunta('Ainda faltam gravações', `${falta} fala${falta === 1 ? ' está' : 's estão'} sem áudio. Marcar como pronto mesmo assim?`, [['Voltar', false], ['Marcar pronto', true, 'pri']])) return;
     }
+    // Criar Shorts não tem canal padrão: ao marcar pronto, pergunta o canal
+    if (campo === 'status' && v === 'pronto' && !P.canal) { const pd = PREP_CONFIG.canais.find(c => c.id === PREP_CONFIG.canalPadrao[P.destino]); const c = pd || await escolheCanalYt(P); if (c === null) return; P.canal = c || null; }
     P[campo] = v || null; if (campo === 'status') P.status = v || 'rascunho';
-    const dest = DESTINOS[P.destino] || P.destino, msg = campo !== 'status' ? (P.destino ? `Vai para o ${dest}.` : 'Sem destino.') : v === 'pronto' ? `Pronto! Já aparece para o ${dest} usar.` : v === 'gravando' ? 'Hora de gravar: cada pessoa escolhe o seu personagem e grava as falas dele.' : 'Voltou para rascunho: ainda está sendo escrito.';
+    // escolher o destino põe o canal padrão dele (Animador → Turma do Problems, Editor → Problems), se ainda não tiver canal
+    if (campo === 'destino' && v && !P.canal && PREP_CONFIG.canalPadrao[v]) P.canal = PREP_CONFIG.canais.find(c => c.id === PREP_CONFIG.canalPadrao[v]) || null;
+    const dest = DESTINOS[P.destino] || P.destino, msg = campo === 'canal' ? (P.canal ? `Vai sair no canal ${P.canal.nome}.` : 'Sem canal escolhido.') : campo !== 'status' ? (P.destino ? `Vai para o ${dest}${P.canal ? ` · canal ${P.canal.nome}` : ''}.` : 'Sem destino.') : v === 'pronto' ? `Pronto! Já aparece para o ${dest} usar.` : v === 'gravando' ? 'Hora de gravar: cada pessoa escolhe o seu personagem e grava as falas dele.' : 'Voltou para rascunho: ainda está sendo escrito.';
     if (campo === 'status' && v === 'gravando') S.sub = 'falas';
     if (P.novo || S.sujo) {
       if (campo === 'status' && (v === 'gravando' || v === 'pronto')) { // gravar e ir para o programa precisam da nuvem
         if (!await pergunta(v === 'pronto' ? 'Mandar para a nuvem?' : 'Mandar para a nuvem para gravar?', v === 'pronto' ? `Para o ${dest} usar, o roteiro precisa estar na nuvem.` : 'Cada pessoa grava pelo próprio computador, então o roteiro precisa estar na nuvem.', [['Agora não', false], ['Mandar', true, 'pri']])) { P.status = antes; S.sub = S.sub === 'falas' && antes !== 'gravando' ? 'roteiro' : S.sub; return pintaPrep(); }
         await salvaPrep(null, true); if (!S.sujo) aviso(msg + ' Já está na nuvem.', 'ok', 5500); return pintaPrep(); }
       marcaSujo(); aviso(msg + ' (vai junto quando mandar para a nuvem)', 'info', 5500); return pintaPrep(); } // vai junto quando mandar para a nuvem
-    try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, destino: P.destino, status: P.status }); P.mod = r.mod || P.mod; S.base.mod = P.mod; aviso(msg, 'ok', 5500); S.lista = null; }
+    try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, destino: P.destino, canal: P.canal || null, status: P.status }); P.mod = r.mod || P.mod; S.base.mod = P.mod; aviso(msg, 'ok', 5500); S.lista = null; }
     catch (e) { aviso(e.message, 'erro'); }
     pintaPrep();
   };
   $$('[data-destino]', el).forEach(b => b.onclick = () => mudaMarca('destino', P.destino === b.dataset.destino ? '' : b.dataset.destino));
   $$('[data-status]', el).forEach(b => b.onclick = () => mudaMarca('status', b.dataset.status));
+  const bc = $('[data-canal-yt]', el); if (bc) bc.onclick = async () => { const c = await escolheCanalYt(P); if (c !== null && (c?.id || '') !== (P.canal?.id || '')) mudaMarca('canal', c); };
   $$('.dh-guias [data-sub]', el).forEach(b => b.onclick = () => irGuia(b.dataset.sub)); marcaGuias();
   const E = () => S.sub === 'roteiro' ? S.ed : null, edita = pode('roteiro');
   const naFolha = fn => () => { if (S.sub !== 'roteiro') irGuia('roteiro'); setTimeout(() => S.ed && fn(S.ed), 0); };

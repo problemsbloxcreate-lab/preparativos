@@ -72,6 +72,7 @@ das outras rotas). Chaves na nuvem da equipe:
   "id": "prm3k9x2ab",                    // [A-Za-z0-9_-]{2,40}
   "nome": "Episódio 1",
   "destino": "animador",                // "animador" | "shorts" | "editor" | null
+  "canal": { "id": "UC…", "nome": "Turma do Problems" }, // canal do YouTube em que sai (10/11/2026) ou null; Animador → Turma do Problems e Editor → Problems sozinhos, Shorts escolhe
   "status": "pronto",                    // "rascunho" | "gravando" | "pronto"
   "roteiro": "# Episódio 1\n## Parte 1\nProblems: Oi!\n…",   // o texto como foi escrito
   "partes": [

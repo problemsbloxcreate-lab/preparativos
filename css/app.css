@@ -198,6 +198,9 @@ body.modo-doc main{max-width:none;padding:0}
 .dh-menu .ava{box-shadow:none}
 .dh .destinos,.dh .etapas{background:var(--panel-2);border:0;border-radius:99px;padding:3px}
 .dh .destinos button{border-radius:50%;padding:5px}.dh .destinos button.on{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+/* canal do YouTube do roteiro (10/11/2026), ao lado do destino */
+.dh-canal{border:0;background:var(--panel-2);color:var(--text);padding:7px 12px;font-size:12.5px;white-space:nowrap;cursor:pointer;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.dh-canal:hover:not(:disabled){background:var(--panel-3)}.dh-canal.sem{color:var(--aten)}.dh-canal:disabled{cursor:default;opacity:.7}
 .dh .etapas button{border-radius:99px;padding:5px 10px}.dh .etapas button.on{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
 .dh .etapas button.feito{color:var(--ok)}
 .pilula{display:inline-flex;align-items:center;gap:8px;border-radius:99px;padding:9px 18px;font-size:14px;font-weight:500}
