@@ -935,7 +935,15 @@ body:not(.modo-doc) .bt.pri:hover{filter:brightness(1.06)}
 @media (max-width:560px){.pd-2{grid-template-columns:1fr}.pd-at-l{flex-direction:column}}
 /* tela de Roteiros com pastas (06/11) */
 .rot-corpo{margin-top:6px}.rot-corpo .grade{margin-top:0;margin-bottom:8px}
-.pb-prev-r{flex-direction:column;gap:5px;align-items:center}.pb-prev-r .st{font-size:11px;padding:1px 8px;display:inline-flex;align-items:center;gap:4px}
+/* capa da pasta de roteiros (10/11): folhinhas dos roteiros lado a lado; a faixa de baixo e o ícone mostram a situação */
+.pb-prev-r{gap:0;align-items:flex-end;padding-top:12px;overflow:hidden}
+.pb-folha{position:relative;width:46px;height:62px;margin-left:-8px;background:#2e3036;border:1px solid #45484f;border-bottom:3px solid #8a8f9a;display:flex;flex-direction:column;gap:5px;padding:9px 7px 0;box-sizing:border-box;transition:transform .12s}
+.pb-folha:first-child{margin-left:0}.pb-folha:nth-child(2){transform:translateY(-4px)}.pb-folha:nth-child(3){transform:translateY(-8px)}
+.pb-folha i{display:block;height:2px;background:#5a5e67}.pb-folha i:nth-child(2){width:70%}.pb-folha i:nth-child(4){width:55%}
+.pb-folha em{position:absolute;right:3px;bottom:3px;display:flex;color:#8a8f9a}
+.pb-folha.st-gravando{border-bottom-color:var(--marca,#ffcc4d)}.pb-folha.st-gravando em{color:var(--marca,#ffcc4d)}
+.pb-folha.st-pronto{border-bottom-color:var(--verde,#4fe08f)}.pb-folha.st-pronto em{color:var(--verde,#4fe08f)}
+.pb-card:hover .pb-folha{transform:none}
 .cartao.arrastando{opacity:.4}.cartao[draggable=true]{cursor:pointer}
 
 /* links de dublagem (06/11) */
