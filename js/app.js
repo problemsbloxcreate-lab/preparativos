@@ -1508,8 +1508,10 @@ async function pintaPersonagens() {
     <input type="file" accept="image/*" data-arq hidden></section>`;
   try { await carregaPers(true); if (!S.lista) S.lista = (await Nuvem.lista().catch(() => ({ itens: [] }))).itens || []; if (S.P || S.aba !== 'personagens' || !el.isConnected) return; } catch (e) { $('.pers-grade', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
   // os da equipe + os que aparecem nos roteiros e ainda não entraram na lista (ex.: roteiro só neste computador)
-  const todos = { ...S.pers }; for (const it of S.lista) for (const n of it.pers || []) { const k = Roteiro.chave(n); if (!todos[k]) todos[k] = { nome: n, _fora: 1 }; }
-  try { for (const [, v] of await DB.todos('rasc')) for (const p of Roteiro.personagens(v?.P?.partes)) if (!todos[p.chave]) todos[p.chave] = { nome: p.nome, _fora: 1 }; } catch { }
+  // "Stick e Problems" (fala de vários) NÃO é um personagem: fica de fora quando cada nome já existe sozinho (pedido da dona, 10/11)
+  const todos = { ...S.pers }, eVarios = n => { const ps = String(n).split(Roteiro.SEP).map(x => x.trim()).filter(Boolean); return ps.length > 1 && ps.every(x => todos[Roteiro.chave(x)]); };
+  for (const it of S.lista) for (const n of it.pers || []) { const k = Roteiro.chave(n); if (!todos[k] && !eVarios(n)) todos[k] = { nome: n, _fora: 1 }; }
+  try { for (const [, v] of await DB.todos('rasc')) for (const p of Roteiro.personagens(v?.P?.partes)) if (!todos[p.chave] && !eVarios(p.nome)) todos[p.chave] = { nome: p.nome, _fora: 1 }; } catch { }
   const ed = pode('organizar'), arq = $('[data-arq]', el), novas = new Set(); let alvo = null, fechadas = {};
   try { fechadas = JSON.parse(localStorage.getItem('ep-prep-pastas-aba') || '{}'); } catch { }
   const manda = async (k, mudas, msg) => { try { const r = await Nuvem.acao({ acao: 'personagens', itens: { [k]: { nome: todos[k]?.nome || k, ...mudas } } }); S.pers = r.personagens || S.pers; Object.assign(todos, S.pers); if (msg) aviso(msg, 'ok'); pintaL(); } catch (e) { aviso(e.message, 'erro'); } };
