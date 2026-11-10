@@ -317,6 +317,17 @@ async function abrePrep(P, base, semHist) {
   { const u = './?id=' + encodeURIComponent(P.id); if (new URLSearchParams(location.search).get('id') !== P.id) history[semHist ? 'replaceState' : 'pushState'](null, '', u); } pintaPrep();
   carregaPers().catch(() => { }).then(() => Varios.confere()); // "Stick e Bob" com nome desconhecido: pergunta já ao abrir
 }
+// QUEM MEXEU (10/11, pedido da dona: "só o relógio não faz sentido"): o botão mostra as fotos de quem criou/editou e quando foi a última mudança
+function histBotao(P) { const L = [P.autor, ...(P.edicoes || []).slice().reverse()].filter(Boolean), vistos = new Set(), gente = [];
+  for (const x of L) { const k = x.id || x.i || x.nome || x.n; if (!vistos.has(k)) { vistos.add(k); gente.push(x); } }
+  const ult = (P.edicoes || []).at(-1)?.em || P.autor?.em;
+  return gente.length ? `<span class="hq-fotos">${gente.slice(0, 3).map(x => pava(x, 'p')).join('')}</span><span class="hq-t">${ult ? 'editado ' + esc(quando(ult)) : 'quem mexeu'}</span>` : `${ic('relogio', 15)}<span class="hq-t">Histórico</span>`; }
+// NOME DO ROTEIRO NO CABEÇALHO (10/11, pedido da dona: "o texto fica cortando"): a caixa cresce do tamanho do texto MEDIDO
+// (o size= contava letras e cortava as maiúsculas); se mesmo assim não couber, o fim vai sumindo (classe .corta) e o nome todo fica no title
+let medeNome = null;
+function ajustaNome(nm) { if (!nm) return; medeNome = medeNome || document.createElement('canvas').getContext('2d'); const cs = getComputedStyle(nm);
+  medeNome.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; const w = Math.ceil(medeNome.measureText(nm.value || ' ').width) + 18;
+  nm.style.width = Math.max(90, w) + 'px'; nm.title = nm.value; requestAnimationFrame(() => nm.classList.toggle('corta', nm.scrollWidth > nm.clientWidth + 1)); }
 // MODO DOCUMENTO (pedido da dona, 05/11/2026): com um roteiro aberto a tela inteira vira um editor de documento, com UM cabeçalho só
 // (o do Preparativos some e o botão da conta /estudio-conta.js vem para o canto deste)
 let contaOrig = null;
@@ -373,9 +384,9 @@ function pintaPrep() {
         <nav class="dh-menus"></nav>
       </div>
       <span class="esp"></span>
-      <div class="quem-doc"><div class="aovivo-doc"></div><button class="g-mini" data-hist title="Quem criou e quem editou">${ic('relogio', 18)}</button></div>
-      <div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 20)}</button>`).join('')}</div>
-      <button class="dh-canal${P.canal ? '' : ' sem'}" data-canal-yt ${pp ? '' : 'disabled'} title="Canal do YouTube em que o vídeo vai sair">${P.canal ? esc(P.canal.nome) : 'Canal?'}</button>
+      <div class="quem-doc"><div class="aovivo-doc"></div><button class="dh-hist" data-hist title="Quem criou e quem editou">${histBotao(P)}</button></div>
+      <div class="dh-vai"><span class="dv-l">vai para</span><div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 18)}</button>`).join('')}</div>
+      <button class="dh-canal${P.canal ? '' : ' sem'}" data-canal-yt ${pp ? '' : 'disabled'} title="Canal do YouTube em que o vídeo vai sair${P.canal ? ': ' + esc(P.canal.nome) : ''}">${ic('play', 13)}<span>${P.canal ? esc(P.canal.nome) : 'Escolher canal'}</span></button></div>
       <span class="enviar"></span>
       <span class="dh-conta"></span>
     </header>
@@ -398,7 +409,9 @@ function pintaPrep() {
     document.body.appendChild(pop); const r = b.getBoundingClientRect(); pop.style.left = Math.max(8, r.right - pop.offsetWidth) + 'px'; pop.style.top = r.bottom + 6 + 'px';
     setTimeout(() => addEventListener('mousedown', function f(ev) { if (!ev.target.closest('.hist-pop')) { pop.remove(); removeEventListener('mousedown', f); } }), 0); };
   $('[data-volta]', el).onclick = () => sairDoPrep();
-  const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); nm.size = Math.max(8, Math.min(40, nm.value.length + 1)); marcaSujo(); };
+  const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); ajustaNome(nm); marcaSujo(); };
+  ajustaNome(nm); requestAnimationFrame(() => ajustaNome(nm)); document.fonts?.ready?.then(() => ajustaNome(nm));
+  if (!S.ajNome) { S.ajNome = true; addEventListener('resize', () => { const n = $('.dh .nome'); if (n) ajustaNome(n); }); }
   nm.onkeydown = e => { if (e.key === 'Enter') { nm.blur(); S.ed?.foca(); } };
   const mudaMarca = S.mudaMarca = async (campo, v) => {
     if (campo === 'status' && v === P.status) return; const antes = P.status;
