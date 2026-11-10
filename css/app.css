@@ -1290,3 +1290,4 @@ body:not(.modo-doc) .vazio:not(.carregando):not(.erro)::before{width:34px;height
 .dh .dh-hist{display:flex;align-items:center;gap:8px;height:34px;border:0;background:none;color:var(--muted);padding:0 10px;font-size:12.5px;white-space:nowrap;border-radius:0!important;cursor:pointer}
 .dh .dh-hist:hover{background:var(--panel-2);color:var(--text)}
 .dh .dh-hist .hq-fotos{display:flex;align-items:center}.dh .dh-hist .hq-fotos .pava{width:24px!important;height:24px!important;margin-left:-7px;box-shadow:0 0 0 2px var(--bg)}.dh .dh-hist .hq-fotos .pava:first-child{margin-left:0}
+.dh .enviar .pilula,.dh .enviar .bt{border-radius:0!important;height:34px;box-sizing:border-box;display:inline-flex;align-items:center}
