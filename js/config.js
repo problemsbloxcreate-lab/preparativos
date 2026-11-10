@@ -4,7 +4,7 @@ const PREP_CONFIG = {
   // servidor da equipe (Cloudflare, turma-ia): rotas /preparativos, /preparativos/arquivo, /preparativos/acao e /ideias
   servidor: 'https://turma-ia.problemsraiz.workers.dev',
   // para onde o preparativo vai depois de pronto
-  destinos: [['animador', 'Animador'], ['shorts', 'Criar Shorts'], ['editor', 'Editar vídeos']],
+  destinos: [['animador', 'Animador'], ['shorts', 'Criar Shorts'], ['editor', 'Editor']],
   status: [['rascunho', 'Rascunho'], ['gravando', 'Gravando'], ['pronto', 'Pronto']],
   // canal do YouTube em que o vídeo vai sair (pedido da dona, 10/11/2026; o Publicações usa os mesmos). IDs públicos dos canais.
   canais: [{ id: 'UC3V4c447QO0zEyTJlsqqSWQ', nome: 'Turma do Problems' }, { id: 'UCrcBZDofBltcgGxphNia2tw', nome: 'Problems' }],
