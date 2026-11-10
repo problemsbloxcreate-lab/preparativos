@@ -266,7 +266,7 @@ async function pintaInicio(novo) {
   } else {
     const fora = L.filter(x => !pastaDe(x) || !pastas.includes(pastaDe(x)));
     if (L.length > 6) { corpo.appendChild(h(`<h3 class="pb-h">Continuar de onde parou</h3>`)); corpo.appendChild(grade(L.slice(0, 4))); }
-    if (pastas.length) { corpo.appendChild(h(`<h3 class="pb-h">Pastas <small>clique para abrir · arraste um roteiro para cima de uma pasta</small></h3>`));
+    if (pastas.length) { corpo.appendChild(h(`<h3 class="pb-h" title="Clique para abrir · arraste um roteiro para cima de uma pasta">Pastas <small>${pastas.length}</small></h3>`));
       const cards = h('<div class="pb-cards"></div>');
       for (const g of pastas) { const D = L.filter(x => pastaDe(x) === g), tot = todos.filter(x => pastaDe(x) === g).length, c = h(`<div class="pb-card" role="button" tabindex="0" title="Abrir a pasta · botão direito: opções"><div class="pb-prev pb-prev-r">${D.slice(0, 3).map(x => { const st = x.it.status || 'rascunho'; return `<span class="pb-folha st-${esc(st)}" title="${esc((x.it.nome || 'Sem nome') + ' · ' + (STATUS[st] || ''))}"><i></i><i></i><i></i><i></i><em>${ic(ST_IC[st] || 'lapis', 11)}</em></span>`; }).join('') || `<span class="pb-vz">${ic('pasta', 34)}</span>`}</div>
           <div class="pb-info"><b>${esc(g)}</b><small>${D.length}${D.length !== tot ? ' de ' + tot : ''}</small>${ed ? `<button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button>` : ''}</div><small class="pb-desc">${D.length ? esc(D.slice(0, 3).map(x => x.it.nome || 'Sem nome').join(', ') + (D.length > 3 ? '…' : '')) : tot ? 'Nada com esses filtros' : 'Pasta vazia'}</small></div>`);
@@ -295,8 +295,8 @@ function cartao(it, onde) {
   return h(`<button class="cartao ${esc(st)}" data-id="${esc(it.id || '')}" data-vivo="${esc(it.id || '')}"><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
     <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div></div>
     <div class="grav ${n && g === n ? 'todas' : ''}" title="${g} de ${n} falas já têm áudio gravado">${ic(n && g === n ? 'ok' : 'mic', 14)}<span>${!n ? 'ainda sem falas' : g === n ? 'todas as falas gravadas' : `<b>${g}</b> de <b>${n}</b> falas gravadas`}</span><div class="barra"><i style="width:${pct}%"></i></div></div>
-    <div class="elenco">${pers.slice(0, 6).map(p => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
-    <div class="quem-c" data-quem-orig="${esc(quemHtml(autor, eds, true))}">${quemHtml(autor, eds, true)}</div>
+    <div class="rodape"><div class="elenco">${pers.slice(0, 6).map(p => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
+    <div class="quem-c" data-quem-orig="${esc(quemHtml(autor, eds, true))}">${quemHtml(autor, eds, true)}</div></div>
     ${uso.length ? `<div class="usos">${uso.map(u => `<span class="uso">${progIc(u, 16)} usado no ${esc(DESTINOS[u] || u)}</span>`).join('')}</div>` : ''}
     <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${it.canal ? `canal ${esc(it.canal)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
 }
@@ -1533,7 +1533,7 @@ async function pintaPersonagens() {
   const ordena = E => E.sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
   const moveP = (k, g) => { if (!todos[k] || (todos[k].grupo || '') === (g || '')) return; todos[k] = { ...todos[k], grupo: g || undefined }; pintaL(); manda(k, { grupo: g || null }, g ? `${todos[k].nome} foi para ${g}.` : `${todos[k].nome} saiu da pasta.`); };
   const cartao = ([k, v]) => `<div class="pc3" data-k="${esc(k)}" style="--c:${corP(v)}" role="button" tabindex="0" title="Ver ${esc(v.nome)} (cor da legenda, foto, Animador)">${ava(v.nome, corP(v), 'g')}<b>${esc(v.nome)}</b>
-    <span class="pc3-m"><i class="pc3-cor" title="Cor da legenda"></i>${v.atelie?.id ? `<span class="pc3-at" data-th="${esc(v.atelie.id)}" title="No Animador: ${esc(v.atelie.nome || v.atelie.id)}">${icAt(12)}</span>` : ''}</span></div>`;
+    <span class="pc3-m">${v.atelie?.id ? `<span class="pc3-at" data-th="${esc(v.atelie.id)}" title="No Animador: ${esc(v.atelie.nome || v.atelie.id)}">${icAt(12)}</span>` : ''}</span></div>`;
   const grade = L => `<div class="pc3-grade">${L.map(cartao).join('')}</div>`;
   const renomeiaPasta = async g => { const ms = membros(g), nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 30)) || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (!nn || nn === g) return;
     novas.delete(g); novas.add(nn); if (aberta === g) aberta = nn; if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: nn }])), `Pasta renomeada para ${nn}.`); };
@@ -1564,7 +1564,7 @@ async function pintaPersonagens() {
         <div class="pb-abre-t"><span class="pb-ic">${ic('pasta', 20)}</span><h2>${esc(aberta)}</h2><small>${L.length} ${L.length === 1 ? 'personagem' : 'personagens'}</small><span class="esp"></span>${ed ? `<button class="bt" data-novo-aqui>${ic('mais', 14)} Personagem novo aqui</button>${base ? '' : `<button class="bt" data-ren>${ic('lapis', 14)} Renomear</button>`}<button class="bt ic" data-mn title="Opções da pasta">${ic('mais3', 16)}</button>` : ''}</div>
         ${L.length ? grade(L) : '<div class="pb-vazia">Pasta vazia. Volte e arraste personagens para o cartão desta pasta (ou use o botão direito no personagem › Mover para…).</div>'}`; }
     else { const soltos = E.filter(([, v]) => !v.grupo);
-      box.innerHTML = `<h3 class="pb-h">Pastas <small>clique para abrir · arraste um personagem para cima de uma pasta</small></h3>
+      box.innerHTML = `<h3 class="pb-h" title="Clique para abrir · arraste um personagem para cima de uma pasta">Pastas</h3>
         <div class="pb-cards">${pastas.map(g => { const L = E.filter(([, v]) => v.grupo === g);
           return `<div class="pb-card" data-pasta="${esc(g)}" role="button" tabindex="0" title="Abrir a pasta · botão direito: opções"><div class="pb-prev">${L.slice(0, 3).map(([, v]) => ava(v.nome, corP(v), 'g')).join('') || `<span class="pb-vz">${ic('pasta', 34)}</span>`}</div>
             <div class="pb-info"><b>${esc(g)}</b><small>${L.length}</small><button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button></div><small class="pb-desc">${L.length ? esc(L.slice(0, 4).map(([, v]) => v.nome).join(', ') + (L.length > 4 ? '…' : '')) : 'Pasta vazia'}</small></div>`; }).join('')}</div>
@@ -1662,19 +1662,17 @@ const Ideias = {
   S: null, formato: 'todos', aFormato: 'short', aCanal: '',
   async pinta(novo) {
     const T = telaNova(), el = T.el; el.innerHTML = `<section class="inicio ideias">
-      <div class="cab"><span class="cab-ic t-ideia">${ic('luz', 24)}</span><div class="cab-txt"><h1>Ideias</h1><p>O que está funcionando nos canais e ideias para o nosso.</p></div><span class="esp"></span>${pode('ideias') ? `<button class="bt" data-canais>${ic('play', 15)} Canais</button><button class="bt" data-an title="Pede de novo a análise dos canais de referência">${ic('atualizar')} Atualizar análise</button><button class="bt" data-nova>${ic('mais')} Escrever ideia</button><button class="bt pri" data-sug>${ic('luz')} Sugerir ideias</button>` : ''}</div>
-      <div class="analise-box">${giroBloco('Carregando a análise')}</div>
-      <h2 class="ids-tit">${ic('luz', 16)} Ideias para o nosso canal</h2>
+      <div class="cab"><span class="cab-ic t-ideia">${ic('luz', 24)}</span><div class="cab-txt"><h1>Ideias</h1><p>O que está funcionando nos canais e ideias para o nosso.</p></div><span class="esp"></span>${pode('ideias') ? `<button class="bt" data-nova>${ic('mais')} Escrever ideia</button><button class="bt pri" data-sug>${ic('luz')} Sugerir ideias</button>` : ''}</div>
+      <h2 class="ids-tit">Ideias para o nosso canal</h2>
       <div class="filtros">${[['todos', 'Todas', 'grade'], ['short', 'Shorts', 'celular'], ['longo', 'Vídeos longos', 'filme']].map(([k, n, i]) => `<button data-fo="${k}" class="${this.formato === k ? 'on' : ''}">${ic(i, 14)} ${n}</button>`).join('')}</div>
-      <div class="ids grade">${giroBloco()}</div></section>`;
+      <div class="ids grade">${giroBloco()}</div>
+      <div class="analise-box">${giroBloco('Carregando a análise')}</div></section>`;
     try { if (!this.S || novo) this.S = await Nuvem.pede('/ideias'); } catch (e) { if (S.P || S.aba !== 'ideias') return T.cancela(); T.mostra(); $('.ids', el).innerHTML = $('.analise-box', el).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
     // ideias que não foram para a nuvem (06/11/2026: as 8 ideias de 05/11 sumiram quando a nuvem estava no limite): manda de novo, UMA vez por página
     if (!this._pend) { this._pend = true; let p = null; try { p = JSON.parse(localStorage.getItem(PEND_IDEIAS) || 'null'); } catch { }
       if (p?.lista) { const s = this.S.ideias; if (!s || String(p.em || '') > String(s.em || '')) { this.S.ideias = p; return this.guarda(p, 'As ideias que não tinham ido para a nuvem foram salvas agora.'); } try { localStorage.removeItem(PEND_IDEIAS); } catch { } } }
     if (S.P || S.aba !== 'ideias') return T.cancela(); T.mostra(); const A = this.S.analise, I = this.S.ideias || { lista: [] };
     this.pintaAnalise($('.analise-box', el), A, I);
-    $('[data-canais]', el)?.addEventListener('click', () => this.canais());
-    $('[data-an]', el)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r = await Nuvem.json('/ideias', 'POST', { acao: 'atualizar', canais: this.S.canais || [] }); aviso(r.ja ? 'A análise já foi pedida há pouco.' : 'Análise pedida. Ela chega em alguns minutos.', 'ok'); } catch (er) { aviso(er.message, 'erro'); } });
     $('[data-nova]', el)?.addEventListener('click', () => this.edita(null));
     $('[data-sug]', el)?.addEventListener('click', e => this.sugere(e.currentTarget));
     $$('[data-fo]', el).forEach(b => b.onclick = () => { this.formato = b.dataset.fo; this.pinta(); });
@@ -1694,17 +1692,20 @@ const Ideias = {
   // O QUE ESTÁ FUNCIONANDO: os padrões em cartões (título + detalhe) e os canais um embaixo do outro, com Shorts OU Vídeos longos
   // (um formato por vez, para não misturar) e filtro por canal; muitos canais = a lista rola por dentro
   pintaAnalise(box, A, I) {
-    if (!A?.canais?.length) { box.innerHTML = `<div class="vazio">Ainda não há análise dos canais de referência.${pode('ideias') ? ' Use "Canais" para escolher e "Atualizar análise".' : ''}</div>`; return; }
+    const btsAn = pode('ideias') ? `<span class="esp"></span><button class="bt" data-canais>${ic('play', 14)} Canais</button><button class="bt" data-an title="Pede de novo a análise dos canais de referência">${ic('atualizar', 14)} Atualizar análise</button>` : '';
+    const ligaAn = () => { $('[data-canais]', box)?.addEventListener('click', () => this.canais());
+      $('[data-an]', box)?.addEventListener('click', async e => { e.currentTarget.disabled = true; try { const r = await Nuvem.json('/ideias', 'POST', { acao: 'atualizar', canais: this.S.canais || [] }); aviso(r.ja ? 'A análise já foi pedida há pouco.' : 'Análise pedida. Ela chega em alguns minutos.', 'ok'); } catch (er) { aviso(er.message, 'erro'); } }); };
+    if (!A?.canais?.length) { box.innerHTML = `<div class="an-cab"><h2>O que está funcionando nos canais</h2>${btsAn}</div><div class="vazio">Ainda não há análise dos canais de referência.${pode('ideias') ? ' Use "Canais" para escolher e "Atualizar análise".' : ''}</div>`; ligaAn(); return; }
     const sh = this.aFormato === 'short', cs = A.canais.filter(c => !this.aCanal || c.h === this.aCanal);
     const pad = (I.padroes || []).slice(0, 8).map(p => { const i = p.indexOf(':'); return i > 8 && i < 110 ? [p.slice(0, i), p.slice(i + 1).trim()] : [p, '']; });
-    box.innerHTML = `<div class="an-cab"><h2>${ic('grafico', 16)} O que está funcionando agora</h2><small class="dica">análise de ${esc(quando(A.em))} · ${A.canais.length} cana${A.canais.length === 1 ? 'l' : 'is'}</small></div>
+    box.innerHTML = `<div class="an-cab"><h2>O que está funcionando nos canais</h2><small>análise de ${esc(quando(A.em))} · ${A.canais.length} cana${A.canais.length === 1 ? 'l' : 'is'}</small>${btsAn}</div>
       ${pad.length ? `<div class="padroes2">${pad.map(([t, d], i) => `<div class="pad"><span class="pad-n">${i + 1}</span><div><b>${esc(t)}</b>${d ? `<p>${esc(d)}</p>` : ''}</div></div>`).join('')}</div>` : ''}
       <div class="an-filtros"><div class="seg">${[['short', 'Shorts', 'celular'], ['longo', 'Vídeos longos', 'filme']].map(([k, n, i]) => `<button data-af="${k}" class="${this.aFormato === k ? 'on' : ''}">${ic(i, 14)} ${n}</button>`).join('')}</div>
         <div class="chips-canal"><button data-ac="" class="${!this.aCanal ? 'on' : ''}">Todos os canais</button>${A.canais.map(c => `<button data-ac="${esc(c.h)}" class="${this.aCanal === c.h ? 'on' : ''}">${c.avatar ? `<img src="${esc(c.avatar)}" alt="" referrerpolicy="no-referrer">` : ''}${esc(c.nome)}</button>`).join('')}</div></div>
       <div class="canais-l">${cs.map(c => { const vs = ((sh ? c.shorts : c.longos)?.bem || []).slice(0, 10), med = c.mediana?.[sh ? 'short' : 'longo'];
         return `<div class="canal-l"><div class="cl-info">${c.avatar ? `<img src="${esc(c.avatar)}" alt="" referrerpolicy="no-referrer">` : ''}<div><b>${esc(c.nome)}</b><small>${esc(c.h)}</small><small>${esc(c.inscritos || '')}</small>${med ? `<small>média de ${num(med)} views por ${sh ? 'short' : 'vídeo'}</small>` : ''}</div></div>
           <div class="cl-vids ${sh ? 'sh' : 'lg'}">${vs.length ? vs.map(v => `<a class="vid2" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener" title="${esc(v.titulo)}"><span class="vt"><img src="https://i.ytimg.com/vi/${esc(v.id)}/mqdefault.jpg" alt="" loading="lazy" referrerpolicy="no-referrer">${v.nota ? `<span class="x">${String(v.nota).replace('.', ',')}×</span>` : ''}${!sh && v.dur ? `<span class="d">${esc(v.dur)}</span>` : ''}</span><b>${esc(v.titulo || '(sem título)')}</b><small>${num(v.views)} views</small></a>`).join('') : `<small class="dica">Nada acima da média em ${sh ? 'shorts' : 'vídeos longos'}.</small>`}</div></div>`; }).join('')}</div>
-      <small class="dica">"2×" = o vídeo teve o dobro das views que o canal costuma ter.</small>`;
+      <small class="an-nota">"2×" = o vídeo teve o dobro das views que o canal costuma ter.</small>`; ligaAn();
     $$('[data-af]', box).forEach(b => b.onclick = () => { this.aFormato = b.dataset.af; this.pintaAnalise(box, A, I); });
     $$('[data-ac]', box).forEach(b => b.onclick = () => { this.aCanal = b.dataset.ac; this.pintaAnalise(box, A, I); });
   },
