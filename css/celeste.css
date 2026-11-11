@@ -3,36 +3,9 @@
    - Liga com a classe "cel" no <html> (tirar a classe = volta o visual antigo inteiro).
    - Vale para Roteiros, Ideias e Personagens. O ROTEIRO ABERTO (body.modo-doc) fica para a 2ª etapa: nada aqui mexe nele.
    - Tema: html[data-tema="escuro"|"claro"] (localStorage "ep-tema", o mesmo para o Estúdio todo; padrão escuro).
-   - Fica no FIM (depois do app.css). As camadas antigas usam !important, por isso as regras daqui também usam. */
+   - Vem DEPOIS do /estudio-visual.css e do app.css. As camadas antigas usam !important, por isso as regras daqui também usam. */
 
-@font-face{font-family:"Inter";src:url("../fontes/inter.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
-
-/* ---------- tokens ---------- */
-html.cel{
-  --fonte:"Inter","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
-  --t-legenda:12px;--t-pequeno:13px;--t-corpo:14px;--t-destaque:16px;--t-titulo:20px;--t-tela:28px;
-  --raio-p:6px;--raio-controle:8px;--raio-cartao:12px;--raio-janela:14px;
-  --e1:4px;--e2:8px;--e3:12px;--e4:16px;--e5:24px;--e6:32px;--e7:48px;
-  --rapido:.15s;--medio:.25s;--painel:.35s;--curva-entra:cubic-bezier(.1,.9,.2,1);--curva-sai:cubic-bezier(.4,0,1,1);
-  --alt-cabecalho:52px;--alt-controle:32px;--alt-controle-p:26px;
-}
-html.cel,html.cel[data-tema="escuro"]{color-scheme:dark;
-  --fundo:#151517;--fundo-2:#1e1e21;--fundo-3:#28282c;--fundo-4:#333338;--elevado:#242428;
-  --texto:#f5f5f7;--texto-2:rgba(235,235,245,.64);--texto-3:rgba(235,235,245,.40);--texto-4:rgba(235,235,245,.22);
-  --linha:rgba(255,255,255,.09);--linha-forte:rgba(255,255,255,.16);
-  --acento:#5cc4ff;--acento-texto:#04223a;--acento-link:#6dcbff;--acento-suave:rgba(92,196,255,.16);
-  --sucesso:#30d158;--aviso:#ff9f0a;--perigo:#ff453a;--gravando:#ff453a;--neutro:#8e8e93;
-  --vidro:rgba(21,21,23,.78);--veu:rgba(0,0,0,.45);
-  --sombra-1:0 1px 2px rgba(0,0,0,.35);--sombra-2:0 0 0 .5px rgba(0,0,0,.6),0 10px 30px rgba(0,0,0,.45);--sombra-3:0 0 0 .5px rgba(0,0,0,.6),0 24px 70px rgba(0,0,0,.55)}
-html.cel[data-tema="claro"]{color-scheme:light;
-  --fundo:#f5f5f7;--fundo-2:#ffffff;--fundo-3:#ececf0;--fundo-4:#e1e1e6;--elevado:#ffffff;
-  --texto:#1d1d1f;--texto-2:rgba(60,60,67,.72);--texto-3:rgba(60,60,67,.46);--texto-4:rgba(60,60,67,.24);
-  --linha:rgba(0,0,0,.08);--linha-forte:rgba(0,0,0,.14);
-  --acento:#0a74c9;--acento-texto:#ffffff;--acento-link:#0a6fbf;--acento-suave:rgba(10,116,201,.12);
-  --sucesso:#248a3d;--aviso:#c26a00;--perigo:#d70015;--gravando:#d70015;--neutro:#6e6e73;
-  --vidro:rgba(245,245,247,.8);--veu:rgba(0,0,0,.25);
-  --sombra-1:0 1px 2px rgba(0,0,0,.08);--sombra-2:0 0 0 .5px rgba(0,0,0,.12),0 10px 30px rgba(0,0,0,.14);--sombra-3:0 0 0 .5px rgba(0,0,0,.12),0 24px 70px rgba(0,0,0,.22)}
-@media (prefers-reduced-transparency:reduce){html.cel{--vidro:var(--fundo)}}
+/* tokens, letra Inter e cabeçalho: no arquivo comum /estudio-visual.css (site); aqui só o que é do Preparativos */
 
 /* ---------- fora do roteiro aberto ---------- */
 html.cel body:not(.modo-doc){
