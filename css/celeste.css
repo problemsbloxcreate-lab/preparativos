@@ -1,0 +1,210 @@
+/* ===================== CELESTE (visual da 2.0, aprovado pela dona em 11/11/2026) =====================
+   Sistema completo: skill design-problems › references/sistema-celeste.md (e no Cérebro: Skills/design-problems/referencias - sistema-celeste).
+   - Liga com a classe "cel" no <html> (tirar a classe = volta o visual antigo inteiro).
+   - Vale para Roteiros, Ideias e Personagens. O ROTEIRO ABERTO (body.modo-doc) fica para a 2ª etapa: nada aqui mexe nele.
+   - Tema: html[data-tema="escuro"|"claro"] (localStorage "ep-tema", o mesmo para o Estúdio todo; padrão escuro).
+   - Fica no FIM (depois do app.css). As camadas antigas usam !important, por isso as regras daqui também usam. */
+
+@font-face{font-family:"Inter";src:url("../fontes/inter.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+
+/* ---------- tokens ---------- */
+html.cel{
+  --fonte:"Inter","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+  --t-legenda:12px;--t-pequeno:13px;--t-corpo:14px;--t-destaque:16px;--t-titulo:20px;--t-tela:28px;
+  --raio-p:6px;--raio-controle:8px;--raio-cartao:12px;--raio-janela:14px;
+  --e1:4px;--e2:8px;--e3:12px;--e4:16px;--e5:24px;--e6:32px;--e7:48px;
+  --rapido:.15s;--medio:.25s;--painel:.35s;--curva-entra:cubic-bezier(.1,.9,.2,1);--curva-sai:cubic-bezier(.4,0,1,1);
+  --alt-cabecalho:52px;--alt-controle:32px;--alt-controle-p:26px;
+}
+html.cel,html.cel[data-tema="escuro"]{color-scheme:dark;
+  --fundo:#151517;--fundo-2:#1e1e21;--fundo-3:#28282c;--fundo-4:#333338;--elevado:#242428;
+  --texto:#f5f5f7;--texto-2:rgba(235,235,245,.64);--texto-3:rgba(235,235,245,.40);--texto-4:rgba(235,235,245,.22);
+  --linha:rgba(255,255,255,.09);--linha-forte:rgba(255,255,255,.16);
+  --acento:#5cc4ff;--acento-texto:#04223a;--acento-link:#6dcbff;--acento-suave:rgba(92,196,255,.16);
+  --sucesso:#30d158;--aviso:#ff9f0a;--perigo:#ff453a;--gravando:#ff453a;--neutro:#8e8e93;
+  --vidro:rgba(21,21,23,.78);--veu:rgba(0,0,0,.45);
+  --sombra-1:0 1px 2px rgba(0,0,0,.35);--sombra-2:0 0 0 .5px rgba(0,0,0,.6),0 10px 30px rgba(0,0,0,.45);--sombra-3:0 0 0 .5px rgba(0,0,0,.6),0 24px 70px rgba(0,0,0,.55)}
+html.cel[data-tema="claro"]{color-scheme:light;
+  --fundo:#f5f5f7;--fundo-2:#ffffff;--fundo-3:#ececf0;--fundo-4:#e1e1e6;--elevado:#ffffff;
+  --texto:#1d1d1f;--texto-2:rgba(60,60,67,.72);--texto-3:rgba(60,60,67,.46);--texto-4:rgba(60,60,67,.24);
+  --linha:rgba(0,0,0,.08);--linha-forte:rgba(0,0,0,.14);
+  --acento:#0a74c9;--acento-texto:#ffffff;--acento-link:#0a6fbf;--acento-suave:rgba(10,116,201,.12);
+  --sucesso:#248a3d;--aviso:#c26a00;--perigo:#d70015;--gravando:#d70015;--neutro:#6e6e73;
+  --vidro:rgba(245,245,247,.8);--veu:rgba(0,0,0,.25);
+  --sombra-1:0 1px 2px rgba(0,0,0,.08);--sombra-2:0 0 0 .5px rgba(0,0,0,.12),0 10px 30px rgba(0,0,0,.14);--sombra-3:0 0 0 .5px rgba(0,0,0,.12),0 24px 70px rgba(0,0,0,.22)}
+@media (prefers-reduced-transparency:reduce){html.cel{--vidro:var(--fundo)}}
+
+/* ---------- fora do roteiro aberto ---------- */
+html.cel body:not(.modo-doc){
+  /* os nomes antigos passam a apontar para o Celeste (assim o que sobrou das camadas antigas também segue o tema) */
+  --bg:var(--fundo);--panel:var(--fundo-2);--panel-2:var(--fundo-3);--panel-3:var(--fundo-4);--line:var(--linha);--text:var(--texto);--muted:var(--texto-2);--accent:var(--acento);
+  --u-tile:var(--fundo-2);--u-tile2:var(--fundo-3);--u-borda:var(--linha);--u-sub:var(--texto-3);
+  --m-marca:var(--acento);--m-marca-tx:var(--acento-texto);--m-azul:var(--acento);--m-verm:var(--perigo);
+  --st-rascunho:var(--neutro);--st-gravando:var(--aviso);--st-pronto:var(--sucesso);
+  --ok:var(--sucesso);--erro:var(--perigo);--aten:var(--aviso);--rec:var(--gravando);
+  background:var(--fundo)!important;color:var(--texto);font:400 var(--t-corpo)/1.45 var(--fonte)!important;-webkit-font-smoothing:antialiased;
+
+  & :is(button,input,select,textarea){font-family:inherit}
+  & :focus-visible{outline:2px solid var(--acento)!important;outline-offset:2px}
+
+  /* cantos: médios (o Metro deixava tudo reto) */
+  & main *,& .abas,& .abas *,& .modal *,& #avisos *,& .dh-menu,& .dh-menu *,& .lista-pers,& .sel-menu{border-radius:var(--raio-p)!important}
+  & .ava,& .pava,& .anel,& .cor,& .trilho,& .trilho i,& .w10 i::before{border-radius:50%!important}
+  & .trilho{border-radius:99px!important}
+
+  /* ===== CABEÇALHO (igual em todos os programas) ===== */
+  & .top{height:var(--alt-cabecalho);padding:0 var(--e4)!important;gap:var(--e4);flex-wrap:nowrap;background:var(--vidro)!important;
+    backdrop-filter:blur(20px) saturate(1.5)!important;-webkit-backdrop-filter:blur(20px) saturate(1.5)!important;border-bottom:1px solid var(--linha)!important}
+  & .logo{gap:10px;padding:4px 6px 4px 4px;border-radius:var(--raio-controle)}
+  & .logo:hover{background:var(--fundo-3)}
+  & .logo .ic-prog{width:28px;height:28px}
+  & .logo b{font:700 13px/1.1 var(--fonte)!important;letter-spacing:.06em}
+  & .logo small{display:block;font-size:11px;color:var(--texto-3);margin-top:2px}
+  /* abas = controle segmentado */
+  & .abas{background:var(--fundo-3)!important;border:0!important;border-radius:var(--raio-controle)!important;padding:2px!important;gap:2px!important}
+  & .abas button{height:28px;padding:0 var(--e3)!important;border-radius:6px!important;background:transparent!important;color:var(--texto-2)!important;font:500 var(--t-pequeno) var(--fonte)!important;box-shadow:none!important;display:inline-flex;align-items:center;gap:6px;transition:background var(--rapido),color var(--rapido)}
+  & .abas button:hover{color:var(--texto)!important;background:transparent!important}
+  & .abas button.on{background:var(--fundo-4)!important;color:var(--texto)!important;box-shadow:var(--sombra-1)!important}
+  & .abas button svg{width:14px;height:14px;color:inherit!important}
+  /* botão claro/escuro */
+  & .tema-bt{width:var(--alt-controle);height:var(--alt-controle);display:grid;place-items:center;border:0;border-radius:var(--raio-controle);background:transparent;color:var(--texto-2);cursor:pointer;flex:none}
+  & .tema-bt:hover{background:var(--fundo-3);color:var(--texto)}
+  & .tema-bt svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ===== TELA ===== */
+  & main{padding:var(--e5) var(--e5) 80px!important;max-width:1280px}
+  & .inicio>.cab,& .cab.topo-ini{gap:var(--e3)!important;margin-bottom:var(--e2)}
+  & .cab-ic{display:none!important}
+  & .cab-txt h1{font:700 var(--t-tela)/1.15 var(--fonte)!important;letter-spacing:-.01em!important;text-transform:none!important}
+  & .cab-txt p{font-size:var(--t-corpo)!important;color:var(--texto-2)!important;margin-top:2px!important}
+
+  /* ===== BOTÕES ===== */
+  & .bt{height:var(--alt-controle);padding:0 var(--e3)!important;border:0!important;border-radius:var(--raio-controle)!important;background:var(--fundo-3)!important;color:var(--texto)!important;
+    font:500 var(--t-corpo) var(--fonte)!important;box-shadow:none!important;gap:var(--e2);transition:background var(--rapido),transform var(--rapido),filter var(--rapido)}
+  & .bt:hover{background:var(--fundo-4)!important;color:var(--texto)!important;border:0!important}
+  & .bt:active{transform:scale(.97)}
+  & .bt.pri,& .bt.pri:hover{background:var(--acento)!important;color:var(--acento-texto)!important;font-weight:600!important}
+  & .bt.pri:hover{filter:brightness(1.08)}
+  & .bt.perigo,& .bt.perigo:hover{background:var(--perigo)!important;color:#fff!important}
+  & .bt.grande{height:var(--alt-controle);padding:0 var(--e3)!important;font-size:var(--t-corpo)!important}
+  & .bt.ic{width:var(--alt-controle);padding:0!important;justify-content:center;background:transparent!important;color:var(--texto-2)!important}
+  & .bt.ic:hover{background:var(--fundo-3)!important;color:var(--texto)!important}
+  & .bt svg{color:inherit!important}
+  & .bt:disabled{opacity:.4}
+
+  /* ===== FILTROS = controle segmentado ===== */
+  & .filtros-ini{gap:var(--e3)!important;margin:var(--e4) 0 var(--e2)!important}
+  & :is(.seg,.chips-st,.an-filtros .seg,.chips-canal,.filtros){display:inline-flex;flex-wrap:wrap;background:var(--fundo-3)!important;border:0!important;border-radius:var(--raio-controle)!important;padding:2px!important;gap:2px!important}
+  & :is(.seg,.chips-st,.chips-canal,.filtros) button:not(.bt){height:28px;padding:0 var(--e3)!important;border:0!important;border-radius:6px!important;background:transparent!important;color:var(--texto-2)!important;
+    font:500 var(--t-pequeno) var(--fonte)!important;box-shadow:none!important;transform:none!important;display:inline-flex;align-items:center;gap:6px}
+  & :is(.seg,.chips-st,.chips-canal,.filtros) button:not(.bt):hover:not(.on){color:var(--texto)!important;background:transparent!important}
+  & :is(.seg,.chips-st,.chips-canal,.filtros) button.on{background:var(--fundo-4)!important;color:var(--texto)!important;box-shadow:var(--sombra-1)!important;font-weight:500!important}
+  & :is(.seg,.chips-st,.chips-canal,.filtros) button.on svg{color:inherit!important}
+  & .seg .n,& .filtros-ini .seg button.on .n{background:none!important;color:var(--texto-3)!important;opacity:1;font-weight:500}
+  & .chips-st .st-rascunho svg{color:var(--neutro)!important}& .chips-st .st-gravando svg{color:var(--aviso)!important}& .chips-st .st-pronto svg{color:var(--sucesso)!important}
+
+  /* ===== TÍTULOS DAS SEÇÕES ===== */
+  & :is(.pb-h,.an-cab h2,.ids-tit,.pasta-g-tit,.ps-cab b){font:600 var(--t-pequeno) var(--fonte)!important;text-transform:none!important;color:var(--texto-2)!important;margin:var(--e5) 0 var(--e3)!important;letter-spacing:0}
+  & :is(.pb-h,.an-cab,.pasta-g-tit) small{font-size:var(--t-pequeno)!important;font-weight:400;color:var(--texto-3)!important;background:none!important}
+  & .an-cab{margin:var(--e5) 0 var(--e3)!important}& .an-cab h2{margin:0!important}
+  & .pb-abre-t h2{font:700 var(--t-titulo) var(--fonte)!important;color:var(--texto)!important}
+  & .pb-volta{background:var(--fundo-3)!important;border:0!important;border-radius:var(--raio-controle)!important;color:var(--texto)!important;height:28px;padding:0 10px}
+  & .pb-busca input,& input[type=search],& .ap-busca{height:var(--alt-controle);background:var(--fundo-3)!important;border:1px solid transparent!important;border-radius:var(--raio-controle)!important;color:var(--texto)!important;padding:0 var(--e3)}
+  & .pb-busca input:focus,& input[type=search]:focus{outline:none;border-color:var(--acento)!important;box-shadow:0 0 0 3px var(--acento-suave)}
+
+  /* ===== CARTÕES ===== */
+  & .grade{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))!important;gap:var(--e4)!important}
+  & .pb-cards{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important;gap:var(--e4)!important}
+  & :is(.cartao,.pb-card,.pc3,.canal-l,.pad){background:var(--fundo-2)!important;border:1px solid var(--linha)!important;border-radius:var(--raio-cartao)!important;color:var(--texto)!important;
+    box-shadow:none!important;outline:2px dashed transparent;outline-offset:2px;transition:border-color var(--rapido),transform var(--rapido),box-shadow var(--rapido)!important}
+  & :is(.cartao,.pb-card,.pc3):hover{background:var(--fundo-2)!important;border-color:var(--linha-forte)!important;box-shadow:var(--sombra-2)!important;transform:translateY(-1px)!important}
+  & :is(.cartao,.pb-card,.pc3):active{transform:scale(.99)!important}
+  & .pb-card.alvo{outline-color:var(--acento)!important}
+  /* roteiro: sem faixa colorida embaixo; a situação é a pílula (bolinha + palavra) */
+  & .cartao:not(.ideia){padding:var(--e4)!important;border-bottom-width:1px!important}
+  & .cartao .st{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px!important;border:0!important;border-radius:var(--raio-p)!important;background:var(--fundo-3)!important;color:var(--texto-2)!important;font:500 var(--t-legenda) var(--fonte)!important}
+  & .cartao .st svg{display:none}
+  & .cartao .st::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c-st,var(--neutro))}
+  & .cartao .onde,& .cartao:not(.ideia) small,& .cartao .mt{color:var(--texto-3)!important;font-size:var(--t-legenda)!important}
+  & .cartao:not(.ideia) .meio b{font:600 var(--t-destaque)/1.3 var(--fonte)!important;color:var(--texto)!important}
+  & .cartao .grav{color:var(--texto-3)!important;font-size:var(--t-legenda)!important;font-variant-numeric:tabular-nums}
+  & .cartao .grav b{color:var(--texto-2)!important}
+  & .cartao .grav .barra{height:4px!important;border-radius:2px!important;background:var(--fundo-4)!important;overflow:hidden}
+  & .cartao .grav .barra i{background:var(--c-st,var(--neutro))!important;border-radius:2px!important}
+  & .cartao.rascunho .grav .barra i{background:var(--texto-3)!important}
+  & .cartao .mt{border-top-color:var(--linha)!important}
+  & .cartao .rodape .elenco .ava{box-shadow:0 0 0 2px var(--fundo-2)!important}
+  & .cartao .quem-c,& .cartao .quem-l{color:var(--texto-3)!important;font-size:var(--t-legenda)!important}
+  & .cartao .quem-c b,& .cartao .quem-l b{color:var(--texto-2)!important}
+  & .cartao .usos .uso{background:var(--fundo-3)!important;color:var(--texto-2)!important;border-radius:var(--raio-p)!important}
+  & .cartao.tem-vivo,& .cartao.ao-vivo{outline:2px solid var(--acento)!important}
+  & .vivo-tag,& .vivo-selo{background:var(--acento)!important;color:var(--acento-texto)!important}
+  /* pasta: capa cinza com as folhinhas */
+  & .pb-card{overflow:hidden}
+  & .pb-prev{background:var(--fundo-3)!important;border-bottom:0!important;border-radius:0!important}
+  & .pb-folha{background:var(--fundo-2)!important;box-shadow:var(--sombra-1)!important;border-radius:4px!important;border-bottom-width:2px!important}
+  & .pb-folha i{background:var(--texto-4)!important}
+  & .pb-vz{color:var(--texto-3)!important}
+  & .pb-info b{font:600 var(--t-corpo) var(--fonte)!important;color:var(--texto)!important}
+  & .pb-info small{background:var(--fundo-3)!important;color:var(--texto-2)!important;border-radius:var(--raio-p)!important}
+  & .pb-desc{color:var(--texto-3)!important}
+  /* personagem */
+  & .pc3{border-bottom-width:1px!important;padding:var(--e4) var(--e2) var(--e3)!important}
+  & .pc3 b{font:600 var(--t-corpo) var(--fonte)!important;color:var(--texto)!important}
+  & .pc3 small{color:var(--texto-3)!important}
+  & .pc3-grade{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;gap:var(--e4)!important}
+  /* ideias: tipo como texto colorido pequeno, não faixa */
+  & .cartao.ideia{background:var(--fundo-2)!important;border:1px solid var(--linha)!important;padding:var(--e4)!important}
+  & .cartao.ideia.short{--c-st:#ff6b93}& .cartao.ideia.longo{--c-st:#a796ff}
+  & .cartao.ideia .st{background:var(--fundo-3)!important}
+  & .cartao.ideia b{font:600 var(--t-destaque) var(--fonte)!important;color:var(--texto)!important}
+  & .cartao.ideia .gancho{color:var(--texto-2)!important}& .cartao.ideia small{color:var(--texto-3)!important}
+  & .cartao.ideia .pq{color:var(--acento-link)!important}
+  & .cartao.ideia .bt.pri{background:var(--acento)!important;color:var(--acento-texto)!important}
+  & .pad-n{background:var(--acento)!important;color:var(--acento-texto)!important;border-radius:var(--raio-p)!important}
+  & .an-nota{color:var(--texto-3)!important}
+  /* vazio */
+  & .vazio:not(.carregando):not(.erro),& .pb-vazia,& .pasta-vazia{background:transparent!important;border:1px dashed var(--linha-forte)!important;border-radius:var(--raio-cartao)!important;color:var(--texto-3)!important}
+  & .vazio:not(.carregando):not(.erro)::before{display:none!important}
+  & .vazio.erro{background:color-mix(in srgb,var(--perigo) 10%,transparent)!important;border:0!important;border-radius:var(--raio-cartao)!important;color:var(--perigo)!important}
+
+  /* ===== JANELA (pop-up central) ===== */
+  & .modal{background:var(--veu)!important;backdrop-filter:blur(4px)!important;padding:16px!important}
+  & .modal .caixa{width:min(440px,100%)!important;max-width:calc(100vw - 32px)!important;background:var(--elevado)!important;border:0!important;border-radius:var(--raio-janela)!important;
+    box-shadow:var(--sombra-3)!important;padding:var(--e5)!important;color:var(--texto);animation:celEntra var(--painel) var(--curva-entra)}
+  & .modal .caixa.larga{width:min(600px,100%)!important}
+  & .modal .caixa.atelie-pop{width:min(980px,100%)!important;padding:0!important}
+  & .modal .caixa.atelie-pop :is(.ap-cab,.ap-esp,.ap-corpo){padding-left:var(--e5)!important;padding-right:var(--e5)!important}
+  & .modal .caixa>b,& .modal .dn-cab b{font:600 17px var(--fonte)!important}
+  & .modal .caixa p,& .modal .dn-cab small{color:var(--texto-2)!important}
+  & .modal label{color:var(--texto-2)!important;font:500 var(--t-pequeno) var(--fonte)!important}
+  & .modal :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]),textarea,select){background:var(--fundo-2)!important;border:1px solid var(--linha-forte)!important;border-radius:var(--raio-controle)!important;color:var(--texto)!important;min-height:var(--alt-controle);padding:0 var(--e3)}
+  & .modal textarea{padding:var(--e2) var(--e3)}
+  & .modal :is(input,textarea,select):focus{outline:none;border-color:var(--acento)!important;box-shadow:0 0 0 3px var(--acento-suave)}
+  & .modal .bts{margin-top:var(--e2);gap:var(--e2)!important}
+
+  /* ===== MENUS (botão direito e de botão) ===== */
+  & :is(.dh-menu,.lista-pers,.sel-menu){background:var(--elevado)!important;color:var(--texto)!important;border:1px solid var(--linha)!important;border-radius:10px!important;box-shadow:var(--sombra-2)!important;padding:5px!important;min-width:220px}
+  & .dh-menu button,& .lista-pers button{min-height:28px;padding:0 10px!important;border-radius:var(--raio-p)!important;color:var(--texto)!important;font:400 var(--t-corpo) var(--fonte)!important}
+  & .dh-menu button small{color:var(--texto-3)!important;font-size:var(--t-legenda)!important}
+  & .dh-menu button:hover:not(:disabled):not(.off),& .lista-pers button:hover{background:var(--acento)!important;color:var(--acento-texto)!important}
+  & .dh-menu button:hover:not(:disabled) :is(small,svg){color:inherit!important}
+  & .dh-menu hr{border-top:1px solid var(--linha)!important;margin:5px 6px!important}
+
+  /* ===== AVISO CURTO (embaixo, no centro) ===== */
+  & #avisos{top:auto!important;bottom:24px!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;align-items:center!important}
+  & .aviso{background:var(--elevado)!important;color:var(--texto)!important;border:1px solid var(--linha)!important;border-left:1px solid var(--linha)!important;border-radius:10px!important;
+    box-shadow:var(--sombra-2)!important;padding:10px 14px!important;min-width:0!important;display:flex;align-items:center;gap:10px;animation:celSobe var(--medio) var(--curva-entra)}
+  & .aviso::before{content:"";width:8px;height:8px;border-radius:50%;flex:none;background:var(--acento)}
+  & .aviso.ok::before{background:var(--sucesso)}& .aviso.erro::before{background:var(--perigo)}
+  & .aviso.erro{color:var(--texto)!important}
+
+  /* ===== CARREGANDO (no lugar das bolinhas Windows 10: um anel fino na cor do destaque) ===== */
+  & .w10 i{display:none}
+  & .w10::before{content:"";position:absolute;inset:2px;border-radius:50%;border:2px solid var(--fundo-4);border-top-color:var(--acento);animation:celGira .8s linear infinite}
+  & .w10-t{color:var(--texto-3)}
+}
+@keyframes celEntra{from{transform:scale(.96);opacity:0}}
+@keyframes celSobe{from{transform:translateY(12px);opacity:0}}
+@keyframes celGira{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){html.cel *{animation-duration:.01ms!important;transition-duration:.01ms!important}}
