@@ -59,3 +59,54 @@ input.nome{width:100%;max-width:420px;background:var(--panel);border:0;border-bo
 .conta3{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(0,0,0,.6);pointer-events:none}.conta3 b{font:200 140px/1 "Segoe UI Light","Segoe UI",sans-serif;color:#fff}
 .fim{position:fixed;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 16px;background:#1a1a1a;border-top:1px solid var(--line)}.fim-t{color:var(--muted);font-size:13.5px}
 @media (max-width:640px){.mic-grade{grid-template-columns:1fr}.fala .texto{font-size:19px}.topo .tempo{display:none}.fim{justify-content:space-between}}
+
+/* ===================== CELESTE (2.0, 11/11/2026, pedido da dona: nada do visual antigo) =====================
+   A página pública do link de dublagem segue o mesmo visual do Estúdio: escuro, Inter, cantos médios, azul celeste como destaque.
+   (A CSP desta página só deixa fontes do Google: a Inter vem de lá; o resto é deste arquivo.) */
+:root{--fundo:#151517;--fundo-2:#1e1e21;--fundo-3:#28282c;--fundo-4:#333338;--texto:#f5f5f7;--texto-2:rgba(235,235,245,.64);--texto-3:rgba(235,235,245,.4);--linha:rgba(255,255,255,.09);
+  --acento:#5cc4ff;--acento-texto:#04223a;--sucesso:#30d158;--aviso:#ff9f0a;--perigo:#ff453a;
+  --bg:var(--fundo);--panel:var(--fundo-2);--panel2:var(--fundo-3);--line:var(--linha);--text:var(--texto);--muted:var(--texto-2);--marca:var(--acento);--marca-tx:var(--acento-texto);--rec:var(--perigo);--ok:var(--sucesso);--aten:var(--aviso);--azul:var(--acento)}
+body{font:400 15px/1.45 "Inter","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.topo{height:52px;padding:0 16px;gap:10px;background:rgba(21,21,23,.82);backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid var(--linha)}
+.topo b{font-weight:700;font-size:13px;line-height:1.1;letter-spacing:.06em;text-transform:uppercase}
+.topo small{font-size:11px;color:var(--texto-3)}
+.logo{width:28px;height:28px;border-radius:7px;border:0;background:#2e2304;color:#ffd36b;box-shadow:inset 0 0 0 1px #ffd36b;font-weight:700;font-size:12px;}
+.tempo{border-radius:6px;background:var(--fundo-3);color:var(--texto-2);font-weight:500}
+.aviso{border:1px solid var(--linha);border-left:1px solid var(--linha);border-radius:12px;padding:20px 22px}
+.aviso h2::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:10px;vertical-align:3px;background:var(--aviso)}
+.aviso.erro h2::before{background:var(--perigo)}.aviso.ok h2::before{background:var(--sucesso)}.aviso.info h2::before{background:var(--acento)}
+.aviso h2,.passo h2{font-weight:700;font-size:20px;line-height:1.2;letter-spacing:-.01em;text-transform:none}
+.passo-n{border-radius:50%;width:28px;height:28px;font-size:14px}
+input.nome{border-radius:8px;border:1px solid transparent;background:var(--fundo-3);padding:10px 12px;font-size:16px}
+input.nome:focus{border-color:var(--acento);box-shadow:0 0 0 3px rgba(92,196,255,.16);background:var(--fundo-3)}
+.conta,.mic{border-radius:12px;border:1px solid var(--linha)}
+.mic.pede,.mic.bloq,.mic.ok{border-left:1px solid var(--linha)}
+.mic-sub>small{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600}
+.mic select{background:var(--fundo-3);border:0;border-radius:8px;height:34px}
+.mic-med{border:0;border-radius:6px;overflow:hidden;background:var(--fundo-3)}
+.bt{border-radius:8px;min-height:36px;font-weight:500}
+.bt:hover:not(:disabled){background:var(--fundo-4)}
+.bt.pri{font-weight:600}.bt.pri:hover:not(:disabled){background:var(--acento);filter:brightness(1.08)}
+.bt.rec:hover:not(:disabled){background:var(--perigo);filter:brightness(1.1)}
+.bt.mini{min-height:28px;border-radius:6px}
+.chave .trilho{border-radius:999px;background:var(--fundo-4);width:42px;height:24px}.chave .trilho::after{border-radius:50%;width:20px;height:20px;left:2px;top:2px}
+.chave input:checked+.trilho::after{left:20px}
+.seg{background:var(--fundo-3);border-radius:8px;padding:2px;gap:2px}.seg button{background:transparent;border-radius:6px;color:var(--texto-2)}
+.seg button.on{background:var(--fundo-4);color:var(--texto);font-weight:500}
+.prog{border-radius:4px;overflow:hidden}
+.fala{border:1px solid var(--linha);border-left:1px solid var(--linha);border-radius:12px;margin-bottom:10px}
+.fala.local{background:var(--fundo-2)}.fala.gravando{background:var(--fundo-2);border-color:var(--perigo)}
+.fala-n{font-weight:600;font-size:15px;line-height:1;color:var(--texto-3)}
+.fala .quem{color:var(--acento)}
+.fala .parte{text-transform:none;letter-spacing:0;font-size:12px}
+.chip{border-radius:6px}.chip.ok{background:rgba(48,209,88,.16);color:var(--sucesso)}.chip.aq{background:rgba(255,159,10,.16);color:var(--aviso)}.chip.rec{background:rgba(255,69,58,.16);color:var(--perigo)}
+.fala .nota{color:var(--texto-2)}
+.fala .texto{font:500 22px/1.4 "Inter","Segoe UI",sans-serif}
+.junto{border-radius:8px;background:rgba(255,159,10,.12)}
+.nivel-rec{border-radius:4px;overflow:hidden;background:var(--fundo-3)}
+.player .tocar{border-radius:50%;width:36px;min-height:36px;background:var(--acento);color:var(--acento-texto)}
+.player input[type=range],.mic input[type=range]{accent-color:var(--acento)}
+.conta3 b{font:700 120px/1 "Inter","Segoe UI",sans-serif}
+.fim{background:rgba(21,21,23,.88);backdrop-filter:blur(20px)}
+.carregando i{border-top-color:var(--acento)}
+.topo b,.aviso h2,.passo h2,.fala-n,.logo{font-family:"Inter","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
