@@ -419,3 +419,9 @@ html.cel body.modo-doc .falas2{
 /* "Na nuvem" no cabeçalho do roteiro: pílula redonda, não quadrada */
 html.cel body.modo-doc .enviar .pilula:not(.pri){display:inline-flex;align-items:center;gap:6px;height:var(--alt-controle);padding:0 var(--e3);border:0!important;border-radius:999px!important;background:var(--fundo-3)!important;color:var(--texto-2)!important;font:500 var(--t-pequeno) var(--fonte)}
 html.cel body.modo-doc .enviar .pilula.ok svg{color:var(--sucesso)}
+
+/* ===================== DATA NO CALENDÁRIO (17/11/2026) ===================== */
+html.cel body .pub-selo[role=button]{cursor:pointer;border-radius:var(--raio-p)}html.cel body .pub-selo[role=button]:hover{background:var(--acento-suave);color:var(--texto)}
+html.cel body.modo-doc .dh-data{display:inline-flex;align-items:center;gap:6px;height:var(--alt-controle);padding:0 var(--e3);border:0!important;border-radius:999px!important;background:var(--fundo-3)!important;color:var(--texto-2)!important;font:500 var(--t-pequeno) var(--fonte);white-space:nowrap;cursor:pointer}
+html.cel body.modo-doc .dh-data:hover{background:var(--fundo-4)!important;color:var(--texto)!important}html.cel body.modo-doc .dh-data svg{color:var(--acento)}
+html.cel body .modal .caixa.nv-rot input[type=datetime-local]{width:100%}

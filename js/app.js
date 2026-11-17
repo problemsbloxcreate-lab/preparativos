@@ -29,6 +29,7 @@ const IC = {
   celular: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>', filme: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M3 15h18M8 5v4M16 5v4M8 15v4M16 15v4"/>',
   grafico: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   relogio: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  cal: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
   desfazer: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', refazer: '<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>',
   titulo: '<path d="M6 4v16M18 4v16M6 12h12"/>', baixo: '<path d="M6 9l6 6 6-6"/>', ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 1-1 1.7M12 17v.5"/>', legenda: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 14h4M13 14h4M7 10h10"/>',
 };
@@ -332,11 +333,13 @@ async function pintaInicio(novo) {
     const eps = new Map(); for (const x of arr) { const e = episodioDe(x.it.nome, x.it.id); if (e) { const l = eps.get(e.ep) || []; l.push(x); eps.set(e.ep, l); } }
     const ordem = { rascunho: 0, gravando: 1, pronto: 2 }, grupoItem = x => { const e = episodioDe(x.it.nome, x.it.id), l = e && eps.get(e.ep); if (l && l.length >= 2) return l.map(y => grupoDe2(y.it)).sort((a, b) => (ordem[a] ?? 1) - (ordem[b] ?? 1))[0]; return grupoDe2(x.it); }; for (const k of ['gravando', 'pronto', 'rascunho']) { const D = arr.filter(x => grupoItem(x) === k); if (!D.length) continue; w.appendChild(h(`<div class="grupo-sit"><span class="st st-${k}">${ic(ST_IC[k] || 'lapis', 12)} ${esc(STATUS[k] || k)}</span><small>${D.length}</small></div>`)); w.appendChild(grade(D)); } return w; };
   const liga = x => { const c = cartao(x.it, x.onde); c.onclick = async () => { $$('.dh-menu.pop').forEach(y => y.remove()); c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } };
+    { const sl = $('.pub-selo', c); if (sl) { sl.setAttribute('role', 'button'); sl.title = 'Marcar o dia deste roteiro no calendário do Publicações'; sl.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); marcaDataCalendario(x.it); }); } }
     if (ed) arrastavel(c, x.it.nome || 'Roteiro', g => { if ((PR.de[x.it.id] || '') === (g || '')) return; mudaPastasRot({ mover: { [x.it.id]: g || null } }, g ? `"${x.it.nome || 'Roteiro'}" foi para ${g}.` : 'Saiu da pasta.'); });
     c.oncontextmenu = e => { if (!ed) return; e.preventDefault(); const atual = pastaDe(x);
       popMenu(e, [...(x.onde === 'nuvem' || x.onde === 'uso' ? [[`${ic('pc', 14)} Tirar da nuvem e manter neste computador…`, '', () => tiraDaNuvem(x.it.id)], '-'] : []),[`${ic('pasta', 14)} Mover para pasta…`, atual || '', async () => { const g = await escolhePasta(`Mover "${x.it.nome || 'Roteiro'}"`, pastas, atual); if (g != null) mudaPastasRot({ mover: { [x.it.id]: g || null } }, g ? `"${x.it.nome || 'Roteiro'}" foi para ${g}.` : 'Saiu da pasta.'); }], '-',
         '-', ...(episodioDe(x.it.nome, x.it.id) ? [[`${ic('mais3', 14)} Separar deste episódio`, '', () => { EpManual.poe(x.it.id, null); pintaInicio(); }, !ed]] : []),
         [`${ic('mais', 14)} Juntar ao episódio…`, '', async () => { const t = await pedeTexto('Juntar ao episódio', 'Número do episódio e da parte (ex.: 2 3 = Episódio 2, Parte 3)', 12); const m = /(\d+)\D+(\d+)/.exec(t || ''); if (!m) return; EpManual.poe(x.it.id, { ep: +m[1], parte: +m[2] }); pintaInicio(); }, !ed],
+        [`${ic('cal', 14)} Marcar data no calendário…`, '', () => marcaDataCalendario(x.it), !Pub.ok()],
         [`${ic('lixo', 14)} Apagar roteiro…`, '', () => apagaRoteiro(x.it, x.onde)]]); };
     return c; };
   const alvo = (a, g) => { if (ed) a.dataset.solta = g || ''; };
@@ -504,7 +507,7 @@ function pintaPrep() {
         <nav class="dh-menus"></nav>
       </div>
       <span class="esp"></span>
-      <div class="quem-doc"><div class="aovivo-doc"></div><button class="dh-hist" data-hist title="Quem criou e quem editou">${histBotao(P)}</button></div>
+      <div class="quem-doc"><div class="aovivo-doc"></div><button class="dh-data" data-data-cal title="Dia deste roteiro no calendário do Publicações">${ic('cal', 14)}<span>—</span></button><button class="dh-hist" data-hist title="Quem criou e quem editou">${histBotao(P)}</button></div>
       <div class="dh-vai"><span class="dv-l">vai para</span><div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 18)}</button>`).join('')}</div>
       <button class="dh-canal${P.canal ? '' : ' sem'}" data-canal-yt ${pp ? '' : 'disabled'} title="Canal do YouTube em que o vídeo vai sair${P.canal ? ': ' + esc(P.canal.nome) : ''}">${ic('play', 13)}<span>${P.canal ? esc(P.canal.nome) : 'Escolher canal'}</span></button></div>
       <span class="enviar"></span>
@@ -518,7 +521,7 @@ function pintaPrep() {
       <aside class="guias"><div class="g-roteiro"></div></aside>
       <div class="corpo"></div>
     </div></section>`;
-  modoDoc(true); window.EstudioIcones?.aplicar?.(); AoVivo.paraTudo();
+  modoDoc(true); window.EstudioIcones?.aplicar?.(); AoVivo.paraTudo(); pintaDataCal(); $('.prep [data-data-cal]')?.addEventListener('click', () => marcaDataCalendario(S.P));
   // ao vivo: entra uma vez por roteiro (só quando ele está na nuvem: rascunho só deste computador ninguém mais vê)
   const pintaVivo = l => { const box = $('.prep .aovivo-doc'); if (!box) return; const g = (l || AoVivo.ultimos || []); AoVivo.ultimos = g; const outros = g.filter(x => !x.eu);
     box.innerHTML = g.length > 1 || outros.length ? g.slice(0, 5).map(x => pava(x, 'vivo' + (x.eu ? ' eu' : ''))).join('') + (g.length > 5 ? `<span class="mais">+${g.length - 5}</span>` : '') : ''; box.title = g.length ? 'Ao vivo agora: ' + g.map(x => x.n + (x.eu ? ' (você)' : '')).join(', ') : ''; };
@@ -824,6 +827,58 @@ function perguntaMuda(msg, antes, depois) {
     const fim = v => { m.remove(); ok(v); }; $('[data-n]', m).onclick = () => fim(false); $('[data-s]', m).onclick = () => fim(true); m.onkeydown = e => { if (e.key === 'Escape') fim(false); if (e.key === 'Enter') fim(true); };
     document.body.appendChild(m); $('[data-s]', m).focus(); });
 }
+/* ---------- DATA NO CALENDÁRIO DO PUBLICAÇÕES, SEM SAIR DO PREPARATIVOS (pedido da dona, 17/11/2026) ----------
+   Três jeitos de dar o dia a um roteiro: (1) roteiro que já existe: menu do cartão (botão direito) ou clique em "Publicações · sem data" no cartão; (2) roteiro aberto: botão
+   "Data no calendário" no cabeçalho; (3) roteiro novo: campo opcional na janela "Novo roteiro". Sem data = "Sem data", como sempre.
+   Se o roteiro é parte de um episódio (nome "Episódio N … Parte K" ou ligado no Publicações), a data é a do EPISÓDIO: todas as partes ficam com ela (regra da data única). */
+const epDoItem = x => { if (x?.ep && +x.ep.n > 0) return +x.ep.n; const m = RE_EP.exec(semAc(x?.titulo || x?.nome)); return m ? +m[1] : 0; };
+const fmtDataHora = t => new Date(t).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '');
+const paraInputDataHora = t => { const d = new Date(t), p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+// o que o Publicações sabe deste roteiro (cartão, episódio e data atual)
+async function pubInfoData(s) {
+  const L = await Nuvem.pede('/publicacoes'), itens = L.itens || [], id = Pub.id(s.id), it = itens.find(x => x.id === id) || null;
+  const ep = it ? epDoItem(it) : epDoItem({ titulo: s.nome }), grupo = ep ? itens.filter(x => epDoItem(x) === ep) : [], eEp = !!ep && grupo.length + (it ? 0 : 1) >= 2;
+  const datas = (eEp ? grupo : it ? [it] : []).map(x => x.publicaEm).filter(Boolean).sort((a, b) => a - b);
+  return { itens, it, ep, grupo, eEp, t: datas[0] || null };
+}
+// grava a data (ou "sem data", t = null) no cartão do roteiro e, se for episódio, em todas as partes que ainda não saíram
+async function pubGravaData(s, t, info) {
+  const limpa = x => { const { meu, por, editadoPor, editadoEm, ...b } = x; return b; };
+  const alvos = (info.eEp ? info.grupo : info.it ? [info.it] : []).filter(x => x.concluido || x.pedido || x.semLink), fora = (info.eEp ? info.grupo : info.it ? [info.it] : []).length - alvos.length;
+  const gravados = [];
+  for (const x of alvos) { const novo = { ...limpa(x), publicaEm: t }; await Nuvem.json('/publicacoes', 'POST', { item: novo }); gravados.push(novo); }
+  if (!info.it) { // o roteiro ainda não tinha cartão: nasce com o dia
+    const cn = typeof s.canal === 'string' ? s.canal : s.canal?.nome, canal = PREP_CONFIG.canais.find(c => c.nome === cn || c.id === s.canal?.id) || null;
+    const novo = { id: Pub.id(s.id), concluido: true, titulo: String(s.nome || 'Roteiro').slice(0, 100), programa: 'preparativos', abrir: '/preparativos/?id=' + encodeURIComponent(s.id), formato: Pub.formato({ destino: s.destino, nome: s.nome }), canal: canal ? { id: canal.id, nome: canal.nome } : { id: '', nome: '' }, modo: 'naoListado', privacidade: 'unlisted', enviadoEm: Date.now(), publicaEm: t };
+    await Nuvem.json('/publicacoes', 'POST', { item: novo }); gravados.push(novo); const m = Pub.lido(); m[s.id] = { t: novo.titulo, c: canal?.id || '' }; Pub.grava(m);
+  }
+  try { const v = JSON.parse(localStorage.getItem(Pub.LSP) || 'null'); if (v) { for (const g of gravados) { const k = (v.itens || []).findIndex(y => y.id === g.id); if (k >= 0) v.itens[k] = { ...v.itens[k], publicaEm: t }; else (v.itens ||= []).unshift(g); } v.em = 0; localStorage.setItem(Pub.LSP, JSON.stringify(v)); } } catch { }
+  return { n: gravados.length, fora };
+}
+// janela: mini calendário + hora; "Sem data" tira o dia; Cancelar (vermelho), clicar fora e Esc fecham
+async function marcaDataCalendario(s) {
+  if (!Pub.ok()) return aviso('Sua conta não pode mexer no Publicações.', 'erro');
+  let info; try { info = await pubInfoData(s); } catch (e) { return aviso('Não consegui abrir o Publicações: ' + e.message, 'erro'); }
+  if (info.it && !(info.it.concluido || info.it.pedido || info.it.semLink)) return aviso('Esse roteiro já saiu no YouTube: o dia dele muda lá no Publicações.', 'info');
+  return new Promise(ok => {
+    const parte = info.eEp ? `<div class="nv-aviso">${ic('ajuda', 14)} <span>Este roteiro faz parte do <b>Episódio ${info.ep}</b>: o dia vale para o <b>episódio todo</b> (${Math.max(info.grupo.length, 1) + (info.it ? 0 : 1)} partes), todas ficam com a mesma data.</span></div>` : '';
+    const m = h(`<div class="modal"><div class="caixa nv-rot"><b>Data no calendário</b><p>${esc(s.nome || 'Roteiro')}</p>${parte}
+      <label>Dia e hora no Publicações<input type="datetime-local" data-t value="${info.t ? paraInputDataHora(info.t) : ''}"></label>
+      <div class="nv-aviso">${ic('ajuda', 14)} <span>${info.t ? 'Hoje está em <b>' + esc(fmtDataHora(info.t)) + '</b>.' : 'Hoje está em <b>Sem data</b>.'} Sem dia, ele fica em Sem data.</span></div>
+      <div class="bts"><button class="bt" data-sd>Sem data</button><button class="bt perigo" data-c>Cancelar</button><button class="bt pri" data-s>Salvar</button></div></div></div>`);
+    const fim = v => { m.remove(); ok(v); }, grava = async t => { const bs = $$('button', m); bs.forEach(b => b.disabled = true); try { const r = await pubGravaData(s, t, info); Pub.velha(); fim(t || true);
+      aviso(t ? `Dia marcado: ${fmtDataHora(t)}${info.eEp ? ' (episódio todo)' : ''}.` : 'O roteiro ficou em Sem data.' + (r.fora ? ` ${r.fora} parte(s) já no YouTube não mudaram.` : ''), 'ok'); if (!S.P) pintaInicio(); else pintaDataCal(); }
+      catch (e) { bs.forEach(b => b.disabled = false); aviso('Não consegui gravar o dia: ' + e.message, 'erro'); } };
+    $('[data-c]', m).onclick = () => fim(null);
+    $('[data-sd]', m).onclick = () => grava(null);
+    $('[data-s]', m).onclick = () => { const v = $('[data-t]', m).value; if (!v) return aviso('Escolha o dia e a hora, ou use "Sem data".', 'info'); grava(new Date(v).getTime()); };
+    m.onkeydown = e => { if (e.key === 'Escape') fim(null); if (e.key === 'Enter' && e.target.matches('input')) $('[data-s]', m).click(); };
+    document.body.appendChild(m); $('[data-t]', m).focus(); });
+}
+// botão "Data no calendário" do cabeçalho do roteiro aberto
+function pintaDataCal() { const b = $('.prep [data-data-cal]'); if (!b || !S.P) return; const sp = $('span', b);
+  try { const v = JSON.parse(localStorage.getItem(Pub.LSP) || 'null'), x = (v?.itens || []).find(y => y.id === Pub.id(S.P.id)); sp.textContent = x ? (x.publicaEm ? fmtDataHora(x.publicaEm) : 'Sem data') : '—'; } catch { sp.textContent = '—'; }
+  const id = S.P.id; if (Pub.ok()) pubInfoData(S.P).then(i => { if (S.P && S.P.id === id && $('.prep [data-data-cal] span')) $('.prep [data-data-cal] span').textContent = i.it ? (i.t ? fmtDataHora(i.t) + (i.eEp ? ' (episódio)' : '') : 'Sem data') : '—'; }).catch(() => { }); }
 /* ---------- NOVO ROTEIRO: nome, vai para, canal e pasta numa janela só (pedido da dona, 17/11/2026) ---------- */
 function janelaNovoRoteiro(pastas, pastaIni, dia, nomeIni) {
   return new Promise(ok => {
@@ -834,7 +889,7 @@ function janelaNovoRoteiro(pastas, pastaIni, dia, nomeIni) {
       <label>Vai para<div class="seg nv-seg" data-dest>${dest.map(([k]) => `<button type="button" data-d="${k}" class="${k === destino ? 'on' : ''}">${progIc(k, 16)} ${esc(nomeDe(k))}</button>`).join('')}</div></label>
       <label>Canal do YouTube<select data-canal></select></label>
       <label>Pasta<select data-pasta><option value="">Fora de pastas</option>${pastas.map(g => `<option value="${esc(g)}"${g === pastaIni ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
-      ${dia ? `<label>Dia no Publicações<input type="date" data-dia value="${(d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'))(new Date(dia))}"></label>` : ''}
+      <label>Data no calendário (opcional)<input type="datetime-local" data-dia value="${dia ? paraInputDataHora(new Date(dia).setHours(12, 0, 0, 0)) : ''}"></label>
       <div class="nv-aviso" data-aviso>${ic('ajuda', 14)} <span>Ao criar, ele já aparece no Publicações em <b>${dia ? new Date(dia).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'Sem data'}</b>.</span></div>
       <div class="bts"><button class="bt" data-c>Cancelar</button><button class="bt pri" data-s>Criar roteiro</button></div></div></div>`);
     const pintaCanal = () => { $('[data-canal]', m).innerHTML = `<option value="">Escolher depois</option>` + PREP_CONFIG.canais.map(c => `<option value="${esc(c.id)}"${c.id === canalId ? ' selected' : ''}>${esc(c.nome)}</option>`).join(''); };
@@ -842,9 +897,9 @@ function janelaNovoRoteiro(pastas, pastaIni, dia, nomeIni) {
     $$('[data-d]', m).forEach(b => b.onclick = () => { destino = b.dataset.d; $$('[data-d]', m).forEach(x => x.classList.toggle('on', x === b)); if (!tocouCanal) { canalId = PREP_CONFIG.canalPadrao[destino] || ''; pintaCanal(); } });
     $('[data-canal]', m).onchange = e => { canalId = e.target.value; tocouCanal = true; };
     const fim = v => { m.remove(); ok(v); }, nome = $('[data-nome]', m), diaEl = $('[data-dia]', m);
-    if (diaEl) diaEl.onchange = () => { $('[data-aviso] span', m).innerHTML = 'Ao criar, ele já aparece no Publicações em <b>' + (diaEl.value ? diaEl.value.split('-').reverse().slice(0, 2).join('/') : 'Sem data') + '</b>.'; };
+    if (diaEl) diaEl.onchange = () => { $('[data-aviso] span', m).innerHTML = 'Ao criar, ele já aparece no Publicações em <b>' + (diaEl.value ? esc(fmtDataHora(new Date(diaEl.value).getTime())) : 'Sem data') + '</b>.'; };
     $('[data-c]', m).onclick = () => fim(null);
-    $('[data-s]', m).onclick = () => fim({ nome: nome.value.trim().slice(0, 80) || 'Roteiro novo', destino, canal: PREP_CONFIG.canais.find(c => c.id === canalId) || null, pasta: $('[data-pasta]', m).value || '', dia: diaEl && diaEl.value ? new Date(diaEl.value + 'T12:00:00').getTime() : null });
+    $('[data-s]', m).onclick = () => fim({ nome: nome.value.trim().slice(0, 80) || 'Roteiro novo', destino, canal: PREP_CONFIG.canais.find(c => c.id === canalId) || null, pasta: $('[data-pasta]', m).value || '', dia: diaEl && diaEl.value ? new Date(diaEl.value).getTime() : null });
     m.onkeydown = e => { if (e.key === 'Escape') fim(null); if (e.key === 'Enter' && e.target.matches('input')) $('[data-s]', m).click(); };
     document.body.appendChild(m); nome.focus(); nome.select(); });
 }
