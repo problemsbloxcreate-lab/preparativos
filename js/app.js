@@ -1898,7 +1898,7 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
     return out; },
 }));
 (async () => {
-  { const IAB = { roteiros: 'doc', ideias: 'luz', personagens: 'pessoa', publicacoes: 'upload' }; $$('[data-aba]').forEach(b => { if (!b.querySelector('svg')) b.insertAdjacentHTML('afterbegin', ic(IAB[b.dataset.aba] || 'doc', 16) + ' '); }); }
+  { const IAB = { roteiros: 'doc', ideias: 'luz', personagens: 'pessoa', publicacoes: 'upload' }; $$('[data-aba]').forEach(b => { if (!b.querySelector('svg, .ic-aba-pu')) b.insertAdjacentHTML('afterbegin', (b.dataset.aba === 'publicacoes' ? '<span class="ic-aba-pu" data-estudio-icone="x-publicacoes" aria-hidden="true"><b>Pu</b></span>' : ic(IAB[b.dataset.aba] || 'doc', 16)) + ' '); /* a aba Publicações usa o ícone do programa (o mesmo da grade e do dock), pedido da dona em 17/11/2026 */ }); }
   try { S.eu = await window.EstudioLogin?.pronto; } catch { }
   // níveis de acesso: o /estudio-conta.js (defer) cria o EstudioPerm depois deste arquivo; espera ele antes de desenhar os botões
   if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));
