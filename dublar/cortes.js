@@ -1,3 +1,17 @@
+/* ---------- JANELAS DO PRÓPRIO SITE (pedido da dona, 17/11/2026): no lugar de alert/confirm/prompt do navegador ----------
+   EpDialogo.escolhe(titulo, texto, [[rótulo, valor, classe]], padrao) → Promise; clicar fora ou Esc devolve o padrao. confirma(titulo, texto, rotOk, { perigo }) → Promise<boolean>.
+   aviso(texto) = aviso curto no canto. Estilos: .epd-* (css/celeste.css no Preparativos, dublar/dublar.css na página do link). */
+(() => { if (window.EpDialogo) return;
+  const el = (t, c, tx) => { const e = document.createElement(t); if (c) e.className = c; if (tx != null) e.textContent = tx; return e; };
+  const escolhe = (titulo, texto, botoes, padrao = null) => new Promise(ok => {
+    const fundo = el('div', 'epd-fundo'), cx = el('div', 'epd-caixa'), bts = el('div', 'epd-bts'); cx.setAttribute('role', 'dialog'); cx.setAttribute('aria-modal', 'true'); cx.append(el('b', 'epd-t', titulo)); if (texto) cx.append(el('p', 'epd-p', texto));
+    const fim = v => { document.removeEventListener('keydown', tecla, true); fundo.remove(); ok(v); }, tecla = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fim(padrao); } };
+    let foco = null; for (const [rot, val, cls] of botoes) { const b = el('button', 'epd-bt ' + (cls || ''), rot); b.type = 'button'; b.onclick = () => fim(val); bts.append(b); if (!foco && /ok|pri|perigo/.test(cls || '')) foco = b; }
+    cx.append(bts); fundo.append(cx); fundo.onmousedown = e => { if (e.target === fundo) fim(padrao); }; document.addEventListener('keydown', tecla, true); document.body.append(fundo); (foco || bts.lastChild)?.focus();
+  });
+  window.EpDialogo = { escolhe, confirma: (titulo, texto, rotOk = 'OK', o = {}) => escolhe(titulo, texto, [[o.cancelar || 'Cancelar', false, 'epd-cancela'], [rotOk, true, o.perigo ? 'epd-perigo' : 'epd-ok']], false),
+    aviso(txt, ms = 5000) { const t = el('div', 'epd-toast', txt); t.setAttribute('role', 'status'); document.body.append(t); setTimeout(() => t.remove(), ms); } };
+})();
 /* ===================== cortes.js — EDIÇÃO E CORTE DE ÁUDIO no navegador (Preparativos e página do link de dublagem) =====================
    Tudo aqui roda no navegador (Web Audio), sem gastar nuvem: só o resultado final (um áudio por fala) vai para quem chamou.
    Cortes.revisao({ blob|dados, falas:[{id, rotulo, texto, nota}], marcas?, titulo, aviso, aoSalvar(pedacos), transcrever? })
@@ -268,20 +282,20 @@ const Cortes = (() => {
       else if (mod && k.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); desfaz(); } else if (mod && (k.toLowerCase() === 'y' || (k.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); refaz(); }
       else if (k === 'Escape') { if (selM >= 0 || sel) { selM = -1; sel = null; desenha(); pintaLista(); } else fecha(); } };
     pilha.push(f); addEventListener('keydown', tecla); const rz = () => desenha(); addEventListener('resize', rz); const ro = new ResizeObserver(() => desenha()); ro.observe(onda); // desenha de novo quando a área ganha tamanho
-    function fecha(semPerguntar) { if (!semPerguntar && hist.length && !confirm('Fechar sem salvar? As mudanças neste áudio se perdem.')) return; para(); removeEventListener('keydown', tecla); removeEventListener('resize', rz); ro.disconnect(); f.remove(); const pi = pilha.indexOf(f); if (pi >= 0) pilha.splice(pi, 1); o.aoFechar?.(); }
+    async function fecha(semPerguntar) { if (!semPerguntar && hist.length && !(await EpDialogo.confirma('Fechar sem salvar?', 'As mudanças neste áudio se perdem.', 'Fechar sem salvar', { perigo: true }))) return; para(); removeEventListener('keydown', tecla); removeEventListener('resize', rz); ro.disconnect(); f.remove(); const pi = pilha.indexOf(f); if (pi >= 0) pilha.splice(pi, 1); o.aoFechar?.(); }
     // ---- transcrição ----
     async function transcreve(sozinho) { if (!o.transcrever) return; const bts = $$('button', rod); bts.forEach(b => b.disabled = true); const v = av.textContent; av.textContent = 'Transcrevendo… (pode levar um pouco)';
       try { energia._c = null; const palavras = await o.transcrever(A); const pos = alinha(palavras, falas); if (!pos.some(Boolean)) throw new Error('Não achei as falas na transcrição. Use as pausas ou corte à mão.');
         guarda(); const novas = []; for (let k = 1; k < falas.length; k++) { const a = pos[k - 1], b = pos[k]; if (!b) continue; const t = a ? (a.fim + b.ini) / 2 : b.ini - .15; novas.push(quieto(A, t)); }
         marcas = [...new Set(novas.map(x => Math.round(x * 1000) / 1000))].sort((a, b) => a - b); dono = null; selM = -1; aviso = `Cortes sugeridos pela transcrição (${pos.filter(Boolean).length} de ${falas.length} falas achadas). Confira e arraste se precisar.`; tudo(); await confereIguais(); }
-      catch (e) { if (sozinho) { aviso = 'A transcrição não deu certo (' + e.message + '). Fiquei com os cortes pelas pausas: confira, ou tente "Transcrever para acertar" de novo.'; pintaLista(); } else { av.textContent = v; alert(e.message); } } bts.forEach(b => b.disabled = false); }
+      catch (e) { if (sozinho) { aviso = 'A transcrição não deu certo (' + e.message + '). Fiquei com os cortes pelas pausas: confira, ou tente "Transcrever para acertar" de novo.'; pintaLista(); } else { av.textContent = v; EpDialogo.aviso(e.message); } } bts.forEach(b => b.disabled = false); }
     // ---- salvar: cada pedaço vira o áudio de uma fala (Opus .ogg; WAV se o navegador não tiver o codificador) ----
     async function salva() { para(); if (o.cru) { o.aoSalvar([{ dados: { sr: A.sr, d: A.d.slice() } }]); return fecha(true); }
       const bs = uma ? [0, dur()] : bordas(), out = [], salvaBt = rod.lastChild; salvaBt.disabled = true; salvaBt.textContent = 'Preparando…';
       try { for (let k = 0; k < bs.length - 1; k++) { const fi = uma ? 0 : donoDe(k); if (!uma && (fi == null || fi < 0)) continue; const p = await reamostra(pedaco(A, Math.max(0, bs[k] - (uma ? 0 : .02)), Math.min(dur(), bs[k + 1] + (uma ? 0 : .02))), 22050);
           if (p.d.length < 2205) continue; let blob = null; try { blob = await opusOgg(p); } catch { } out.push({ fala: uma ? null : falas[fi].id, blob: blob || wav(p), duracao: Math.round(p.d.length / p.sr * 100) / 100 }); }
         if (!out.length) throw new Error('Nenhum pedaço para salvar.'); const ok = await o.aoSalvar(out); if (ok !== false) fecha(true); }
-      catch (e) { alert(e.message); salvaBt.disabled = false; salvaBt.textContent = uma ? 'Salvar' : 'Separar nas falas'; } }
+      catch (e) { EpDialogo.aviso(e.message); salvaBt.disabled = false; salvaBt.textContent = uma ? 'Salvar' : 'Separar nas falas'; } }
     document.body.append(f); requestAnimationFrame(tudo); if (o.autoTranscrever && o.transcrever && !uma) setTimeout(() => transcreve(true), 300); else setTimeout(() => confereIguais(), 300); return { fecha };
   }
 
@@ -311,7 +325,7 @@ const Cortes = (() => {
     function sai() { fim = true; clearInterval(relogio); removeEventListener('keydown', tecla); try { (st.fecha ? st.fecha() : stream.getTracks().forEach(x => x.stop())); } catch { } f.remove(); }
     const pronto = () => new Promise(ok => { if (mr.state === 'inactive') return ok(); mr.onstop = ok; try { mr.stop(); } catch { ok(); } });
     async function termina() { await pronto(); const blob = new Blob(pedacos, { type: mr.mimeType || tipo || 'audio/webm' }); sai(); o.aoTerminar(blob, trechos); }
-    async function cancela() { if (pausado === false) pausa(); const r = trechos.length ? prompt('Cancelar a gravação em sequência?\nEscreva 1 para GUARDAR o que já foi gravado (vai para a revisão), 2 para DESCARTAR tudo, ou deixe vazio para continuar gravando.', '1') : (confirm('Descartar a gravação?') ? '2' : '');
+    async function cancela() { if (pausado === false) pausa(); const r = trechos.length ? await EpDialogo.escolhe('Cancelar a gravação em sequência?', 'Guardar leva o que já foi gravado para a revisão; descartar apaga tudo.', [['Continuar gravando', '', 'epd-ok'], ['Guardar o que já gravei', '1'], ['Descartar tudo', '2', 'epd-perigo']], '') : ((await EpDialogo.confirma('Descartar a gravação?', 'Tudo o que foi gravado agora se perde.', 'Descartar', { perigo: true })) ? '2' : '');
       if (r === '1') return termina(); if (r === '2') { await pronto(); sai(); o.guarda?.(null); return o.aoCancelar?.(); } pausa(); }
     let tSalva = 0; function salvaTemp() { clearTimeout(tSalva); tSalva = setTimeout(() => { try { o.guarda?.({ chunks: pedacos.slice(), tipo: mr.mimeType || tipo, trechos: trechos.slice(), em: Date.now() }); } catch { } }, 300); }
     const tecla = e => { if (fim) return; if (e.key === 'Enter') { e.preventDefault(); proxima(); } else if (e.key === ' ') { e.preventDefault(); pausa(); } else if (e.key === 'Backspace') { e.preventDefault(); volta(); } else if (e.key === 'Escape') { e.preventDefault(); cancela(); } };

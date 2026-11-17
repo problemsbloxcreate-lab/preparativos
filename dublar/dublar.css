@@ -110,3 +110,13 @@ input.nome:focus{border-color:var(--acento);box-shadow:0 0 0 3px rgba(92,196,255
 .fim{background:rgba(21,21,23,.88);backdrop-filter:blur(20px)}
 .carregando i{border-top-color:var(--acento)}
 .topo b,.aviso h2,.passo h2,.fala-n,.logo{font-family:"Inter","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+
+/* janelas internas EpDialogo (17/11/2026): no lugar de alert/confirm do navegador */
+.epd-fundo{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.6)}
+.epd-caixa{width:min(440px,100%);background:var(--panel2);color:var(--text);border-left:6px solid var(--marca);padding:22px 24px}
+.epd-t{display:block;font:300 24px/1.2 "Segoe UI Light","Segoe UI",sans-serif;margin:0 0 8px}.epd-p{margin:0 0 16px;color:var(--muted);white-space:pre-line}
+.epd-bts{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+.epd-bt{min-height:38px;padding:0 18px;border:0;background:#3a3a3a;color:var(--text);font-size:15px}.epd-bt:hover{background:#4a4a4a}
+.epd-bt.epd-ok{background:var(--marca);color:var(--marca-tx);font-weight:600}.epd-bt.epd-cancela{background:transparent;color:#ff6b5b}.epd-bt.epd-perigo{background:var(--rec);color:#fff}
+.epd-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:310;max-width:min(520px,92vw);padding:12px 16px;background:var(--panel2);color:var(--text);border-left:6px solid var(--rec)}
+.epd-bt{border:1px solid #555!important}.epd-bt.epd-ok,.epd-bt.epd-perigo,.epd-bt.epd-cancela{border-color:transparent!important}

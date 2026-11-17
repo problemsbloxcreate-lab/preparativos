@@ -307,3 +307,35 @@ html.cel body:not(.modo-doc){
 }
 
 html.cel body:not(.modo-doc){& .ep-card header{flex-wrap:wrap}& .ep-card header b{white-space:nowrap}& .ep-pt{flex-wrap:wrap}& .ep-pt .nome{flex:1 1 110px}& .ep-pt .pil{margin-left:auto}}
+
+html.cel body:not(.modo-doc) .nv-seg button{display:inline-flex;align-items:center;justify-content:center;gap:6px}html.cel body:not(.modo-doc) .nv-seg button svg{flex:none;width:16px;height:16px}
+
+/* ===================== POP-UP DO CANAL (17/11/2026) ===================== */
+html.cel body:not(.modo-doc){
+  & .caixa.cn-pop{width:min(420px,100%)!important}
+  & .cn-lista{display:grid;gap:var(--e2)}
+  & .cn-op{display:flex;align-items:center;gap:var(--e3);height:52px;padding:0 var(--e3);border:1px solid var(--linha)!important;border-radius:var(--raio-controle)!important;background:var(--fundo-2)!important;color:var(--texto)!important;font:500 var(--t-corpo) var(--fonte);text-align:left;cursor:pointer;transition:border-color var(--rapido),background var(--rapido)}
+  & .cn-op:hover{border-color:var(--linha-forte)!important;background:var(--fundo-3)!important}
+  & .cn-op.on{border-color:var(--acento)!important;background:var(--acento-suave)!important}
+  & .cn-op:focus-visible{outline:2px solid var(--acento);outline-offset:2px}
+  & .cn-foto{display:grid;place-items:center;width:32px;height:32px;border-radius:50%!important;background:var(--fundo-3);overflow:hidden;flex:none;color:var(--texto-3)}
+  & .cn-foto img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%!important}
+  & .cn-nome{flex:1}
+  & .cn-ok{display:none;color:var(--acento)}& .cn-op.on .cn-ok{display:inline-flex}
+  & .cn-op.neutro{height:40px;font-weight:400;color:var(--texto-2)!important;background:transparent!important}
+  & .cn-op.neutro .cn-foto{width:24px;height:24px;background:transparent}
+  & .cn-rodape{margin-top:var(--e3)!important;padding-top:var(--e3);border-top:1px solid var(--linha);justify-content:flex-end}
+}
+
+/* ===================== JANELAS INTERNAS EpDialogo (17/11/2026) ===================== */
+.epd-fundo{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px;background:var(--veu,rgba(0,0,0,.45));backdrop-filter:blur(4px)}
+.epd-caixa{width:min(420px,100%);background:var(--elevado,#242428);color:var(--texto,#f5f5f7);border:1px solid var(--linha,rgba(255,255,255,.09));border-radius:var(--raio-janela,14px);box-shadow:var(--sombra-3,0 24px 70px rgba(0,0,0,.55));padding:var(--e5,24px);font-family:var(--fonte,system-ui)}
+.epd-t{display:block;font:600 17px var(--fonte,system-ui);margin:0 0 6px}.epd-p{margin:0 0 var(--e4,16px);color:var(--texto-2,rgba(235,235,245,.64));font-size:var(--t-corpo,14px);white-space:pre-line}
+.epd-bts{display:flex;flex-wrap:wrap;gap:var(--e2,8px);justify-content:flex-end;margin-top:var(--e3,12px)}
+.epd-bt{height:var(--alt-controle,32px);padding:0 var(--e4,16px);border:0;border-radius:var(--raio-controle,8px);background:var(--fundo-3,#28282c);color:var(--texto,#f5f5f7);font:500 var(--t-corpo,14px) var(--fonte,system-ui);cursor:pointer}
+.epd-bt:hover{background:var(--fundo-4,#333338)}.epd-bt:focus-visible{outline:2px solid var(--acento,#5cc4ff);outline-offset:2px}
+.epd-bt.epd-ok{background:var(--acento,#5cc4ff);color:var(--acento-t,#04223a);font-weight:600}.epd-bt.epd-ok:hover{filter:brightness(1.08)}
+.epd-bt.epd-cancela{background:transparent;color:var(--perigo,#ff453a)}.epd-bt.epd-cancela:hover{background:color-mix(in srgb,var(--perigo,#ff453a) 14%,transparent)}
+.epd-bt.epd-perigo{background:var(--perigo,#ff453a);color:#fff;font-weight:600}
+.epd-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:310;max-width:min(520px,92vw);padding:10px 14px;border-radius:10px;background:var(--elevado,#242428);color:var(--texto,#f5f5f7);border:1px solid var(--linha,rgba(255,255,255,.09));box-shadow:var(--sombra-2,0 10px 30px rgba(0,0,0,.45));font:400 14px var(--fonte,system-ui)}
+.epd-bt{border:1px solid var(--linha-forte,rgba(255,255,255,.16))!important}.epd-bt.epd-ok,.epd-bt.epd-perigo,.epd-bt.epd-cancela{border-color:transparent!important}

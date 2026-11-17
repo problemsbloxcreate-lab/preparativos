@@ -43,8 +43,19 @@ const ic = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" f
 function aviso(t, tipo = 'info', ms = 4200) { const el = h(`<div class="aviso ${tipo}">${esc(t)}</div>`); $('#avisos').appendChild(el); setTimeout(() => { el.classList.add('sai'); setTimeout(() => el.remove(), 300); }, ms); }
 // canal do YouTube do roteiro: devolve { id, nome }, '' (sem canal) ou null (cancelou)
 async function escolheCanalYt(P) {
-  const id = await pergunta('Em qual canal vai sair?', `O vídeo deste roteiro vai para este canal do YouTube.${P.destino === 'shorts' ? ' Os Shorts não têm canal padrão.' : ''}`, [...PREP_CONFIG.canais.map(c => [c.nome, c.id, P.canal?.id === c.id ? 'pri' : '']), ['Sem canal', ''], ['Cancelar', null]]);
-  return id === null ? null : PREP_CONFIG.canais.find(c => c.id === id) || '';
+  // POP-UP DO CANAL (pedido da dona, 17/11/2026): os canais são OPÇÕES iguais, com a foto do canal; um clique já escolhe; "Sem canal" discreto no fim; Cancelar vermelho embaixo; clicar fora ou Esc cancela
+  return new Promise(ok => {
+    const m = h(`<div class="modal"><div class="caixa cn-pop" role="dialog" aria-label="Em qual canal vai sair?"><b>Em qual canal vai sair?</b><p>O vídeo deste roteiro vai para este canal do YouTube.${P.destino === 'shorts' ? ' Os Shorts não têm canal padrão.' : ''}</p>
+      <div class="cn-lista" role="listbox">${PREP_CONFIG.canais.map(c => `<button class="cn-op${P.canal?.id === c.id ? ' on' : ''}" role="option" aria-selected="${P.canal?.id === c.id}" data-id="${esc(c.id)}"><span class="cn-foto">${c.foto ? `<img src="${esc(c.foto)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : ''}</span><span class="cn-nome">${esc(c.nome)}</span><span class="cn-ok">${ic('ok', 14)}</span></button>`).join('')}
+        <button class="cn-op neutro" role="option" data-id=""><span class="cn-foto">${ic('play', 14)}</span><span class="cn-nome">Sem canal</span></button></div>
+      <div class="bts cn-rodape"><button class="bt perigo" data-c>Cancelar</button></div></div></div>`);
+    const fim = v => { document.removeEventListener('keydown', esc1, true); m.remove(); ok(v); }, esc1 = e => { if (e.key === 'Escape') { e.stopPropagation(); fim(null); } };
+    document.addEventListener('keydown', esc1, true);
+    $$('.cn-op', m).forEach(b => b.onclick = () => fim(b.dataset.id === '' ? '' : PREP_CONFIG.canais.find(c => c.id === b.dataset.id) || ''));
+    $$('.cn-foto img', m).forEach(im => im.onerror = () => im.remove());
+    $('[data-c]', m).onclick = () => fim(null); m.onmousedown = e => { if (e.target === m) fim(null); };
+    document.body.appendChild(m); $('.cn-op.on', m)?.focus();
+  });
 }
 function pergunta(titulo, msg, botoes) {
   return new Promise(ok => { const el = h(`<div class="modal"><div class="caixa"><b>${esc(titulo)}</b><p>${esc(msg)}</p><div class="bts"></div></div></div>`);
@@ -52,6 +63,11 @@ function pergunta(titulo, msg, botoes) {
     document.body.appendChild(el); });
 }
 
+// CLICAR FORA OU ESC FECHA O POP-UP (pedido da dona, 17/11/2026): vale para toda janela .modal; é o mesmo que apertar o botão Cancelar/Fechar/Ficar/Não/Voltar dela (nada é escolhido nem apagado).
+// Pop-ups sem esse botão (só "Entendi"/"Pronto") ou com data-fecha-fora="0" não fecham por aqui.
+const fechaModalFora = m => { if (!m || m.dataset.fechaFora === '0') return false; const c = [...m.querySelectorAll('.bts button, button[data-c]')].find(b => /^(cancelar|fechar|ficar|n[aã]o|voltar)\b/i.test(b.textContent.trim())); if (!c) return false; c.click(); return true; };
+document.addEventListener('mousedown', e => { if (e.target.classList?.contains('modal') && fechaModalFora(e.target)) e.preventDefault(); });
+document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; const ms = [...document.querySelectorAll('.modal')]; if (ms.length) fechaModalFora(ms[ms.length - 1]); });
 /* ---------- permissões (níveis de acesso: outra parte do Estúdio decide; sem ela, pode tudo) ---------- */
 const pode = c => { try { return window.EstudioPerm?.pode?.('preparativos.' + c) ?? true; } catch { return true; } };
 
@@ -805,7 +821,7 @@ function janelaNovoRoteiro(pastas, pastaIni, dia) {
     let destino = 'animador', canalId = PREP_CONFIG.canalPadrao[destino] || '', tocouCanal = false;
     const m = h(`<div class="modal"><div class="caixa nv-rot"><b>Novo roteiro</b><p>Escolha o básico; o resto você muda depois.</p>
       <label>Nome<input data-nome maxlength="80" value="Roteiro novo"></label>
-      <label>Vai para<div class="seg nv-seg" data-dest>${dest.map(([k]) => `<button type="button" data-d="${k}" class="${k === destino ? 'on' : ''}">${esc(nomeDe(k))}</button>`).join('')}</div></label>
+      <label>Vai para<div class="seg nv-seg" data-dest>${dest.map(([k]) => `<button type="button" data-d="${k}" class="${k === destino ? 'on' : ''}">${progIc(k, 16)} ${esc(nomeDe(k))}</button>`).join('')}</div></label>
       <label>Canal do YouTube<select data-canal></select></label>
       <label>Pasta<select data-pasta><option value="">Fora de pastas</option>${pastas.map(g => `<option value="${esc(g)}"${g === pastaIni ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
       ${dia ? `<label>Dia no Publicações<input type="date" data-dia value="${(d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'))(new Date(dia))}"></label>` : ''}

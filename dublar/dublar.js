@@ -142,7 +142,7 @@
     if (loc) l.append(btI('env', 'Enviar', 'pri', e => envia(f, e.currentTarget)), btI('lixo', '', 'apagar', () => apaga(f), 'Apagar esta gravação'));
     c.append(l); return c;
   }
-  async function apaga(f) { if (!confirm('Apagar esta gravação? Isso não dá para desfazer.')) return; const v = S.loc.get(f.id); if (v) URL.revokeObjectURL(v.url); S.loc.delete(f.id); pinta(); }
+  async function apaga(f) { if (!(await EpDialogo.confirma('Apagar esta gravação?', 'Isso não dá para desfazer.', 'Apagar', { perigo: true }))) return; const v = S.loc.get(f.id); if (v) URL.revokeObjectURL(v.url); S.loc.delete(f.id); pinta(); }
 
   // PLAYER: play/pause, barra para ir a qualquer ponto e tempo; no fim volta para o começo
   function player(loc) {
@@ -194,7 +194,7 @@
   }
   async function termina(e) {
     const b = e.currentTarget, falta = S.d.falas.filter(f => !S.loc.has(f.id) && !S.d.enviadas?.[f.id]).length;
-    if (falta && !confirm(`${falta} fala${falta === 1 ? '' : 's'} ainda sem gravação. Terminar mesmo assim?`)) return;
+    if (falta && !(await EpDialogo.confirma('Terminar mesmo assim?', `${falta} fala${falta === 1 ? '' : 's'} ainda sem gravação.`, 'Terminar'))) return;
     b.disabled = true; b.lastChild.textContent = 'Enviando…';
     for (const f of S.d.falas) if (S.loc.has(f.id) && !(await envia(f))) { b.disabled = false; b.lastChild.textContent = 'Terminei'; return; }
     try { await api('terminar', { method: 'POST' }); } catch (er) { faixa(er.message); b.disabled = false; b.lastChild.textContent = 'Terminei'; return; }
