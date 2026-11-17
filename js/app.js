@@ -1692,7 +1692,7 @@ async function pintaPersonagens() {
   const ordena = E => E.sort(([, a], [, b]) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
   const moveP = (k, g) => { if (!todos[k] || (todos[k].grupo || '') === (g || '')) return; todos[k] = { ...todos[k], grupo: g || undefined }; pintaL(); manda(k, { grupo: g || null }, g ? `${todos[k].nome} foi para ${g}.` : `${todos[k].nome} saiu da pasta.`); };
   const cartao = ([k, v]) => `<div class="pc3" data-k="${esc(k)}" style="--c:${corP(v)}" role="button" tabindex="0" title="Ver ${esc(v.nome)} (cor da legenda, foto, Animador)">${ava(v.nome, corP(v), 'g')}<b>${esc(v.nome)}</b>
-    <span class="pc3-m">${v.atelie?.id ? `<span class="pc3-at" data-th="${esc(v.atelie.id)}" title="No Animador: ${esc(v.atelie.nome || v.atelie.id)}">${icAt(12)}</span>` : ''}</span></div>`;
+    </div>`; // (a marquinha pc3-at, a imagem pequena embaixo do nome, saiu a pedido da dona em 17/11/2026)
   const grade = L => `<div class="pc3-grade">${L.map(cartao).join('')}</div>`;
   const renomeiaPasta = async g => { const ms = membros(g), nn = ((await pedeTexto('Renomear a pasta', `Novo nome para "${g}"`, 30)) || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (!nn || nn === g) return;
     novas.delete(g); novas.add(nn); if (aberta === g) aberta = nn; if (!ms.length) return pintaL(); mandaVarios(Object.fromEntries(ms.map(k => [k, { nome: todos[k].nome, grupo: nn }])), `Pasta renomeada para ${nn}.`); };
