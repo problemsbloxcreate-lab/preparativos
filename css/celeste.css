@@ -351,3 +351,71 @@ html.cel body .lg-falas .lf{border-radius:var(--raio-p);padding:7px 10px;line-he
 /* Cancelar do pop-up do canal, também com o roteiro aberto e nos dois temas (17/11/2026): fundo avermelhado suave, texto vermelho; antes ficava marrom escuro no claro */
 html.cel body .modal .cn-rodape .bt.perigo{background:color-mix(in srgb,var(--perigo) 14%,transparent)!important;color:var(--perigo)!important;border:0!important}
 html.cel body .modal .cn-rodape .bt.perigo:hover{background:color-mix(in srgb,var(--perigo) 24%,transparent)!important}
+
+/* ===================== FALAS E GRAVAÇÃO EM CELESTE (17/11/2026) =====================
+   Tira o Metro (bloco vermelho chapado, títulos finos em minúsculas, cantos retos, play verde sólido). Tudo por tokens, raio 8, dois temas.
+   Nenhuma função muda: só o visual (gravar em sequência, subir áudio, links para dublar, microfone, filtro por personagem, enviar pendentes). */
+html.cel body.modo-doc .falas2{
+  & .fl-topo{display:flex;flex-wrap:wrap;align-items:center;gap:var(--e3) var(--e5);padding:0 0 var(--e3)!important;margin:0;background:none!important;border:0!important;border-radius:0!important;color:var(--texto)!important;overflow:visible}
+  & .fl-topo::before{display:none!important}
+  & .fl-prog{flex:1 1 280px;display:flex;flex-direction:column;gap:6px;min-width:0}
+  & .fl-prog>b{font:600 var(--t-titulo)/1.2 var(--fonte)!important;letter-spacing:0!important;text-transform:none!important;color:var(--texto)!important}
+  & .fl-prog>b::before{display:none!important}
+  & .fl-prog span,& .fl-prog span b{color:var(--texto-2)!important;font-size:var(--t-pequeno)}
+  & .fl-prog span b{color:var(--texto)!important;font-weight:600}
+  & .fl-prog .barra{height:6px!important;max-width:420px;border-radius:999px!important;background:var(--fundo-4)!important;overflow:hidden}
+  & .fl-prog .barra i{background:var(--acento)!important;border-radius:999px}
+  & .fl-acoes{display:flex;flex-wrap:wrap;gap:var(--e2)}
+  & .fl-topo .bt{height:36px;padding:0 var(--e4);border:0!important;border-radius:var(--raio-controle)!important;background:var(--fundo-3)!important;color:var(--texto)!important;font:500 var(--t-corpo) var(--fonte);display:inline-flex;align-items:center;gap:var(--e2)}
+  & .fl-topo .bt:hover{background:var(--fundo-4)!important}
+  & .fl-topo .bt.pri{background:var(--acento)!important;color:var(--acento-texto)!important;font-weight:600}
+  & .fl-topo .bt.pri:hover{filter:brightness(1.08)}
+  & .fl-topo .bt svg{color:inherit!important}
+  & .fl-quem{display:flex;flex-wrap:wrap;gap:var(--e2);overflow:visible;padding:0 0 var(--e3)}
+  & .fl-q{--c:var(--neutro);display:inline-flex;align-items:center;gap:var(--e2);height:36px;padding:0 var(--e3) 0 var(--e1);border:1px solid var(--linha)!important;border-radius:999px!important;background:var(--fundo-2)!important;color:var(--texto)!important;font:500 var(--t-pequeno) var(--fonte);box-shadow:none!important;cursor:pointer;position:relative;overflow:hidden}
+  & .fl-q:hover{background:var(--fundo-3)!important;border-color:var(--linha-forte)!important}
+  & .fl-q.on{background:var(--acento-suave)!important;border-color:var(--acento)!important;color:var(--texto)!important}
+  & .fl-q small{color:var(--texto-2)!important;font-variant-numeric:tabular-nums;font-size:var(--t-legenda)}
+  & .fl-q .fl-q-b{display:none}
+  & .fl-q .fl-q-ic{display:grid;place-items:center;width:28px;height:28px;border-radius:50%!important;background:var(--fundo-4);color:var(--texto-2)}
+  & .fl-q .ava{--ava:28px!important;border-radius:50%!important;box-shadow:none!important}
+  & .fl-sec{background:var(--fundo-2)!important;border:1px solid var(--linha)!important;border-radius:var(--raio-controle)!important;margin-bottom:var(--e2)}
+  & .fl-sec>summary{text-transform:none!important;font:500 var(--t-corpo) var(--fonte)!important;letter-spacing:0!important;padding:var(--e3) var(--e4);color:var(--texto);min-height:44px;box-sizing:border-box}
+  & .fl-sec>summary small{color:var(--texto-2);text-transform:none!important;font-weight:400}
+  & .fl-sec .mic-painel,& .fl-sec .dub-painel{border-top:1px solid var(--linha);padding:var(--e3) var(--e4)}
+  & .fl-pend{border-radius:999px!important}
+  & .faixa-env,& .aviso-linha{display:flex;align-items:center;gap:var(--e3);padding:var(--e3) var(--e4);border-radius:var(--raio-controle)!important;background:color-mix(in srgb,var(--aviso) 12%,transparent)!important;border:1px solid color-mix(in srgb,var(--aviso) 38%,transparent)!important;color:var(--texto)!important}
+  & .faixa-env>svg,& .aviso-linha>svg{color:var(--aviso);flex:none}
+  & .faixa-env .bt,& .aviso-linha .bt{height:32px;border:0!important;border-radius:var(--raio-controle)!important}
+  & .faixa-env .bt.pri{background:var(--acento)!important;color:var(--acento-texto)!important;font-weight:600}
+  & .parte{margin-top:var(--e5)}
+  & .parte>h3{font:600 var(--t-destaque)/1.3 var(--fonte)!important;text-transform:none!important;letter-spacing:0!important;color:var(--texto)!important;margin:0 0 var(--e2)!important}
+  & .fala{align-items:center;gap:var(--e3) var(--e4);padding:var(--e3) var(--e4)!important;margin:0 0 var(--e2)!important;background:var(--fundo-2)!important;border:1px solid var(--linha)!important;border-radius:var(--raio-cartao)!important;box-shadow:none!important}
+  & .fala:hover{border-color:var(--linha-forte)!important;background:var(--fundo-2)!important}
+  & .fala.tem,& .fala.local{background:var(--fundo-2)!important}
+  & .fala.local{border-color:color-mix(in srgb,var(--aviso) 45%,transparent)!important}
+  & .fala.gravando{border-color:var(--perigo)!important;background:color-mix(in srgb,var(--perigo) 8%,var(--fundo-2))!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--perigo) 18%,transparent)!important}
+  & .fala .num{font:500 var(--t-pequeno) var(--fonte)!important;color:var(--texto-3)!important;font-variant-numeric:tabular-nums}
+  & .fala .quem .ava{border-radius:50%!important;box-shadow:none!important}
+  & .fala .quem b{color:var(--texto)!important;font-size:var(--t-pequeno);font-weight:600}
+  & .fala .txt p{font-size:var(--t-destaque);line-height:1.45;color:var(--texto)}
+  & .fala .st{font-size:var(--t-legenda)}
+  & .fala .st.aqui,& .fala .st .aten,& .fala .st .rec{color:var(--aviso)}
+  & .fala .st.nuvem{color:var(--sucesso)}
+  & .fala .st.sem{color:var(--texto-3)}
+  & .fala .onda-box{background:var(--fundo-3)!important;border:0!important;border-radius:var(--raio-controle)!important}
+  & .junto-de{background:color-mix(in srgb,var(--aviso) 12%,transparent)!important;color:var(--texto)!important;border:0!important;border-radius:var(--raio-controle)!important}
+  & .fala .bts{display:flex;align-items:center;gap:var(--e2)!important;padding:0!important;border:0!important;background:none!important}
+  & .fala .redondo{width:40px!important;height:40px!important;border:0!important;border-radius:50%!important;background:var(--fundo-3)!important;color:var(--texto)!important;box-shadow:none!important;display:inline-grid;place-items:center;padding:0;cursor:pointer;transition:background var(--rapido)}
+  & .fala .redondo:hover{background:var(--fundo-4)!important}
+  & .fala .redondo svg{color:inherit!important}
+  & .fala .redondo.ouvir,& .fala .redondo.ouvir:hover{background:var(--acento)!important;color:var(--acento-texto)!important}
+  & .fala .redondo.ouvir:hover{filter:brightness(1.1)}
+  & .fala .redondo.gravar{background:color-mix(in srgb,var(--perigo) 16%,transparent)!important;color:var(--perigo)!important}
+  & .fala .redondo.gravar:hover{background:color-mix(in srgb,var(--perigo) 26%,transparent)!important}
+  & .fala .redondo.gravar.gravando{background:var(--perigo)!important;color:#fff!important}
+  & .fala .redondo.tirar:hover{background:color-mix(in srgb,var(--perigo) 16%,transparent)!important;color:var(--perigo)!important}
+}
+/* "Na nuvem" no cabeçalho do roteiro: pílula redonda, não quadrada */
+html.cel body.modo-doc .enviar .pilula:not(.pri){display:inline-flex;align-items:center;gap:6px;height:var(--alt-controle);padding:0 var(--e3);border:0!important;border-radius:999px!important;background:var(--fundo-3)!important;color:var(--texto-2)!important;font:500 var(--t-pequeno) var(--fonte)}
+html.cel body.modo-doc .enviar .pilula.ok svg{color:var(--sucesso)}

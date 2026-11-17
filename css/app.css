@@ -1098,32 +1098,7 @@ body.modo-doc .corpo.corpo-falas{background:radial-gradient(1200px 400px at 50% 
 .falas2 .fala .redondo.ouvir{background:#4fe08f;color:#0d2416;border-color:#4fe08f}
 .falas2 .fala .st .rec{color:#ff4d5e;font-weight:600}.falas2 .onda-box{background:#121316;border:1px solid #26282d}
 
-/* ===== FALAS E GRAVAÇÃO no estilo METRO (chapado, quadrado, tipografia grande e fina) ===== */
-body.modo-doc .corpo.corpo-falas{background:none}
-.falas2 .fl-topo{background:#e51400!important;border:0!important;color:#fff;padding:18px 20px}.falas2 .fl-topo::before{display:none}
-.falas2 .fl-prog>b{font:300 30px/1.1 "Segoe UI Light","Segoe UI",sans-serif;letter-spacing:-.5px;color:#fff;text-transform:lowercase}.falas2 .fl-prog>b::before{display:none}
-.falas2 .fl-prog span,.falas2 .fl-prog span b{color:rgba(255,255,255,.9)!important}
-.falas2 .fl-prog .barra{height:6px;background:rgba(0,0,0,.25)!important}.falas2 .fl-prog .barra i{background:#fff!important}
-.falas2 .fl-topo .bt{border-radius:0!important;border:2px solid #fff!important;background:transparent!important;color:#fff!important;font-weight:600}
-.falas2 .fl-topo .bt.pri{background:#fff!important;color:#e51400!important}.falas2 .fl-topo .bt svg{color:inherit!important}
-.falas2 .fl-quem{gap:4px}.falas2 .fl-q{border-radius:0!important;border:0!important;background:#2b2b2b!important;padding:9px 14px 11px;font-weight:600}
-.falas2 .fl-q.on{background:var(--c,#1ba1e2)!important;color:#fff!important;box-shadow:none!important}.falas2 .fl-q.on small{color:rgba(255,255,255,.85)}.falas2 .fl-q[data-grava=""].on{background:#1ba1e2!important}
-.falas2 .fl-q .fl-q-ic{border-radius:0;background:rgba(255,255,255,.12)}.falas2 .fl-q .ava{border-radius:0!important}
-.falas2 .fl-sec{border-radius:0;border:0;background:#232323!important}.falas2 .fl-sec>summary{text-transform:lowercase;font:400 17px/1.2 "Segoe UI Light","Segoe UI",sans-serif;letter-spacing:-.2px}.falas2 .fl-sec>summary small{text-transform:none}
-.falas2 .parte>h3{font:300 22px/1.2 "Segoe UI Light","Segoe UI",sans-serif;text-transform:lowercase;letter-spacing:-.3px;color:var(--text);margin:18px 0 8px}
-.falas2 .fala{border:0!important;border-left:6px solid var(--c)!important;border-radius:0!important;background:#232323!important;box-shadow:none!important;margin-bottom:4px}
-.falas2 .fala:hover{background:#2a2a2a!important}.falas2 .fala.local{background:#2a2414!important}.falas2 .fala.tem{background:#1f2620!important}
-.falas2 .fala.gravando{background:#3a1416!important;border-left-color:#e51400!important;box-shadow:none!important}
-.falas2 .fala .num{font:300 22px/1 "Segoe UI Light","Segoe UI",sans-serif;color:#7a7a7a}
-.falas2 .fala .bts{border:0;background:none;padding:0;gap:3px}
-.falas2 .fala .redondo{border-radius:0!important;border:0!important;width:38px!important;height:38px!important;background:#3a3a3a;color:#fff;box-shadow:none!important}
-.falas2 .fala .redondo:hover{background:#4a4a4a}.falas2 .fala .redondo.gravar{background:#e51400!important}.falas2 .fala .redondo.gravar:hover{background:#ff2a14!important}
-.falas2 .fala .redondo.gravar.gravando{animation:none;background:#fff!important;color:#e51400!important}
-.falas2 .fala .redondo.ouvir{background:#60a917!important;color:#fff!important}.falas2 .fala .redondo.ouvir:hover{background:#6fc21b!important}
-.falas2 .fala .st{font-size:12px}.falas2 .fala .st .rec{color:#ff5a4a}
-.falas2 .onda-box{background:#1a1a1a!important;border:0!important;border-radius:0}
-.falas2 .junto-de{border:0;background:#3a2a10;color:#f0a30a;border-radius:0}
-.falas2 .faixa-env,.falas2 .aviso-linha{border-radius:0}
+/* (17/11/2026) o bloco METRO de Falas e gravação saiu: agora é Celeste, em css/celeste.css (bloco FALAS E GRAVAÇÃO) */
 
 /* sem o lado esquerdo (Falas, Legendas, Elenco): o conteúdo fica no meio */
 body.modo-doc.sem-guias .corpo.corpo-falas>.falas,body.modo-doc.sem-guias .corpo.corpo-elenco>*{max-width:980px;margin-left:auto;margin-right:auto}
