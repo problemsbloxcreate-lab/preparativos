@@ -239,3 +239,46 @@ html.cel body.aba-pub main#tela{max-width:none!important;padding:0!important}
 /* ícone da aba Publicações = o logo do programa (17/11/2026) */
 .ic-aba-pu{display:inline-grid;place-items:center;width:18px;height:18px;vertical-align:-4px;margin-right:2px;border-radius:5px;background:#2b0606;color:#ff3b3b;box-shadow:inset 0 0 0 1px #ff3b3b;overflow:hidden}.ic-aba-pu>b{font:700 9px/1 var(--fonte,system-ui)}.ic-aba-pu>:is(svg,img){width:100%;height:100%;display:block}
 .ic-aba-pu:has(>svg){background:none;box-shadow:none;border-radius:0;overflow:visible}
+
+/* ===================== SITUAÇÃO COM O ÁUDIO (17/11/2026) ===================== */
+html.cel body:not(.modo-doc){
+  & .cartao.rascunho{--c-st:var(--neutro)}& .cartao.gravando,& .cartao.faltam{--c-st:var(--aviso)}& .cartao.pronto{--c-st:var(--sucesso)}
+  & .cartao .grav.parte .barra i{background:var(--aviso)!important}
+  & .cartao .grav.todas .barra i{background:var(--sucesso)!important}
+  & .cartao .grav.todas{color:var(--sucesso)!important}
+  & .cartao.pronto .st{color:var(--sucesso)!important}
+  & .cartao.faltam .st{color:var(--aviso)!important}
+  & .cartao .topo{flex-wrap:wrap;gap:6px 8px}& .cartao .st{white-space:nowrap}
+}
+
+/* ===================== PERSONAGENS: pastas como seções abertas + foto do Ateliê (17/11/2026) ===================== */
+html.cel body:not(.modo-doc){
+  & .pers-total{color:var(--texto-3);font-size:var(--t-pequeno);margin:var(--e2) 0 var(--e3)}
+  & .pb-sec{margin:0 0 var(--e5)}
+  & .pb-sec-h{display:flex;align-items:center;gap:var(--e2);margin:0 0 var(--e3)}
+  & .pb-sec-h h3{margin:0;font:600 var(--t-destaque) var(--fonte)}
+  & .pb-sec-h small{color:var(--texto-3);font-size:var(--t-legenda)}
+  & .pb-sec-h .pb-ic{color:var(--acento);display:inline-flex}
+  & .pb-seta{display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:var(--raio-p);background:transparent;color:var(--texto-2);cursor:pointer;transition:transform var(--rapido)}
+  & .pb-seta:hover{background:var(--fundo-3)}
+  & .pb-sec.fechada .pb-seta{transform:rotate(-90deg)}
+  & .pb-sec-h .pb-mn{display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:var(--raio-p);background:transparent;color:var(--texto-2);cursor:pointer}
+  & .pb-sec-h .pb-mn:hover{background:var(--fundo-3)}
+  & .pb-vazias{display:flex;flex-wrap:wrap;gap:var(--e2);margin-top:var(--e3);opacity:.8}
+  & .pb-vazias .pb-card{height:30px;padding:0 var(--e3)!important}
+  & .foto-corte{width:min(360px,100%)!important}
+  & .fc-area{position:relative;width:256px;height:256px;margin:0 auto;background:var(--fundo-3);border-radius:50%;overflow:hidden;touch-action:none}
+  & .fc-area canvas{width:100%;height:100%;display:block;cursor:grab}
+  & .fc-anel{position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 2px var(--acento);pointer-events:none}
+  & .fc-z{display:flex;align-items:center;gap:var(--e3)}& .fc-z input{flex:1}
+}
+
+html.cel body:not(.modo-doc) .pb-sec-h .pb-ic{background:none!important;width:auto!important;height:auto!important;box-shadow:none!important;padding:0!important;border-radius:0!important}
+html.cel body:not(.modo-doc) .pb-sec-h h3{text-transform:none!important;letter-spacing:0!important}
+html.cel body:not(.modo-doc) .modal .fc-area,html.cel body:not(.modo-doc) .modal .fc-anel{border-radius:50%!important}
+
+html.cel body:not(.modo-doc) .pc3.do-atelie{border-style:dashed!important;background:transparent!important;cursor:pointer}
+html.cel body:not(.modo-doc) .pc3.do-atelie:hover{background:var(--fundo-2)!important}
+html.cel body:not(.modo-doc) .pc3-mais{display:inline-flex;align-items:center;gap:4px;color:var(--acento);font-size:var(--t-legenda);font-weight:500}
+html.cel body:not(.modo-doc) .pb-atelie .pb-ic{color:var(--acento)}
+html.cel body:not(.modo-doc) .pb-atelie{margin-top:var(--e6,32px)}

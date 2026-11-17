@@ -108,8 +108,11 @@ const Pub = {
   velha() { try { const v = JSON.parse(localStorage.getItem(this.LSP) || 'null'); if (v) { v.em = 0; localStorage.setItem(this.LSP, JSON.stringify(v)); } } catch { } }, // o Publicações busca de novo ao abrir
   formato: P => P.destino === 'shorts' || /short/i.test(P.nome || '') ? 'short' : null,
   // REGRA DA DONA (17/11/2026): só entra no Publicações com pelo menos um TÍTULO (diferente do "Roteiro novo" de fábrica) ou um texto no corpo do roteiro
+  // DIA ESCOLHIDO NO CALENDÁRIO (17/11/2026): roteiro criado a partir de um dia do calendário do Publicações já nasce com esse dia (publicaEm); lembrado até o cartão ser criado
+  diaDe(id) { try { return +(JSON.parse(localStorage.getItem('ep-prep-pub-dia') || '{}')[id] || 0) || null; } catch { return null; } },
+  diaPara(id, t) { try { const m = JSON.parse(localStorage.getItem('ep-prep-pub-dia') || '{}'); if (t) m[id] = t; else delete m[id]; localStorage.setItem('ep-prep-pub-dia', JSON.stringify(m)); } catch { } },
   temConteudo: P => !!(P?.roteiro || '').trim() || (!!(P?.nome || '').trim() && (P.nome || '').trim() !== 'Roteiro novo'),
-  agenda(P, logo) { clearTimeout(this.t); if (!P || !this.temConteudo(P) || !this.ok()) return; this.t = setTimeout(() => this.sincroniza(P).catch(() => { }), logo ? 0 : 2500); },
+  agenda(P, logo) { clearTimeout(this.t); if (!P || !(this.temConteudo(P) || this.diaDe(P.id)) || !this.ok()) return; this.t = setTimeout(() => this.sincroniza(P).catch(() => { }), logo ? 0 : 2500); },
   async sincroniza(P) {
     const id = this.id(P.id), nome = String(P.nome || 'Roteiro').slice(0, 100), canalId = P.canal?.id || '', m = this.lido(), ult = m[P.id] || null;
     if (ult && ult.t === nome && ult.c === canalId) return;
@@ -117,8 +120,8 @@ const Pub = {
     if (!ant && ult) return; // a equipe tirou o cartão de lá: não volta sozinho
     let item;
     if (ant) { const { meu, por, editadoPor, editadoEm, ...base } = ant; item = { ...base, titulo: nome }; if (ult && ult.c !== canalId && P.canal) item.canal = { id: P.canal.id, nome: P.canal.nome }; }
-    else item = { id, concluido: true, titulo: nome, programa: 'preparativos', abrir: '/preparativos/?id=' + encodeURIComponent(P.id), formato: this.formato(P), canal: P.canal ? { id: P.canal.id, nome: P.canal.nome } : { id: '', nome: '' }, modo: 'naoListado', privacidade: 'unlisted', enviadoEm: Date.now(), publicaEm: null };
-    await Nuvem.json('/publicacoes', 'POST', { item }); m[P.id] = { t: nome, c: canalId }; this.grava(m); this.velha();
+    else item = { id, concluido: true, titulo: nome, programa: 'preparativos', abrir: '/preparativos/?id=' + encodeURIComponent(P.id), formato: this.formato(P), canal: P.canal ? { id: P.canal.id, nome: P.canal.nome } : { id: '', nome: '' }, modo: 'naoListado', privacidade: 'unlisted', enviadoEm: Date.now(), publicaEm: this.diaDe(P.id) };
+    await Nuvem.json('/publicacoes', 'POST', { item }); m[P.id] = { t: nome, c: canalId }; this.grava(m); this.diaPara(P.id, null); this.velha();
   },
   // UMA VEZ por navegador (17/11/2026): os roteiros que já estão na nuvem e têm título próprio ou falas ganham o cartão "Sem data". Não repete nem mexe no que já existe.
   async cartoesDosExistentes(lista) {
@@ -290,12 +293,12 @@ async function pintaInicio(novo) {
   todos.sort((a, b) => b.t - a.t);
   const naOnde = (x, k) => k === 'tudo' || (k === 'pc' ? x.onde === 'pc' || x.onde === 'mudou' : k === 'nuvem' ? x.onde === 'nuvem' || x.onde === 'mudou' : x.onde === 'uso');
   for (const [k] of ONDES) { const o = $(`[data-onde-sel] option[value="${k}"]`, el), n = todos.filter(x => naOnde(x, k)).length; if (o) o.textContent = `Onde: ${o.dataset.nome}${n ? ' (' + n + ')' : ''}`; }
-  const L = todos.filter(x => naOnde(x, filtroOnde) && (filtro === 'todos' || (x.it.status || 'rascunho') === filtro));
+  const L = todos.filter(x => naOnde(x, filtroOnde) && (filtro === 'todos' || grupoDe2(x.it) === filtro));
   const pastaDe = x => PR.de[x.it.id] || '', pastas = [...new Set([...PR.ordem, ...Object.values(PR.de)])].filter(Boolean);
   if (pastaRot && !pastas.includes(pastaRot)) pastaRot = null;
   const corpo = $('.rot-corpo', el), grade = arr => { const g = h('<div class="grade"></div>'); for (const x of arr) g.appendChild(liga(x)); return g; };
   // AGRUPADO POR SITUAÇÃO (pedido da dona, 17/11/2026: lista bagunçada): Gravando, Pronto e Rascunho, nessa ordem, cada um com a contagem
-  const porSit = arr => { if (filtro !== 'todos') return grade(arr); const w = h('<div class="por-sit"></div>'); for (const k of ['gravando', 'pronto', 'rascunho']) { const D = arr.filter(x => (x.it.status || 'rascunho') === k); if (!D.length) continue; w.appendChild(h(`<div class="grupo-sit"><span class="st st-${k}">${ic(ST_IC[k] || 'lapis', 12)} ${esc(STATUS[k] || k)}</span><small>${D.length}</small></div>`)); w.appendChild(grade(D)); } return w; };
+  const porSit = arr => { if (filtro !== 'todos') return grade(arr); const w = h('<div class="por-sit"></div>'); for (const k of ['gravando', 'pronto', 'rascunho']) { const D = arr.filter(x => grupoDe2(x.it) === k); if (!D.length) continue; w.appendChild(h(`<div class="grupo-sit"><span class="st st-${k}">${ic(ST_IC[k] || 'lapis', 12)} ${esc(STATUS[k] || k)}</span><small>${D.length}</small></div>`)); w.appendChild(grade(D)); } return w; };
   const liga = x => { const c = cartao(x.it, x.onde); c.onclick = async () => { $$('.dh-menu.pop').forEach(y => y.remove()); c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } };
     if (ed) arrastavel(c, x.it.nome || 'Roteiro', g => { if ((PR.de[x.it.id] || '') === (g || '')) return; mudaPastasRot({ mover: { [x.it.id]: g || null } }, g ? `"${x.it.nome || 'Roteiro'}" foi para ${g}.` : 'Saiu da pasta.'); });
     c.oncontextmenu = e => { if (!ed) return; e.preventDefault(); const atual = pastaDe(x);
@@ -337,21 +340,32 @@ async function pintaInicio(novo) {
 // selo "Publicações · Sem data" do cartão (17/11/2026): lê só o que já está guardado neste navegador (sem pedido à nuvem)
 function pubSelo(it) { try { if (!it.id || !Pub.lido()[it.id]) return ''; const L = JSON.parse(localStorage.getItem(Pub.LSP) || 'null'), x = (L?.itens || []).find(y => y.id === Pub.id(it.id)), d = x?.publicaEm;
   return `<span class="pub-selo" title="Este roteiro tem um cartão no Publicações">${ic('upload', 12)} Publicações · ${d ? 'dia ' + esc(new Date(d).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })) : 'sem data'}</span> `; } catch { return ''; } }
+// SITUAÇÃO COM O ÁUDIO (pedido da dona, 17/11/2026: "pronto" só quando TODAS as falas estão gravadas):
+//  pronto = texto pronto E todas as falas gravadas ("Pronto para o Animador", verde); faltam = texto pronto mas falta áudio ("Texto pronto · faltam N falas", âmbar);
+//  rascunho / gravando seguem como estão. grupo = em que filtro/grupo a lista põe (os "faltam" ficam em Gravando, nunca em Pronto).
+const PARA = { animador: 'o Animador', shorts: 'os Shorts', editor: 'o Editor' };
+function sitAudio(it, n, g) {
+  const st = it.status || 'rascunho', completo = n > 0 && g >= n, falta = Math.max(0, n - g), dest = PARA[it.destino] || 'o programa de destino';
+  if (st === 'pronto' && (completo || n === 0)) return { k: 'pronto', grupo: 'pronto', rot: it.destino ? 'Pronto para ' + dest : 'Pronto', rodape: it.destino ? 'pronto para ir para ' + dest : '' };
+  if (st === 'pronto') return { k: 'faltam', grupo: 'gravando', rot: 'Texto pronto · faltam ' + falta + (falta === 1 ? ' fala' : ' falas'), rodape: it.destino ? 'grave as falas para mandar para ' + dest : '' };
+  return { k: st, grupo: st, rot: STATUS[st] || 'Rascunho', rodape: it.destino ? (completo ? 'falas gravadas · marque como pronto para mandar para ' + dest : (n ? 'grave as falas' : 'escreva e grave as falas') + ' para mandar para ' + dest) : '' };
+}
+const grupoDe2 = it => { const fs2 = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null; return sitAudio(it, fs2 ? fs2.length : it.n || 0, fs2 ? fs2.filter(f => f.audio).length : it.g || 0).grupo; };
 // onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem' | 'uso' (um programa já usou)
 function cartao(it, onde) {
   const fs = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null;
   const n = fs ? fs.length : it.n || 0, g = fs ? fs.filter(f => f.audio).length : it.g || 0, np = Array.isArray(it.partes) ? it.partes.length : it.partes || 0;
-  const pers = fs ? Roteiro.personagens(it.partes).map(p => p.nome) : it.pers || [], pct = n ? Math.round(g / n * 100) : 0, st = it.status || 'rascunho';
+  const pers = fs ? Roteiro.personagens(it.partes).map(p => p.nome) : it.pers || [], pct = n ? Math.round(g / n * 100) : 0, S2 = sitAudio(it, n, g), st = S2.k;
   const uso = onde === 'uso' ? (it.uso || []) : [];
   const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · termina de salvar ao abrir`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('video', 13)} Em uso` };
   const autor = it.autor || (it.quem?.a ? { id: it.quem.a.i, nome: it.quem.a.n } : null), eds = it.edicoes || (it.quem?.e || []).map(x => ({ id: x.i, nome: x.n }));
-  return h(`<button class="cartao ${esc(st)}" data-id="${esc(it.id || '')}" data-vivo="${esc(it.id || '')}"><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || 'lapis', 12)} ${esc(STATUS[st] || 'Rascunho')}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
+  return h(`<button class="cartao ${esc(st)}" data-id="${esc(it.id || '')}" data-vivo="${esc(it.id || '')}"><div class="topo"><span class="st st-${esc(st)}">${ic(ST_IC[st] || (st === 'faltam' ? 'mic' : 'lapis'), 12)} ${esc(S2.rot)}</span><span class="onde o-${onde}">${ONDE[onde]}</span></div>
     <div class="meio"><div><b>${esc(it.nome || 'Sem nome')}</b><small>${np} parte${np === 1 ? '' : 's'} · ${n} fala${n === 1 ? '' : 's'}</small></div></div>
-    <div class="grav ${n && g === n ? 'todas' : ''}" title="${g} de ${n} falas já têm áudio gravado">${ic(n && g === n ? 'ok' : 'mic', 14)}<span>${!n ? 'ainda sem falas' : g === n ? 'todas as falas gravadas' : `<b>${g}</b> de <b>${n}</b> falas gravadas`}</span><div class="barra"><i style="width:${pct}%"></i></div></div>
+    <div class="grav ${n && g === n ? 'todas' : g > 0 ? 'parte' : ''}" title="${g} de ${n} falas já têm áudio gravado">${ic(n && g === n ? 'ok' : 'mic', 14)}<span>${!n ? 'ainda sem falas' : g === n ? 'todas as falas gravadas' : `<b>${g}</b> de <b>${n}</b> falas gravadas`}</span><div class="barra"><i style="width:${pct}%"></i></div></div>
     <div class="rodape"><div class="elenco">${pers.slice(0, 6).map(p => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
     <div class="quem-c" data-quem-orig="${esc(quemHtml(autor, eds, true))}">${quemHtml(autor, eds, true)}</div></div>
     ${uso.length ? `<div class="usos">${uso.map(u => `<span class="uso">${progIc(u, 16)} usado no ${esc(DESTINOS[u] || u)}</span>`).join('')}</div>` : ''}
-    <small class="mt">${pubSelo(it)}${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${it.canal ? `canal ${esc(it.canal.nome || it.canal)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
+    <small class="mt">${pubSelo(it)}${S2.rodape ? `${progIc(it.destino, 14)} ${esc(S2.rodape)} · ` : ''}${it.canal ? `canal ${esc(it.canal.nome || it.canal)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
 }
 
 /* ---------- um preparativo ---------- */
@@ -758,7 +772,7 @@ function perguntaMuda(msg, antes, depois) {
     document.body.appendChild(m); $('[data-s]', m).focus(); });
 }
 /* ---------- NOVO ROTEIRO: nome, vai para, canal e pasta numa janela só (pedido da dona, 17/11/2026) ---------- */
-function janelaNovoRoteiro(pastas, pastaIni) {
+function janelaNovoRoteiro(pastas, pastaIni, dia) {
   return new Promise(ok => {
     const dest = PREP_CONFIG.destinos, nomeDe = k => k === 'shorts' ? 'Shorts' : (dest.find(d => d[0] === k)?.[1] || k);
     let destino = 'animador', canalId = PREP_CONFIG.canalPadrao[destino] || '', tocouCanal = false;
@@ -767,24 +781,27 @@ function janelaNovoRoteiro(pastas, pastaIni) {
       <label>Vai para<div class="seg nv-seg" data-dest>${dest.map(([k]) => `<button type="button" data-d="${k}" class="${k === destino ? 'on' : ''}">${esc(nomeDe(k))}</button>`).join('')}</div></label>
       <label>Canal do YouTube<select data-canal></select></label>
       <label>Pasta<select data-pasta><option value="">Fora de pastas</option>${pastas.map(g => `<option value="${esc(g)}"${g === pastaIni ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
-      <div class="nv-aviso">${ic('ajuda', 14)} Ao criar, ele já aparece no Publicações em <b>Sem data</b>.</div>
+      ${dia ? `<label>Dia no Publicações<input type="date" data-dia value="${(d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'))(new Date(dia))}"></label>` : ''}
+      <div class="nv-aviso" data-aviso>${ic('ajuda', 14)} <span>Ao criar, ele já aparece no Publicações em <b>${dia ? new Date(dia).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'Sem data'}</b>.</span></div>
       <div class="bts"><button class="bt" data-c>Cancelar</button><button class="bt pri" data-s>Criar roteiro</button></div></div></div>`);
     const pintaCanal = () => { $('[data-canal]', m).innerHTML = `<option value="">Escolher depois</option>` + PREP_CONFIG.canais.map(c => `<option value="${esc(c.id)}"${c.id === canalId ? ' selected' : ''}>${esc(c.nome)}</option>`).join(''); };
     pintaCanal();
     $$('[data-d]', m).forEach(b => b.onclick = () => { destino = b.dataset.d; $$('[data-d]', m).forEach(x => x.classList.toggle('on', x === b)); if (!tocouCanal) { canalId = PREP_CONFIG.canalPadrao[destino] || ''; pintaCanal(); } });
     $('[data-canal]', m).onchange = e => { canalId = e.target.value; tocouCanal = true; };
-    const fim = v => { m.remove(); ok(v); }, nome = $('[data-nome]', m);
+    const fim = v => { m.remove(); ok(v); }, nome = $('[data-nome]', m), diaEl = $('[data-dia]', m);
+    if (diaEl) diaEl.onchange = () => { $('[data-aviso] span', m).innerHTML = 'Ao criar, ele já aparece no Publicações em <b>' + (diaEl.value ? diaEl.value.split('-').reverse().slice(0, 2).join('/') : 'Sem data') + '</b>.'; };
     $('[data-c]', m).onclick = () => fim(null);
-    $('[data-s]', m).onclick = () => fim({ nome: nome.value.trim().slice(0, 80) || 'Roteiro novo', destino, canal: PREP_CONFIG.canais.find(c => c.id === canalId) || null, pasta: $('[data-pasta]', m).value || '' });
+    $('[data-s]', m).onclick = () => fim({ nome: nome.value.trim().slice(0, 80) || 'Roteiro novo', destino, canal: PREP_CONFIG.canais.find(c => c.id === canalId) || null, pasta: $('[data-pasta]', m).value || '', dia: diaEl && diaEl.value ? new Date(diaEl.value + 'T12:00:00').getTime() : null });
     m.onkeydown = e => { if (e.key === 'Escape') fim(null); if (e.key === 'Enter' && e.target.matches('input')) $('[data-s]', m).click(); };
     document.body.appendChild(m); nome.focus(); nome.select(); });
 }
-async function criaRoteiroNovo() {
+async function criaRoteiroNovo(opts = {}) {
   const PR = await pastasRot(), pastas = [...new Set([...PR.ordem, ...Object.values(PR.de)])].filter(Boolean);
-  const r = await janelaNovoRoteiro(pastas, pastaRot || '');
+  const r = await janelaNovoRoteiro(pastas, pastaRot || '', opts.dia);
   if (!r) return;
-  const P = novoPrep(r.nome); P.destino = r.destino; P.canal = r.canal; P.manter = Pub.temConteudo(P); // só fica guardado (e vai para o Publicações) se já tem título próprio
+  const P = novoPrep(r.nome); P.destino = r.destino; P.canal = r.canal; P.manter = Pub.temConteudo(P) || !!r.dia; // só fica guardado (e vai para o Publicações) se já tem título próprio
   if (r.pasta) { try { const x = await Nuvem.acao({ acao: 'pastas', mover: { [P.id]: r.pasta } }); S.pastasR = x.pastas || S.pastasR; } catch { } }
+  if (r.dia) Pub.diaPara(P.id, r.dia);
   await abrePrep(P); marcaSujo(); Pub.agenda(P, true); // o rascunho fica guardado e o cartão já nasce no Publicações, Sem data
 }
 function pedeTexto(titulo, rotulo, max = 40) {
@@ -1641,7 +1658,30 @@ async function pintaPersonagens() {
   const menuPasta = (e, g) => { const base = GRUPOS_BASE.includes(g);
     popMenu(e, [[`${ic('pasta', 14)} Abrir a pasta`, '', () => abre(g)], [`${ic('mais', 14)} Personagem novo nesta pasta…`, '', () => novoPers(g), !ed], [`${ic('pasta', 14)} Pasta nova…`, '', () => $('[data-pnova]', el)?.click(), !ed], '-',
       [`${ic('lapis', 14)} Renomear…`, base ? 'fixa' : '', () => renomeiaPasta(g), base || !ed], [`${ic('lixo', 14)} Apagar a pasta`, base ? 'fixa' : '', () => apagaPasta(g), base || !ed]]); };
-  const trocaFoto = k => { alvo = k; arq.click(); };
+  // FOTO (pedido da dona, 17/11/2026): "Escolher uma imagem" (a sua) ou "Usar a do Ateliê" (a imagem que o próprio Ateliê já guarda do personagem, 160 px, com recorte simples)
+  const fotoDoAtelie = async k => { let L; try { L = await atelie(); } catch (er) { return aviso(er.message, 'erro'); }
+    const v = todos[k], x = v.atelie === null ? null : v.atelie?.id ? L.find(y => y.id === v.atelie.id) : L.find(y => Roteiro.chave(y.nome) === k);
+    if (!x) return aviso(v.atelie === null ? 'Este personagem está sem personagem do Ateliê ("Nenhum" em No Animador).' : 'Ligue um personagem do Ateliê em "No Animador" para usar a foto dele.', 'info', 6000);
+    const u = await thumbDe(x); if (!u) return aviso('Esse personagem do Ateliê ainda não tem imagem (abra e salve ele no Ateliê).', 'info', 6000);
+    const im = new Image(); try { await new Promise((ok, no) => { im.onload = ok; im.onerror = () => no(new Error('Não consegui ler a imagem dele.')); im.src = u; }); } catch (e) { return aviso(e.message, 'erro'); }
+    const S0 = 256, V = { z: 1, x: 0, y: 0 };
+    const m = h(`<div class="modal"><div class="caixa foto-corte"><b>Foto de ${esc(v.nome)}</b><p>Vem da imagem do Ateliê (${esc(x.nome)}). Arraste para mover e use a barra para aproximar.</p><div class="fc-area"><canvas width="${S0}" height="${S0}"></canvas><i class="fc-anel"></i></div><label class="fc-z">Aproximar<input type="range" min="1" max="2.5" step="0.05" value="1"></label><div class="bts"><button class="bt" data-c>Cancelar</button><button class="bt pri" data-ok>Usar esta foto</button></div></div></div>`);
+    const cv = $('canvas', m), g = cv.getContext('2d'), base = Math.max(S0 / im.naturalWidth, S0 / im.naturalHeight);
+    const desenha = () => { const w = im.naturalWidth * base * V.z, hh = im.naturalHeight * base * V.z, mx = Math.max(0, (w - S0) / 2), my = Math.max(0, (hh - S0) / 2); V.x = Math.max(-mx, Math.min(mx, V.x)); V.y = Math.max(-my, Math.min(my, V.y));
+      g.clearRect(0, 0, S0, S0); g.imageSmoothingQuality = 'high'; g.drawImage(im, S0 / 2 - w / 2 + V.x, S0 / 2 - hh / 2 + V.y, w, hh); };
+    desenha(); let arr = null;
+    cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); arr = { x: e.clientX, y: e.clientY, vx: V.x, vy: V.y }; };
+    cv.onpointermove = e => { if (!arr) return; const k2 = S0 / cv.getBoundingClientRect().width; V.x = arr.vx + (e.clientX - arr.x) * k2; V.y = arr.vy + (e.clientY - arr.y) * k2; desenha(); };
+    cv.onpointerup = cv.onpointercancel = () => { arr = null; };
+    $('input[type=range]', m).oninput = e => { V.z = +e.target.value; desenha(); };
+    const fim = () => { document.removeEventListener('keydown', esc1); m.remove(); }, esc1 = e => { if (e.key === 'Escape') fim(); };
+    document.addEventListener('keydown', esc1); $('[data-c]', m).onclick = fim;
+    $('[data-ok]', m).onclick = async () => { const bt = $('[data-ok]', m); bt.disabled = true;
+      try { const b = await new Promise((ok, no) => cv.toBlob(x2 => x2 ? ok(x2) : no(new Error('Não consegui preparar a foto.')), 'image/webp', .92)), chaveF = `preparativos/pers/${slug(k)}-${Date.now().toString(36)}.webp`;
+        await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(chaveF), { method: 'POST', headers: { 'content-type': 'image/webp' }, body: b }); fim(); await manda(k, { foto: chaveF }, `Foto salva (${Math.max(1, Math.round(b.size / 1024))} KB).`); }
+      catch (e) { bt.disabled = false; aviso(e.message, 'erro'); } };
+    document.body.appendChild(m); };
+  const trocaFoto = async k => { const r = await pergunta('Foto de ' + todos[k].nome, 'De onde vem a foto?', [['Escolher uma imagem', 'img', 'pri'], ['Usar a do Ateliê', 'at'], ['Cancelar', null]]); if (r === 'img') { alvo = k; arq.click(); } else if (r === 'at') fotoDoAtelie(k); };
   const tiraFoto = async k => { if (await pergunta('Tirar a foto?', `${todos[k].nome} volta a aparecer com as iniciais.`, [['Cancelar', false], ['Tirar', true, 'perigo']])) await manda(k, { foto: null }, 'Foto tirada.'); };
   const escolhePadrao = async k => { let L; try { L = await atelie(); } catch (er) { aviso(er.message, 'erro'); return false; }
     const r = await escolheNoAtelie(L, todos[k].atelie, `Padrão de ${todos[k].nome} no Animador (todos os roteiros)`, 'Automático (personagem com o mesmo nome)'); if (r === false) return false;
@@ -1662,18 +1702,36 @@ async function pintaPersonagens() {
       box.innerHTML = `<nav class="pb-cam"><button class="pb-volta" data-volta title="Voltar · solte um personagem aqui para tirar desta pasta">${ic('voltar', 14)} Personagens</button><span aria-hidden="true">›</span><b>${esc(aberta)}</b></nav>
         <div class="pb-abre-t"><span class="pb-ic">${ic('pasta', 20)}</span><h2>${esc(aberta)}</h2><small>${L.length} ${L.length === 1 ? 'personagem' : 'personagens'}</small><span class="esp"></span>${ed ? `<button class="bt" data-novo-aqui>${ic('mais', 14)} Personagem novo aqui</button>${base ? '' : `<button class="bt" data-ren>${ic('lapis', 14)} Renomear</button>`}<button class="bt ic" data-mn title="Opções da pasta">${ic('mais3', 16)}</button>` : ''}</div>
         ${L.length ? grade(L) : '<div class="pb-vazia">Pasta vazia. Volte e arraste personagens para o cartão desta pasta (ou use o botão direito no personagem › Mover para…).</div>'}`; }
-    else { const soltos = E.filter(([, v]) => !v.grupo);
-      box.innerHTML = `<h3 class="pb-h" title="Clique para abrir · arraste um personagem para cima de uma pasta">Pastas</h3>
-        <div class="pb-cards">${pastas.map(g => { const L = E.filter(([, v]) => v.grupo === g);
-          return `<div class="pb-card" data-pasta="${esc(g)}" role="button" tabindex="0" title="Abrir a pasta · botão direito: opções"><div class="pb-prev">${L.slice(0, 3).map(([, v]) => ava(v.nome, corP(v), 'g')).join('') || `<span class="pb-vz">${ic('pasta', 34)}</span>`}</div>
-            <div class="pb-info"><b>${esc(g)}</b><small>${L.length}</small><button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button></div><small class="pb-desc">${L.length ? esc(L.slice(0, 4).map(([, v]) => v.nome).join(', ') + (L.length > 4 ? '…' : '')) : 'Pasta vazia'}</small></div>`; }).join('')}</div>
-        ${soltos.length ? `<h3 class="pb-h">Fora de pastas <small>${soltos.length}</small></h3>${grade(soltos)}` : ''}`; }
+    else { const soltos = E.filter(([, v]) => !v.grupo), cheias = pastas.filter(g => E.some(([, v]) => v.grupo === g)), vazias = pastas.filter(g => !cheias.includes(g));
+      // PASTAS COMO SEÇÕES JÁ ABERTAS (pedido da dona, 17/11/2026: "parece que tem só um personagem de cara"): cada pasta mostra os cartões; a setinha fecha/abre e lembra a escolha;
+      // pasta vazia vira uma etiqueta discreta no fim; "Fora de pastas" por último
+      const secao = (g, L, chave, menu) => { const fe = !!fechadas[chave]; return `<section class="pb-sec${fe ? ' fechada' : ''}" data-pasta="${esc(g)}" data-sec-k="${esc(chave)}"><header class="pb-sec-h"><button class="pb-seta" data-sec="${esc(chave)}" aria-expanded="${!fe}" title="${fe ? 'Mostrar' : 'Esconder'} os personagens">${ic('baixo', 14)}</button><span class="pb-ic">${ic('pasta', 16)}</span><h3>${esc(g || 'Fora de pastas')}</h3><small>${L.length}</small><span class="esp"></span>${menu && ed ? `<button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button>` : ''}</header>${fe ? '' : grade(L)}</section>`; };
+      box.innerHTML = `<div class="pers-total">${E.length} ${E.length === 1 ? 'personagem' : 'personagens'}</div>` + cheias.map(g => secao(g, E.filter(([, v]) => v.grupo === g), g, true)).join('') + (soltos.length ? secao('', soltos, '__fora', false) : '')
+        + (vazias.length ? `<div class="pb-vazias">${vazias.map(g => `<div class="pb-card" data-pasta="${esc(g)}" role="button" tabindex="0" title="Pasta vazia · abrir · botão direito: opções"><div class="pb-info"><b>${esc(g)}</b><small>0</small><button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button></div></div>`).join('')}</div>` : ''); }
     // cartões dos personagens: clicar abre os detalhes; arrastar leva para uma pasta
     $$('.pc3', box).forEach(cd => { const k = cd.dataset.k; cd.onclick = () => detalhe(k); cd.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); detalhe(k); } }; cd.oncontextmenu = e => { e.preventDefault(); menuPers(e, k); };
       if (ed) { cd.draggable = false; arrastavel(cd, todos[k]?.nome || k, g => moveP(k, g)); } });
     const ths = $$('.pc3-at[data-th]', box); if (ths.length) atelie().then(L => ths.forEach(t => { const x = L.find(y => y.id === t.dataset.th); if (x) thumbDe(x).then(u => { if (u) { t.style.backgroundImage = `url("${u}")`; t.classList.add('com-th'); t.innerHTML = ''; } }); })).catch(() => { });
     $$('.pb-card', box).forEach(c => { const g = c.dataset.pasta; c.onclick = e => { if (e.target.closest('.pb-mn')) return; abre(g); }; c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abre(g); } };
       $('.pb-mn', c).onclick = e => { e.stopPropagation(); menuPasta(e.currentTarget, g); }; c.oncontextmenu = e => { e.preventDefault(); menuPasta(e, g); }; alvoSoltar(c, g); });
+    // SEÇÃO "DO ATELIÊ" (pedido da dona, 17/11/2026): os personagens do Ateliê que ainda não estão na lista da equipe (sem LEGACY, guardados nem cópias de segurança)
+    if (!busca && !aberta) atelie().then(L => { if (!box.isConnected || busca || aberta) return;
+      const ligados = new Set(Object.values(todos).map(v => v.atelie?.id).filter(Boolean)), nomesEq = new Set(Object.keys(todos));
+      const falta = L.filter(x => !/legacy|guardad|antigo|backup|c[oó]pia/i.test(x.pasta + ' ' + x.nome) && !ligados.has(x.id) && !nomesEq.has(Roteiro.chave(x.nome)));
+      box.querySelector('.pb-atelie')?.remove(); if (!falta.length) return;
+      const sec = h(`<section class="pb-sec pb-atelie"><header class="pb-sec-h"><span class="pb-ic">${icAt(16)}</span><h3>Do Ateliê</h3><small>${falta.length} ainda fora da lista da equipe</small></header><div class="pc3-grade">${falta.map(x => `<button class="pc3 do-atelie" data-at-id="${esc(x.id)}" ${ed ? '' : 'disabled'} title="Pôr ${esc(x.nome)} na lista da equipe">${ava(x.nome, corPadrao(x.nome), 'g')}<b>${esc(x.nome)}</b><span class="pc3-m"><span class="pc3-mais">${ic('mais', 12)} Pôr na equipe</span></span></button>`).join('')}</div></section>`);
+      box.appendChild(sec);
+      $$('.do-atelie', sec).forEach(b => { const x = falta.find(y => y.id === b.dataset.atId);
+        thumbDe(x).then(u => { if (u) { const a = $('.ava', b); if (a) { a.style.backgroundImage = `url("${u}")`; a.classList.add('com-foto'); a.textContent = ''; } } });
+        b.onclick = async () => { const sug = x.nome.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+v\d+\b/i, '').replace(/\s+/g, ' ').trim() || x.nome;
+          let nome = await pergunta('Pôr na lista da equipe?', `"${x.nome}" do Ateliê entra na aba Personagens. Como ele aparece nos roteiros?`, [['Cancelar', null], [`Como "${sug}"`, sug, 'pri'], ['Outro nome…', '__outro']]);
+          if (nome === '__outro') nome = ((await pedeTexto('Nome nos roteiros', 'Como ele aparece nos roteiros', 40)) || '').replace(/[:*#\[\]()<>]/g, '').replace(/\s+/g, ' ').trim(); if (!nome) return;
+          const k = Roteiro.chave(nome); if (todos[k] && !todos[k]._fora) return aviso(`${todos[k].nome} já está na lista.`, 'info');
+          todos[k] = { nome, atelie: { id: x.id, nome: x.nome } }; manda(k, { nome, atelie: { id: x.id, nome: x.nome } }, `${nome} entrou na lista (no Animador: ${x.nome}).`); }; });
+    }).catch(() => { });
+    $$('.pb-sec', box).forEach(sc => { const g = sc.dataset.pasta, ch = sc.dataset.secK;
+      $('.pb-seta', sc).onclick = () => { if (fechadas[ch]) delete fechadas[ch]; else fechadas[ch] = 1; try { localStorage.setItem('ep-prep-pastas-aba', JSON.stringify(fechadas)); } catch { } pintaL(); };
+      const mn = $('.pb-mn', sc); if (mn) mn.onclick = e => { e.stopPropagation(); menuPasta(e.currentTarget, g); }; if (g) $('.pb-sec-h', sc).oncontextmenu = e => { e.preventDefault(); menuPasta(e, g); }; alvoSoltar(sc, g); });
     const vt = $('[data-volta]', box); if (vt) { vt.onclick = () => abre(null); alvoSoltar(vt, ''); }
     $('[data-ren]', box)?.addEventListener('click', () => renomeiaPasta(aberta)); $('[data-mn]', box)?.addEventListener('click', e => menuPasta(e.currentTarget, aberta)); $('[data-novo-aqui]', box)?.addEventListener('click', () => novoPers(aberta));
   };
@@ -1888,6 +1946,9 @@ addEventListener('popstate', async () => {
   if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { const r = await DB.get('rasc', id).catch(() => null); try { return abrePrep(r?.P && !r.base?.mod ? r.P : await Nuvem.abre(id), r?.P && !r.base?.mod ? r.base : undefined, true); } catch (e) { if (r?.P) return abrePrep(r.P, r.base, true); aviso(e.status === 404 ? 'Esse roteiro não existe mais (foi apagado).' : e.message, 'erro'); } }
   trocaAba(['ideias', 'personagens', 'publicacoes'].includes(aba) ? aba : 'roteiros', true);
 });
+// pedido do calendário do Publicações (quadro desta mesma página): criar roteiro para um dia
+addEventListener('message', async e => { if (e.origin !== location.origin || e.data?.ep !== 'novo-roteiro') return; const dia = +e.data.dia; if (!(dia > 0)) return;
+  if (!pode('roteiro')) return aviso('Sua conta não pode criar roteiros.', 'erro'); if (S.P && !await sairDoPrep(true)) return; trocaAba('roteiros'); criaRoteiroNovo({ dia }); });
 $$('[data-aba]').forEach(b => b.onclick = async () => { if (S.P && !await sairDoPrep(true)) return; trocaAba(b.dataset.aba); });
 addEventListener('beforeunload', e => { if (mudouDeVerdade()) { e.preventDefault(); e.returnValue = ''; } });
 addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registrar?.({
