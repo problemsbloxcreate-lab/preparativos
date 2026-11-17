@@ -1696,38 +1696,59 @@ async function pintaPersonagens() {
   // solta um personagem (arrastado) em cima de um elemento = vai para a pasta g
   const alvoSoltar = (alvoEl, g) => { if (ed) alvoEl.dataset.solta = g || ''; };
   const pintaL = () => {
-    const box = $('.pers-grade', el), E = ordena(Object.entries(todos)), pastas = listaPastas(); if (aberta && !pastas.includes(aberta)) aberta = null;
+    const box = $('.pers-grade', el), E = ordena(Object.entries(todos)), pastas = listaPastas(); if (aberta && aberta !== '__atelie' && !pastas.includes(aberta)) aberta = null;
     if (busca) { const q = Roteiro.chave(busca), L = E.filter(([, v]) => Roteiro.chave(v.nome).includes(q)); box.innerHTML = L.length ? grade(L) : '<div class="vazio">Ninguém com esse nome.</div>'; }
+    else if (aberta === '__atelie') { box.innerHTML = `<nav class="pb-cam"><button class="pb-volta" data-volta title="Voltar">${ic('voltar', 14)} Personagens</button><span aria-hidden="true">›</span><b>Do Ateliê</b></nav><div class="pb-abre-t"><span class="pb-ic">${icAt(20)}</span><h2>Do Ateliê</h2></div>${giroBloco('Buscando no Ateliê')}`; }
     else if (aberta) { const L = E.filter(([, v]) => (v.grupo || '') === aberta), base = GRUPOS_BASE.includes(aberta);
       box.innerHTML = `<nav class="pb-cam"><button class="pb-volta" data-volta title="Voltar · solte um personagem aqui para tirar desta pasta">${ic('voltar', 14)} Personagens</button><span aria-hidden="true">›</span><b>${esc(aberta)}</b></nav>
         <div class="pb-abre-t"><span class="pb-ic">${ic('pasta', 20)}</span><h2>${esc(aberta)}</h2><small>${L.length} ${L.length === 1 ? 'personagem' : 'personagens'}</small><span class="esp"></span>${ed ? `<button class="bt" data-novo-aqui>${ic('mais', 14)} Personagem novo aqui</button>${base ? '' : `<button class="bt" data-ren>${ic('lapis', 14)} Renomear</button>`}<button class="bt ic" data-mn title="Opções da pasta">${ic('mais3', 16)}</button>` : ''}</div>
         ${L.length ? grade(L) : '<div class="pb-vazia">Pasta vazia. Volte e arraste personagens para o cartão desta pasta (ou use o botão direito no personagem › Mover para…).</div>'}`; }
-    else { const soltos = E.filter(([, v]) => !v.grupo), cheias = pastas.filter(g => E.some(([, v]) => v.grupo === g)), vazias = pastas.filter(g => !cheias.includes(g));
-      // PASTAS COMO SEÇÕES JÁ ABERTAS (pedido da dona, 17/11/2026: "parece que tem só um personagem de cara"): cada pasta mostra os cartões; a setinha fecha/abre e lembra a escolha;
-      // pasta vazia vira uma etiqueta discreta no fim; "Fora de pastas" por último
-      const secao = (g, L, chave, menu) => { const fe = !!fechadas[chave]; return `<section class="pb-sec${fe ? ' fechada' : ''}" data-pasta="${esc(g)}" data-sec-k="${esc(chave)}"><header class="pb-sec-h"><button class="pb-seta" data-sec="${esc(chave)}" aria-expanded="${!fe}" title="${fe ? 'Mostrar' : 'Esconder'} os personagens">${ic('baixo', 14)}</button><span class="pb-ic">${ic('pasta', 16)}</span><h3>${esc(g || 'Fora de pastas')}</h3><small>${L.length}</small><span class="esp"></span>${menu && ed ? `<button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button>` : ''}</header>${fe ? '' : grade(L)}</section>`; };
-      box.innerHTML = `<div class="pers-total">${E.length} ${E.length === 1 ? 'personagem' : 'personagens'}</div>` + cheias.map(g => secao(g, E.filter(([, v]) => v.grupo === g), g, true)).join('') + (soltos.length ? secao('', soltos, '__fora', false) : '')
-        + (vazias.length ? `<div class="pb-vazias">${vazias.map(g => `<div class="pb-card" data-pasta="${esc(g)}" role="button" tabindex="0" title="Pasta vazia · abrir · botão direito: opções"><div class="pb-info"><b>${esc(g)}</b><small>0</small><button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button></div></div>`).join('')}</div>` : ''); }
+    else { const soltos = E.filter(([, v]) => !v.grupo);
+      box.innerHTML = `<h3 class="pb-h" title="Clique para abrir · arraste um personagem para cima de uma pasta">Pastas</h3>
+        <div class="pb-cards">${pastas.map(g => { const L = E.filter(([, v]) => v.grupo === g);
+          return `<div class="pb-card" data-pasta="${esc(g)}" role="button" tabindex="0" title="Abrir a pasta · botão direito: opções"><div class="pb-prev">${L.slice(0, 3).map(([, v]) => ava(v.nome, corP(v), 'g')).join('') || `<span class="pb-vz">${ic('pasta', 34)}</span>`}</div>
+            <div class="pb-info"><b>${esc(g)}</b><small>${L.length}</small><button class="pb-mn" title="Opções da pasta">${ic('mais3', 15)}</button></div><small class="pb-desc">${L.length ? esc(L.slice(0, 4).map(([, v]) => v.nome).join(', ') + (L.length > 4 ? '…' : '')) : 'Pasta vazia'}</small></div>`; }).join('')}</div>
+        ${soltos.length ? `<h3 class="pb-h">Fora de pastas <small>${soltos.length}</small></h3>${grade(soltos)}` : ''}`; }
     // cartões dos personagens: clicar abre os detalhes; arrastar leva para uma pasta
     $$('.pc3', box).forEach(cd => { const k = cd.dataset.k; cd.onclick = () => detalhe(k); cd.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); detalhe(k); } }; cd.oncontextmenu = e => { e.preventDefault(); menuPers(e, k); };
       if (ed) { cd.draggable = false; arrastavel(cd, todos[k]?.nome || k, g => moveP(k, g)); } });
     const ths = $$('.pc3-at[data-th]', box); if (ths.length) atelie().then(L => ths.forEach(t => { const x = L.find(y => y.id === t.dataset.th); if (x) thumbDe(x).then(u => { if (u) { t.style.backgroundImage = `url("${u}")`; t.classList.add('com-th'); t.innerHTML = ''; } }); })).catch(() => { });
     $$('.pb-card', box).forEach(c => { const g = c.dataset.pasta; c.onclick = e => { if (e.target.closest('.pb-mn')) return; abre(g); }; c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abre(g); } };
       $('.pb-mn', c).onclick = e => { e.stopPropagation(); menuPasta(e.currentTarget, g); }; c.oncontextmenu = e => { e.preventDefault(); menuPasta(e, g); }; alvoSoltar(c, g); });
-    // SEÇÃO "DO ATELIÊ" (pedido da dona, 17/11/2026): os personagens do Ateliê que ainda não estão na lista da equipe (sem LEGACY, guardados nem cópias de segurança)
-    if (!busca && !aberta) atelie().then(L => { if (!box.isConnected || busca || aberta) return;
+    // "DO ATELIÊ" (pedido da dona, 17/11/2026) = mais um LUGAR da mesma estrutura das pastas (como no Animador): um cartão ao lado das pastas, que abre a lista dos personagens do
+    // Ateliê que ainda não estão na equipe (sem LEGACY, guardados nem cópias). Os cartões dos personagens usam a imagem do Ateliê quando não têm foto própria.
+    const fotoNo = (el, u, av) => { const a = av || $('.ava', el); if (u && a && !a.classList.contains('com-foto')) { a.style.backgroundImage = `url("${u}")`; a.classList.add('com-foto'); a.textContent = ''; } };
+    if (!busca) atelie().then(L => { if (!box.isConnected || busca) return;
       const ligados = new Set(Object.values(todos).map(v => v.atelie?.id).filter(Boolean)), nomesEq = new Set(Object.keys(todos));
-      const falta = L.filter(x => !/legacy|guardad|antigo|backup|c[oó]pia/i.test(x.pasta + ' ' + x.nome) && !ligados.has(x.id) && !nomesEq.has(Roteiro.chave(x.nome)));
-      box.querySelector('.pb-atelie')?.remove(); if (!falta.length) return;
-      const sec = h(`<section class="pb-sec pb-atelie"><header class="pb-sec-h"><span class="pb-ic">${icAt(16)}</span><h3>Do Ateliê</h3><small>${falta.length} ainda fora da lista da equipe</small></header><div class="pc3-grade">${falta.map(x => `<button class="pc3 do-atelie" data-at-id="${esc(x.id)}" ${ed ? '' : 'disabled'} title="Pôr ${esc(x.nome)} na lista da equipe">${ava(x.nome, corPadrao(x.nome), 'g')}<b>${esc(x.nome)}</b><span class="pc3-m"><span class="pc3-mais">${ic('mais', 12)} Pôr na equipe</span></span></button>`).join('')}</div></section>`);
-      box.appendChild(sec);
-      $$('.do-atelie', sec).forEach(b => { const x = falta.find(y => y.id === b.dataset.atId);
-        thumbDe(x).then(u => { if (u) { const a = $('.ava', b); if (a) { a.style.backgroundImage = `url("${u}")`; a.classList.add('com-foto'); a.textContent = ''; } } });
-        b.onclick = async () => { const sug = x.nome.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+v\d+\b/i, '').replace(/\s+/g, ' ').trim() || x.nome;
-          let nome = await pergunta('Pôr na lista da equipe?', `"${x.nome}" do Ateliê entra na aba Personagens. Como ele aparece nos roteiros?`, [['Cancelar', null], [`Como "${sug}"`, sug, 'pri'], ['Outro nome…', '__outro']]);
-          if (nome === '__outro') nome = ((await pedeTexto('Nome nos roteiros', 'Como ele aparece nos roteiros', 40)) || '').replace(/[:*#\[\]()<>]/g, '').replace(/\s+/g, ' ').trim(); if (!nome) return;
-          const k = Roteiro.chave(nome); if (todos[k] && !todos[k]._fora) return aviso(`${todos[k].nome} já está na lista.`, 'info');
-          todos[k] = { nome, atelie: { id: x.id, nome: x.nome } }; manda(k, { nome, atelie: { id: x.id, nome: x.nome } }, `${nome} entrou na lista (no Animador: ${x.nome}).`); }; });
+      // REGRA (pedido da dona, 17/11/2026): fora LEGACY/guardados/cópias, os bonecos-base ("Boneca base…", "Boneco base…") e tudo com "teste" no nome; fora também o que já está ligado
+      // a alguém da equipe. Versão nova de alguém da equipe (ex.: "Melzinha v2 (Rive)", "Diretor (base Stick)") é achada pelo NOME-BASE e vira "Usar no lugar de …".
+      const baseDe = n => String(n).split(/\s+v\d+\b|\s*\(|\s*—|\s+-\s+/i)[0].trim();
+      const parDe = x => { let k = Roteiro.chave(baseDe(x.nome)); if (!(todos[k] && !todos[k]._fora)) k = Roteiro.chave(String(x.nome).split(/\s+/)[0]); return todos[k] && !todos[k]._fora ? k : null; };
+      const falta = L.filter(x => !/legacy|guardad|antigo|backup|c[oó]pia/i.test(x.pasta + ' ' + x.nome) && !/^bonec[ao]\s+base/i.test(x.nome) && !/teste/i.test(x.nome) && !ligados.has(x.id) && !nomesEq.has(Roteiro.chave(x.nome)));
+      $$('.pc3[data-k]', box).forEach(cd => { const k = cd.dataset.k, v = todos[k]; if (!v || v.foto || v.atelie === null) return; const x = v.atelie?.id ? L.find(y => y.id === v.atelie.id) : L.find(y => Roteiro.chave(y.nome) === k); if (x) thumbDe(x).then(u => fotoNo(cd, u)); });
+      const atDe = (k, v) => v.atelie === null ? null : v.atelie?.id ? L.find(y => y.id === v.atelie.id) : L.find(y => Roteiro.chave(y.nome) === k);
+      $$('.pb-card:not(.pb-at) .pb-prev .ava', box).forEach(av => { const k = Roteiro.chave(av.title || ''), v = todos[k]; if (!v || v.foto) return; const x = atDe(k, v); if (x) thumbDe(x).then(u => fotoNo(av.parentElement, u, av)); });
+      if (aberta === '__atelie') { // a lista dentro do "Do Ateliê"
+        const cartaoAt = x => { const k = parDe(x), v = k && todos[k]; return `<button class="pc3 do-atelie" data-at-id="${esc(x.id)}" ${ed ? '' : 'disabled'} title="${v ? 'Usar ' + esc(x.nome) + ' no lugar da versão de ' + esc(v.nome) : 'Pôr ' + esc(x.nome) + ' na lista da equipe'}">${ava(x.nome, corPadrao(x.nome), 'g')}<b>${esc(x.nome)}</b><span class="pc3-m"><span class="pc3-mais">${v ? 'Usar no lugar de ' + esc(v.nome) : ic('mais', 12) + ' Pôr na equipe'}</span></span></button>`; };
+        box.innerHTML = `<nav class="pb-cam"><button class="pb-volta" data-volta title="Voltar">${ic('voltar', 14)} Personagens</button><span aria-hidden="true">›</span><b>Do Ateliê</b></nav><div class="pb-abre-t"><span class="pb-ic">${icAt(20)}</span><h2>Personagens do Ateliê que ainda não estão na sua equipe</h2><small>${falta.length}</small></div>${falta.length ? `<div class="pc3-grade">${falta.map(cartaoAt).join('')}</div>` : '<div class="pb-vazia">Todos os personagens do Ateliê já estão na sua equipe.</div>'}`;
+        $('[data-volta]', box).onclick = () => abre(null);
+        $$('.do-atelie', box).forEach(b => { const x = falta.find(y => y.id === b.dataset.atId); thumbDe(x).then(u => fotoNo(b, u)); const k0 = parDe(x);
+          b.onclick = async () => {
+            if (k0) { // versão nova de alguém da equipe: liga no lugar (só depois de a dona confirmar aqui)
+              const v = todos[k0], antes = v.atelie === null ? 'nenhum' : v.atelie?.nome || v.atelie?.id || 'o de mesmo nome';
+              if (!await pergunta('Usar esta versão no Animador?', `${v.nome} passa a usar "${x.nome}" do Ateliê (antes: ${antes}). Nenhum personagem novo é criado${v.foto ? '; a foto que você pôs em ' + v.nome + ' continua' : '; a imagem dele passa a ser a desta versão'}.`, [['Cancelar', false], ['Usar no lugar de ' + v.nome, true, 'pri']])) return;
+              todos[k0] = { ...v, atelie: { id: x.id, nome: x.nome } }; return manda(k0, { atelie: { id: x.id, nome: x.nome } }, `${v.nome} agora usa "${x.nome}" no Animador.`); }
+            const sug = x.nome.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+v\d+\b/i, '').replace(/\s+/g, ' ').trim() || x.nome;
+            let nome = await pergunta('Pôr na lista da equipe?', `"${x.nome}" do Ateliê entra na aba Personagens. Como ele aparece nos roteiros?`, [['Cancelar', null], [`Como "${sug}"`, sug, 'pri'], ['Outro nome…', '__outro']]);
+            if (nome === '__outro') nome = ((await pedeTexto('Nome nos roteiros', 'Como ele aparece nos roteiros', 40)) || '').replace(/[:*#\[\]()<>]/g, '').replace(/\s+/g, ' ').trim(); if (!nome) return;
+            const k = Roteiro.chave(nome); if (todos[k] && !todos[k]._fora) return aviso(`${todos[k].nome} já está na lista.`, 'info');
+            todos[k] = { nome, atelie: { id: x.id, nome: x.nome } }; manda(k, { nome, atelie: { id: x.id, nome: x.nome } }, `${nome} entrou na lista (no Animador: ${x.nome}).`); }; });
+        return; }
+      const cards = $('.pb-cards', box); if (aberta || !falta.length || !cards || cards.querySelector('.pb-at')) return;
+      const c = h(`<div class="pb-card pb-at" role="button" tabindex="0" title="Personagens do Ateliê que ainda não estão na sua equipe"><div class="pb-prev">${falta.slice(0, 3).map(x => ava(x.nome, corPadrao(x.nome), 'g')).join('')}</div><div class="pb-info"><b>${icAt(14)} Do Ateliê</b><small>${falta.length}</small></div><small class="pb-desc">${esc(falta.slice(0, 4).map(x => x.nome).join(', ') + (falta.length > 4 ? '…' : ''))}</small></div>`);
+      c.onclick = () => abre('__atelie'); c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abre('__atelie'); } };
+      $$('.ava', c).forEach((a, i) => thumbDe(falta[i]).then(u => { if (u) { a.style.backgroundImage = `url("${u}")`; a.classList.add('com-foto'); a.textContent = ''; } }));
+      cards.appendChild(c);
     }).catch(() => { });
     $$('.pb-sec', box).forEach(sc => { const g = sc.dataset.pasta, ch = sc.dataset.secK;
       $('.pb-seta', sc).onclick = () => { if (fechadas[ch]) delete fechadas[ch]; else fechadas[ch] = 1; try { localStorage.setItem('ep-prep-pastas-aba', JSON.stringify(fechadas)); } catch { } pintaL(); };

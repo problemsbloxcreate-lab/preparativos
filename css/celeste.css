@@ -196,13 +196,14 @@ html.cel body:not(.modo-doc){
   & .grupo-sit .st svg{display:none}
   & .grupo-sit .st::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--neutro)}
   & .grupo-sit .st-gravando::before{background:var(--aviso)}& .grupo-sit .st-pronto::before{background:var(--sucesso)}
-  /* pastas = etiquetas finas */
-  & .pb-cards{display:flex!important;flex-wrap:wrap;gap:var(--e2)!important}
-  & .pb-cards .pb-card{flex-direction:row!important;align-items:center;width:auto;height:36px;padding:0 var(--e3)!important;gap:var(--e2)}
-  & .pb-cards .pb-card .pb-prev,& .pb-cards .pb-card .pb-desc{display:none!important}
-  & .pb-cards .pb-card .pb-info{padding:0!important;gap:var(--e2)}
-  & .pb-cards .pb-card .pb-info b{font-size:var(--t-corpo)!important;max-width:220px}
+  /* pastas = CARTÕES com prévia, como no Animador (17/11/2026) */
+  & .pb-cards{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))!important;gap:var(--e4)!important;margin-bottom:var(--e5)}
+  & .pb-cards .pb-card .pb-prev{height:96px}
+  & .pb-cards .pb-card .pb-info b{font:600 var(--t-corpo) var(--fonte)!important}
   & .pb-cards .pb-card .pb-info small{background:none!important;color:var(--texto-3)!important;padding:0!important}
+  & .pb-at .pb-info b{display:inline-flex;align-items:center;gap:6px;color:var(--acento)}
+  & .pc3 .ava{--ava:76px!important}
+  & .pc3-grade{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))!important}
   /* selo do Publicações */
   & .pub-selo{display:inline-flex;align-items:center;gap:4px;color:var(--acento);font-weight:500;margin-right:var(--e2)}
   & .pub-selo svg{color:inherit}
