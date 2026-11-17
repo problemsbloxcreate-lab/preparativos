@@ -181,3 +181,57 @@ html.cel body:not(.modo-doc){
 @keyframes celSobe{from{transform:translateY(12px);opacity:0}}
 @keyframes celGira{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){html.cel *{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ===================== ORGANIZAÇÃO DOS ROTEIROS (pedido da dona, 17/11/2026) =====================
+   Filtros numa linha só (situação + "Onde" em menu), lista agrupada por situação, pastas como etiquetas finas, selo do Publicações no cartão
+   e a janela "Novo roteiro". */
+html.cel body:not(.modo-doc){
+  & .filtros-ini{flex-direction:row!important;align-items:center;flex-wrap:wrap}
+  & .onde-sel{height:var(--alt-controle);padding:0 var(--e3);border:0;border-radius:var(--raio-controle);background:var(--fundo-3);color:var(--texto);font:500 var(--t-pequeno) var(--fonte);cursor:pointer}
+  & .onde-sel:focus-visible{outline:2px solid var(--acento);outline-offset:2px}
+  & .grupo-sit{display:flex;align-items:center;gap:var(--e2);margin:var(--e5) 0 var(--e3)}
+  & .grupo-sit:first-child{margin-top:var(--e3)}
+  & .grupo-sit small{color:var(--texto-3);font-size:var(--t-legenda)}
+  & .grupo-sit .st{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border:0;border-radius:var(--raio-p);background:var(--fundo-3);color:var(--texto);font:500 var(--t-legenda) var(--fonte)}
+  & .grupo-sit .st svg{display:none}
+  & .grupo-sit .st::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--neutro)}
+  & .grupo-sit .st-gravando::before{background:var(--aviso)}& .grupo-sit .st-pronto::before{background:var(--sucesso)}
+  /* pastas = etiquetas finas */
+  & .pb-cards{display:flex!important;flex-wrap:wrap;gap:var(--e2)!important}
+  & .pb-cards .pb-card{flex-direction:row!important;align-items:center;width:auto;height:36px;padding:0 var(--e3)!important;gap:var(--e2)}
+  & .pb-cards .pb-card .pb-prev,& .pb-cards .pb-card .pb-desc{display:none!important}
+  & .pb-cards .pb-card .pb-info{padding:0!important;gap:var(--e2)}
+  & .pb-cards .pb-card .pb-info b{font-size:var(--t-corpo)!important;max-width:220px}
+  & .pb-cards .pb-card .pb-info small{background:none!important;color:var(--texto-3)!important;padding:0!important}
+  /* selo do Publicações */
+  & .pub-selo{display:inline-flex;align-items:center;gap:4px;color:var(--acento);font-weight:500;margin-right:var(--e2)}
+  & .pub-selo svg{color:inherit}
+  /* janela Novo roteiro */
+  & .caixa.nv-rot{width:min(440px,100%)!important}
+  & .nv-seg{display:flex!important;width:100%}& .nv-seg button{flex:1;justify-content:center}
+  & .nv-aviso{display:flex;align-items:center;gap:var(--e2);background:var(--acento-suave);border-radius:var(--raio-controle);padding:var(--e2) var(--e3);font-size:var(--t-legenda);color:var(--texto)}
+  & .nv-aviso svg{color:var(--acento);flex:none}
+}
+
+/* ===================== ROTEIRO ABERTO, estilo Google Docs (pedido da dona, 17/11/2026) =====================
+   A estrutura já é a do Docs (ícone, nome, menus embaixo, barra de ferramentas redonda, régua e folha); aqui só o acabamento Celeste:
+   fundo e cores pelos tokens, botão azul celeste redondo no lugar do azul escuro, "vai para + canal" num bloco redondo, Histórico só com as fotos. */
+html.cel body.modo-doc{
+  & .dh-topo,& .dh,& .dh-guias{background:var(--fundo)!important}
+  & .dh .nome{font:500 18px var(--fonte)!important;color:var(--texto)!important}
+  & .dh-menus,& .dh-menus *{font-family:var(--fonte)}
+  & .enviar .bt.pri,& .enviar .bt.pri:hover{background:var(--acento)!important;color:var(--acento-t)!important;border-radius:999px!important;font-weight:600}
+  & .enviar .bt.pri svg{color:inherit!important}
+  & .enviar .bt.pri:hover{filter:brightness(1.08)}
+  & .dh-vai{border-radius:999px!important;background:var(--fundo-3)!important;padding:0 var(--e2)}
+  & .dh-hist{border-radius:999px!important}
+  & .dh-hist .hq-t{display:none}
+  & .dh-hist:hover{background:var(--fundo-3)!important}
+  & .db-pilula{background:var(--fundo-3)!important}
+  & .dg-p.on{background:var(--fundo-3)!important;color:var(--texto)!important}
+  & .dg-p.on i{background:var(--acento)!important;color:var(--acento-t)!important}
+}
+
+/* ===================== ABA PUBLICAÇÕES dentro do Preparativos (17/11/2026) ===================== */
+html.cel body.aba-pub main#tela{max-width:none!important;padding:0!important}
+.pub-quadro{display:block;width:100%;height:calc(100vh - var(--alt-cabecalho,52px));border:0;background:transparent}

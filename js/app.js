@@ -95,6 +95,46 @@ const Nuvem = {
   async audio(k) { if (!this._aud.has(k)) this._aud.set(k, this.pede('/preparativos/arquivo?k=' + encodeURIComponent(k), { blob: true }).catch(e => { this._aud.delete(k); throw e; })); return this._aud.get(k); },
 };
 
+/* ---------- PUBLICAÇÕES: todo roteiro vira um cartão "Sem data" (pedido da dona, 17/11/2026) ----------
+   O cartão nasce em "Não publicados > Sem data" do Publicações (item concluido, programa 'preparativos', SEM publicaEm: nenhuma data automática).
+   Depois só o TÍTULO e o CANAL acompanham o roteiro; dia, formato e situação quem muda é a equipe lá no Publicações.
+   Se a equipe tirar o cartão de lá, ele não volta sozinho. Lembrete do que já foi mandado: localStorage 'ep-prep-pub' (por roteiro). */
+const Pub = {
+  LS: 'ep-prep-pub', LSP: 'ep-publicacoes-v1', t: 0,
+  id: pid => 'pp' + String(pid).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 18),
+  ok() { try { return window.EstudioPerm?.pode?.('publicacoes') ?? true; } catch { return true; } },
+  lido() { try { return JSON.parse(localStorage.getItem(this.LS) || '{}') || {}; } catch { return {}; } },
+  grava(m) { try { localStorage.setItem(this.LS, JSON.stringify(m)); } catch { } },
+  velha() { try { const v = JSON.parse(localStorage.getItem(this.LSP) || 'null'); if (v) { v.em = 0; localStorage.setItem(this.LSP, JSON.stringify(v)); } } catch { } }, // o Publicações busca de novo ao abrir
+  formato: P => P.destino === 'shorts' || /short/i.test(P.nome || '') ? 'short' : null,
+  // REGRA DA DONA (17/11/2026): só entra no Publicações com pelo menos um TÍTULO (diferente do "Roteiro novo" de fábrica) ou um texto no corpo do roteiro
+  temConteudo: P => !!(P?.roteiro || '').trim() || (!!(P?.nome || '').trim() && (P.nome || '').trim() !== 'Roteiro novo'),
+  agenda(P, logo) { clearTimeout(this.t); if (!P || !this.temConteudo(P) || !this.ok()) return; this.t = setTimeout(() => this.sincroniza(P).catch(() => { }), logo ? 0 : 2500); },
+  async sincroniza(P) {
+    const id = this.id(P.id), nome = String(P.nome || 'Roteiro').slice(0, 100), canalId = P.canal?.id || '', m = this.lido(), ult = m[P.id] || null;
+    if (ult && ult.t === nome && ult.c === canalId) return;
+    const L = await Nuvem.pede('/publicacoes'), ant = (L.itens || []).find(x => x.id === id);
+    if (!ant && ult) return; // a equipe tirou o cartão de lá: não volta sozinho
+    let item;
+    if (ant) { const { meu, por, editadoPor, editadoEm, ...base } = ant; item = { ...base, titulo: nome }; if (ult && ult.c !== canalId && P.canal) item.canal = { id: P.canal.id, nome: P.canal.nome }; }
+    else item = { id, concluido: true, titulo: nome, programa: 'preparativos', abrir: '/preparativos/?id=' + encodeURIComponent(P.id), formato: this.formato(P), canal: P.canal ? { id: P.canal.id, nome: P.canal.nome } : { id: '', nome: '' }, modo: 'naoListado', privacidade: 'unlisted', enviadoEm: Date.now(), publicaEm: null };
+    await Nuvem.json('/publicacoes', 'POST', { item }); m[P.id] = { t: nome, c: canalId }; this.grava(m); this.velha();
+  },
+  // UMA VEZ por navegador (17/11/2026): os roteiros que já estão na nuvem e têm título próprio ou falas ganham o cartão "Sem data". Não repete nem mexe no que já existe.
+  async cartoesDosExistentes(lista) {
+    const FL = 'ep-prep-pub-existentes'; try { if (localStorage.getItem(FL) || !this.ok() || !Array.isArray(lista)) return; } catch { return; }
+    const L = await Nuvem.pede('/publicacoes'), tem = new Set((L.itens || []).map(x => x.id)), m = this.lido(); let n = 0;
+    for (const it of lista.slice(0, 60)) {
+      const P = { id: it.id, nome: it.nome, destino: it.destino, roteiro: it.n ? 'x' : '', canal: PREP_CONFIG.canais.find(c => c.nome === it.canal) || null };
+      if (!it.id || m[it.id] || !this.temConteudo(P)) continue;
+      if (tem.has(this.id(it.id))) { m[it.id] = { t: String(it.nome || 'Roteiro').slice(0, 100), c: P.canal?.id || '' }; continue; }
+      try { await Nuvem.json('/publicacoes', 'POST', { item: { id: this.id(it.id), concluido: true, titulo: String(it.nome || 'Roteiro').slice(0, 100), programa: 'preparativos', abrir: '/preparativos/?id=' + encodeURIComponent(it.id), formato: this.formato(P), canal: P.canal ? { id: P.canal.id, nome: P.canal.nome } : { id: '', nome: '' }, modo: 'naoListado', privacidade: 'unlisted', enviadoEm: Date.now(), publicaEm: null } }); m[it.id] = { t: String(it.nome || 'Roteiro').slice(0, 100), c: P.canal?.id || '' }; n++; } catch { return; }
+    }
+    this.grava(m); try { localStorage.setItem(FL, '1'); } catch { } if (n) { this.velha(); aviso(n === 1 ? '1 roteiro ganhou um cartão no Publicações (Sem data).' : n + ' roteiros ganharam cartão no Publicações (Sem data).', 'ok', 6000); }
+  },
+  async tira(pid) { const m = this.lido(); if (!m[pid]) return; try { await Nuvem.pede('/publicacoes?id=' + encodeURIComponent(this.id(pid)), { method: 'DELETE' }); } catch { return; } delete m[pid]; this.grava(m); this.velha(); },
+};
+
 /* ---------- estado ---------- */
 const S = { aba: 'roteiros', lista: null, P: null, sub: 'roteiro', sujo: false, eu: null, cores: null, pers: null, tocando: null, ed: null };
 const coresPadrao = ['#19f0f0', '#ffb04a', '#ff6b93', '#a796ff', '#4fe08f', '#ffd36b', '#7fd1ff', '#ff8f6b'];
@@ -123,11 +163,11 @@ function novoPrep(nome = 'Roteiro novo', texto = '') {
 let tGuarda = 0, tJunto = 0, ultAuto = 0;
 // o que conta como mudança: o conteúdo do roteiro (não a hora, o autor etc.). S.marco = como estava ao abrir / no último envio.
 const assinatura = P => P ? JSON.stringify([P.nome, (P.roteiro || '').trim(), P.destino, P.canal, P.status, P.legenda, P.pagina, P.org, P.animador]) : '';
-const prepVazio = P => !!P?.novo && !(P.roteiro || '').trim();
+const prepVazio = P => !!P?.novo && !(P.roteiro || '').trim() && !P.manter; // manter = criado pela janela "Novo roteiro" (já tem cartão no Publicações)
 // só pergunta ao sair se há mudança de verdade ainda não mandada para a nuvem
 function mudouDeVerdade() { const P = S.P; if (!P || !S.sujo) return false; if (P.novo) return !prepVazio(P); return S.marco == null || assinatura(P) !== S.marco; }
 function marcaSujo() {
-  S.sujo = true; pintaBarraPrep(); clearTimeout(tGuarda); tGuarda = setTimeout(() => DB.put('rasc', S.P.id, { P: S.P, base: S.base, em: Date.now() }).catch(() => { }), 600);
+  S.sujo = true; pintaBarraPrep(); Pub.agenda(S.P); clearTimeout(tGuarda); tGuarda = setTimeout(() => DB.put('rasc', S.P.id, { P: S.P, base: S.base, em: Date.now() }).catch(() => { }), 600);
   clearTimeout(tJunto); if (S.P?.mod && !S.P.novo && pode('roteiro')) { const falta = Math.max(8000, 15000 - (Date.now() - ultAuto)); tJunto = setTimeout(() => { if (S.sujo && S.P?.mod && !S.P.novo) { ultAuto = Date.now(); salvaPrep(null, true); } }, falta); }
 }
 
@@ -184,13 +224,13 @@ function quemHtml(autor, edicoes, curto) {
 
 /* ======================= telas ======================= */
 const tela = () => $('#tela');
-function trocaAba(a, semHist) { S.aba = a; S.P = null; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === a)); const alvo = a === 'roteiros' ? '' : '?aba=' + a;
+function trocaAba(a, semHist) { S.aba = a; S.P = null; $$('[data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === a)); const alvo = a === 'roteiros' ? '' : '?aba=' + a + (a === 'publicacoes' && S.pubQ ? '&' + S.pubQ : '');
   if (location.search !== alvo) history[semHist ? 'replaceState' : 'pushState'](null, '', './' + alvo); pinta(); }
 async function sairDoPrep(semHist) {
   // sem mudança de verdade: sai direto; roteiro novo e vazio nem fica como rascunho
   if (S.P && S.sujo && !mudouDeVerdade()) { clearTimeout(tGuarda); clearTimeout(tJunto); const id = S.P.id, novo = S.P.novo; S.sujo = false; if (novo || S.marco != null) await DB.del('rasc', id).catch(() => { }); }
   if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; AoVivo.sai(); AoVivo.atual = null; if (!semHist) history.pushState(null, '', S.aba && S.aba !== 'roteiros' ? './?aba=' + S.aba : './'); pinta(); return true; }
-function pinta() { Mic.paraTeste(); if (S.P) return pintaPrep(); modoDoc(false); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
+function pinta() { Mic.paraTeste(); document.body.classList.toggle('aba-pub', !S.P && S.aba === 'publicacoes'); if (S.P) return pintaPrep(); modoDoc(false); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'publicacoes') return pintaPublicacoes(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
 // bolinha com as iniciais do personagem, na cor dele; com foto, a foto (carrega sozinha quando a bolinha aparece)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
 // cor da letra sobre um fundo: fundo escuro → branca, fundo claro → quase preta (luminância relativa, WCAG)
@@ -203,6 +243,14 @@ const icProg = d => ({ animador: 'an', shorts: 'sh', editor: 'ed' }[d]);
 const progIc = (d, px = 18) => window.EstudioIcones && icProg(d) ? window.EstudioIcones.svg(icProg(d), px) : ic('doc', px);
 const anel = (pct, tam = 44) => { const r = 16, L = 2 * Math.PI * r; return `<svg class="anel" width="${tam}" height="${tam}" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="${r}" fill="none" stroke="currentColor" stroke-opacity=".14" stroke-width="4"/><circle cx="20" cy="20" r="${r}" fill="none" stroke="var(--ok)" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(pct / 100 * L).toFixed(1)} ${L.toFixed(1)}" transform="rotate(-90 20 20)"/><text x="20" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">${pct}%</text></svg>`; };
 
+/* ---------- aba PUBLICAÇÕES (pedido da dona, 17/11/2026: unir o Publicações ao Preparativos) ----------
+   O programa Publicações (/publicacoes/) abre aqui dentro, num quadro da mesma origem (?inc=1 esconde o logo e a conta dele).
+   S.pubQ = parâmetros que vieram na URL (ex.: video=…, do "levar" de outro programa) e passam para o quadro. */
+function pintaPublicacoes() {
+  modoDoc(false); AoVivo.sai(); AoVivo.paraTudo();
+  const q = S.pubQ ? '&' + S.pubQ : '', el = h(`<div class="tela-in"><iframe class="pub-quadro" title="Publicações" src="/publicacoes/?inc=1${q}" allow="clipboard-write; fullscreen"></iframe></div>`);
+  tela().replaceChildren(el);
+}
 /* ---------- início: lista dos roteiros ---------- */
 // ONDE: neste computador · na nuvem · em uso (um programa já usou) — e a SITUAÇÃO (rascunho, gravando, pronto); filtros com ícones
 let filtro = 'todos', filtroOnde = 'tudo';
@@ -223,29 +271,31 @@ async function pintaInicio(novo) {
   const T = telaNova(), el = T.el; el.innerHTML = `<section class="inicio">
     <div class="cab topo-ini"><span class="cab-ic t-rot">${ic('doc', 24)}</span><div class="cab-txt"><h1>Roteiros</h1><p>Escreva, separe as falas de cada personagem e grave.</p></div><span class="esp"></span><button class="bt ic" data-at title="Buscar de novo">${ic('atualizar')}</button>${ed ? `<button class="bt" data-pnova>${ic('pasta', 15)} Pasta nova</button><button class="bt pri grande" data-novo>${ic('mais', 18)} Novo roteiro</button>` : ''}</div>
     <div class="filtros-ini">
-      <div class="seg" role="group" aria-label="Onde">${ONDES.map(([k, n, i]) => `<button data-onde="${k}" class="${filtroOnde === k ? 'on' : ''}">${ic(i, 15)} ${n}<b class="n" data-n="${k}"></b></button>`).join('')}</div>
+      <select class="onde-sel" data-onde-sel aria-label="Onde" title="Onde estão os roteiros">${ONDES.map(([k, n]) => `<option value="${k}"${filtroOnde === k ? ' selected' : ''} data-nome="${esc(n)}">Onde: ${esc(n)}</option>`).join('')}</select>
       <div class="chips-st" role="group" aria-label="Situação">${[['todos', 'Todas as situações'], ...PREP_CONFIG.status].map(([k, n]) => `<button data-f="${k}" class="st-${k} ${filtro === k ? 'on' : ''}">${ic(ST_IC[k], 14)} ${esc(n)}</button>`).join('')}</div>
     </div>
     <div class="rot-corpo">${giroBloco()}</div></section>`;
   $('[data-at]', el).onclick = () => { S.lista = null; S.pastasR = null; pintaInicio(true); };
-  $('[data-novo]', el)?.addEventListener('click', () => abrePrep(novoPrep()));
+  $('[data-novo]', el)?.addEventListener('click', () => criaRoteiroNovo());
   $('[data-pnova]', el)?.addEventListener('click', async () => { const g = await pastaNova(); if (g) mudaPastasRot({ nova: g }, `Pasta "${g}" criada. Arraste roteiros para ela.`); });
   $$('[data-f]', el).forEach(b => b.onclick = () => { filtro = b.dataset.f; pintaInicio(); });
-  $$('[data-onde]', el).forEach(b => b.onclick = () => { filtroOnde = b.dataset.onde; pintaInicio(); });
+  $('[data-onde-sel]', el).onchange = e => { filtroOnde = e.target.value; pintaInicio(); };
   await carregaPers().catch(() => { });
   // TODOS os roteiros numa lista só (o que tem mudança só aqui fica uma vez, com o selo "termina de salvar ao abrir")
   const todos = [], doPc = new Set(); let erro = '';
   try { for (const r of (await DB.todos('rasc')).map(([, v]) => v).filter(v => v?.P?.id).sort((a, b) => b.em - a.em)) { if (prepVazio(r.P)) { DB.del('rasc', r.P.id).catch(() => { }); continue; } doPc.add(r.P.id); todos.push({ it: r.P, onde: r.P.novo || !r.base?.mod ? 'pc' : 'mudou', t: r.em || 0, abre: () => abrePrep(r.P, r.base) }); } } catch { }
-  try { if (!S.lista || novo) S.lista = (await Nuvem.lista()).itens || []; } catch (e) { erro = e.message; }
+  try { if (!S.lista || novo) S.lista = (await Nuvem.lista()).itens || []; Pub.cartoesDosExistentes(S.lista).catch(() => { }); } catch (e) { erro = e.message; }
   const PR = await pastasRot(novo);
   for (const it of S.lista || []) if (!doPc.has(it.id)) todos.push({ it, onde: it.uso?.length ? 'uso' : 'nuvem', t: it.mod || 0, abre: () => Nuvem.abre(it.id).then(abrePrep) });
   todos.sort((a, b) => b.t - a.t);
   const naOnde = (x, k) => k === 'tudo' || (k === 'pc' ? x.onde === 'pc' || x.onde === 'mudou' : k === 'nuvem' ? x.onde === 'nuvem' || x.onde === 'mudou' : x.onde === 'uso');
-  for (const [k] of ONDES) $(`[data-n="${k}"]`, el).textContent = todos.filter(x => naOnde(x, k)).length || '';
+  for (const [k] of ONDES) { const o = $(`[data-onde-sel] option[value="${k}"]`, el), n = todos.filter(x => naOnde(x, k)).length; if (o) o.textContent = `Onde: ${o.dataset.nome}${n ? ' (' + n + ')' : ''}`; }
   const L = todos.filter(x => naOnde(x, filtroOnde) && (filtro === 'todos' || (x.it.status || 'rascunho') === filtro));
   const pastaDe = x => PR.de[x.it.id] || '', pastas = [...new Set([...PR.ordem, ...Object.values(PR.de)])].filter(Boolean);
   if (pastaRot && !pastas.includes(pastaRot)) pastaRot = null;
   const corpo = $('.rot-corpo', el), grade = arr => { const g = h('<div class="grade"></div>'); for (const x of arr) g.appendChild(liga(x)); return g; };
+  // AGRUPADO POR SITUAÇÃO (pedido da dona, 17/11/2026: lista bagunçada): Gravando, Pronto e Rascunho, nessa ordem, cada um com a contagem
+  const porSit = arr => { if (filtro !== 'todos') return grade(arr); const w = h('<div class="por-sit"></div>'); for (const k of ['gravando', 'pronto', 'rascunho']) { const D = arr.filter(x => (x.it.status || 'rascunho') === k); if (!D.length) continue; w.appendChild(h(`<div class="grupo-sit"><span class="st st-${k}">${ic(ST_IC[k] || 'lapis', 12)} ${esc(STATUS[k] || k)}</span><small>${D.length}</small></div>`)); w.appendChild(grade(D)); } return w; };
   const liga = x => { const c = cartao(x.it, x.onde); c.onclick = async () => { $$('.dh-menu.pop').forEach(y => y.remove()); c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } };
     if (ed) arrastavel(c, x.it.nome || 'Roteiro', g => { if ((PR.de[x.it.id] || '') === (g || '')) return; mudaPastasRot({ mover: { [x.it.id]: g || null } }, g ? `"${x.it.nome || 'Roteiro'}" foi para ${g}.` : 'Saiu da pasta.'); });
     c.oncontextmenu = e => { if (!ed) return; e.preventDefault(); const atual = pastaDe(x);
@@ -273,7 +323,7 @@ async function pintaInicio(novo) {
         c.onclick = e => { if (!e.target.closest('.pb-mn')) abrePastaRot(g); }; c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrePastaRot(g); } };
         $('.pb-mn', c)?.addEventListener('click', e => { e.stopPropagation(); menuPasta(e.currentTarget, g); }); c.oncontextmenu = e => { e.preventDefault(); menuPasta(e, g); }; alvo(c, g); cards.appendChild(c); }
       corpo.appendChild(cards); }
-    if (fora.length) { corpo.appendChild(h(`<h3 class="pb-h">${pastas.length ? 'Fora de pastas' : 'Todos os roteiros'} <small>${fora.length}</small></h3>`)); corpo.appendChild(grade(fora)); }
+    if (fora.length) { corpo.appendChild(h(`<h3 class="pb-h">${pastas.length ? 'Fora de pastas' : 'Todos os roteiros'} <small>${fora.length}</small></h3>`)); corpo.appendChild(porSit(fora)); }
     if (!L.length && !erro) corpo.appendChild(h(`<div class="vazio">${todos.length ? 'Nenhum roteiro com esses filtros.' : 'Ainda não há roteiros. Clique em "Novo roteiro".'}</div>`));
   }
   if (S.P || (S.aba && S.aba !== 'roteiros')) return T.cancela(); // a pessoa já foi para outra aba (ou abriu um roteiro) enquanto carregava: não cobre a tela
@@ -284,6 +334,9 @@ async function pintaInicio(novo) {
     card.classList.toggle('ao-vivo', !!g.length);
     q.innerHTML = g.length ? `<span class="quem-l quem-vivo" title="Com o roteiro aberto agora: ${esc(g.map(x => x.n).join(', '))}"><span class="vivo-fotos">${g.slice(0, 4).map(x => pava(x, 'p vivo')).join('')}</span><span><b>${esc(g[0].n || 'Alguém')}</b>${g.length > 1 ? ` e mais ${g.length - 1}` : ''}</span><span class="vivo-selo" title="Com o roteiro aberto agora"><i></i>ao vivo</span></span>` : q.dataset.quemOrig || ''; }); });
 }
+// selo "Publicações · Sem data" do cartão (17/11/2026): lê só o que já está guardado neste navegador (sem pedido à nuvem)
+function pubSelo(it) { try { if (!it.id || !Pub.lido()[it.id]) return ''; const L = JSON.parse(localStorage.getItem(Pub.LSP) || 'null'), x = (L?.itens || []).find(y => y.id === Pub.id(it.id)), d = x?.publicaEm;
+  return `<span class="pub-selo" title="Este roteiro tem um cartão no Publicações">${ic('upload', 12)} Publicações · ${d ? 'dia ' + esc(new Date(d).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })) : 'sem data'}</span> `; } catch { return ''; } }
 // onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem' | 'uso' (um programa já usou)
 function cartao(it, onde) {
   const fs = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null;
@@ -298,7 +351,7 @@ function cartao(it, onde) {
     <div class="rodape"><div class="elenco">${pers.slice(0, 6).map(p => ava(p, corOuPadrao(p), 'p')).join('')}${pers.length > 6 ? `<span class="mais">+${pers.length - 6}</span>` : ''}</div>
     <div class="quem-c" data-quem-orig="${esc(quemHtml(autor, eds, true))}">${quemHtml(autor, eds, true)}</div></div>
     ${uso.length ? `<div class="usos">${uso.map(u => `<span class="uso">${progIc(u, 16)} usado no ${esc(DESTINOS[u] || u)}</span>`).join('')}</div>` : ''}
-    <small class="mt">${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${it.canal ? `canal ${esc(it.canal)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
+    <small class="mt">${pubSelo(it)}${it.destino ? `${progIc(it.destino, 14)} vai para o ${esc(DESTINOS[it.destino] || it.destino)} · ` : ''}${it.canal ? `canal ${esc(it.canal.nome || it.canal)} · ` : ''}${onde === 'nuvem' || onde === 'uso' ? 'mudado ' + esc(quando(it.mod)) : 'guardado aqui'}</small></button>`);
 }
 
 /* ---------- um preparativo ---------- */
@@ -434,6 +487,7 @@ function pintaPrep() {
       marcaSujo(); aviso(msg + ' (vai junto quando mandar para a nuvem)', 'info', 5500); return pintaPrep(); } // vai junto quando mandar para a nuvem
     try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, destino: P.destino, canal: P.canal || null, status: P.status }); P.mod = r.mod || P.mod; S.base.mod = P.mod; aviso(msg, 'ok', 5500); S.lista = null; }
     catch (e) { aviso(e.message, 'erro'); }
+    Pub.agenda(P);
     pintaPrep();
   };
   $$('[data-destino]', el).forEach(b => b.onclick = () => mudaMarca('destino', P.destino === b.dataset.destino ? '' : b.dataset.destino));
@@ -444,7 +498,7 @@ function pintaPrep() {
   const naFolha = fn => () => { if (S.sub !== 'roteiro') irGuia('roteiro'); setTimeout(() => S.ed && fn(S.ed), 0); };
   menus($('.dh-menus', el), [
     ['Arquivo', () => [
-      [`${ic('mais', 15)} Novo roteiro`, '', async () => { if (await sairDoPrep()) abrePrep(novoPrep()); }, !edita],
+      [`${ic('mais', 15)} Novo roteiro`, '', async () => { if (await sairDoPrep()) criaRoteiroNovo(); }, !edita],
       [`${ic('doc', 15)} Abrir roteiros`, '', () => sairDoPrep()],
       ...(pode('roteiro') && P.mod && !P.novo ? [[`${ic('pc', 15)} Tirar da nuvem e manter neste computador…`, '', () => tiraDaNuvem(P.id)]] : []),
       '-', [`${ic('nuvem', 15)} Mandar para a nuvem`, 'Ctrl+S', () => salvaPrep($('.prep [data-salva]')), !S.sujo],
@@ -479,7 +533,7 @@ async function salvaPrep(bt, quieto) {
   if (bt) { bt.disabled = true; bt.innerHTML = giro('Mandando'); }
   const enviado = P.roteiro;
   try {
-    await Quem.marca(P); const { novo, ...corpo } = P; let r;
+    await Quem.marca(P); const { novo, manter, ...corpo } = P; let r;
     try { r = await Nuvem.salva(corpo); }
     catch (e) {
       if (e.status !== 409 || e.tipo !== 'conflito') throw e;
@@ -488,7 +542,7 @@ async function salvaPrep(bt, quieto) {
       if ((nv.roteiro || '') === (S.base.roteiro || '')) { P.partes = Roteiro.separa(P.roteiro, nv.partes); P.mod = nv.mod; P.usadoPor = nv.usadoPor || []; r = await Nuvem.salva({ ...P, novo: undefined }); }
       else { const esc2 = await pergunta('Outra pessoa mudou este roteiro', 'A versão da nuvem tem um roteiro diferente do que você abriu. O que fazer?', [['Abrir a versão da nuvem', 'abrir'], ['Salvar a minha por cima', 'forcar', 'perigo'], ['Cancelar', null]]);
         if (esc2 === 'abrir') { await DB.del('rasc', P.id).catch(() => { }); S.sujo = false; return abrePrep(nv); }
-        if (esc2 !== 'forcar') return; r = await Nuvem.salva({ ...P, novo: undefined }, true); }
+        if (esc2 !== 'forcar') return; r = await Nuvem.salva({ ...P, novo: undefined, manter: undefined }, true); }
     }
     P.mod = r.mod; delete P.novo; S.base = { mod: P.mod, roteiro: enviado }; S.sujo = P.roteiro !== enviado; if (!S.sujo) S.marco = assinatura(P); S.lista = null;
     if (!S.sujo) await DB.del('rasc', P.id).catch(() => { }); else DB.put('rasc', P.id, { P, base: S.base, em: Date.now() }).catch(() => { });
@@ -703,6 +757,36 @@ function perguntaMuda(msg, antes, depois) {
     const fim = v => { m.remove(); ok(v); }; $('[data-n]', m).onclick = () => fim(false); $('[data-s]', m).onclick = () => fim(true); m.onkeydown = e => { if (e.key === 'Escape') fim(false); if (e.key === 'Enter') fim(true); };
     document.body.appendChild(m); $('[data-s]', m).focus(); });
 }
+/* ---------- NOVO ROTEIRO: nome, vai para, canal e pasta numa janela só (pedido da dona, 17/11/2026) ---------- */
+function janelaNovoRoteiro(pastas, pastaIni) {
+  return new Promise(ok => {
+    const dest = PREP_CONFIG.destinos, nomeDe = k => k === 'shorts' ? 'Shorts' : (dest.find(d => d[0] === k)?.[1] || k);
+    let destino = 'animador', canalId = PREP_CONFIG.canalPadrao[destino] || '', tocouCanal = false;
+    const m = h(`<div class="modal"><div class="caixa nv-rot"><b>Novo roteiro</b><p>Escolha o básico; o resto você muda depois.</p>
+      <label>Nome<input data-nome maxlength="80" value="Roteiro novo"></label>
+      <label>Vai para<div class="seg nv-seg" data-dest>${dest.map(([k]) => `<button type="button" data-d="${k}" class="${k === destino ? 'on' : ''}">${esc(nomeDe(k))}</button>`).join('')}</div></label>
+      <label>Canal do YouTube<select data-canal></select></label>
+      <label>Pasta<select data-pasta><option value="">Fora de pastas</option>${pastas.map(g => `<option value="${esc(g)}"${g === pastaIni ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
+      <div class="nv-aviso">${ic('ajuda', 14)} Ao criar, ele já aparece no Publicações em <b>Sem data</b>.</div>
+      <div class="bts"><button class="bt" data-c>Cancelar</button><button class="bt pri" data-s>Criar roteiro</button></div></div></div>`);
+    const pintaCanal = () => { $('[data-canal]', m).innerHTML = `<option value="">Escolher depois</option>` + PREP_CONFIG.canais.map(c => `<option value="${esc(c.id)}"${c.id === canalId ? ' selected' : ''}>${esc(c.nome)}</option>`).join(''); };
+    pintaCanal();
+    $$('[data-d]', m).forEach(b => b.onclick = () => { destino = b.dataset.d; $$('[data-d]', m).forEach(x => x.classList.toggle('on', x === b)); if (!tocouCanal) { canalId = PREP_CONFIG.canalPadrao[destino] || ''; pintaCanal(); } });
+    $('[data-canal]', m).onchange = e => { canalId = e.target.value; tocouCanal = true; };
+    const fim = v => { m.remove(); ok(v); }, nome = $('[data-nome]', m);
+    $('[data-c]', m).onclick = () => fim(null);
+    $('[data-s]', m).onclick = () => fim({ nome: nome.value.trim().slice(0, 80) || 'Roteiro novo', destino, canal: PREP_CONFIG.canais.find(c => c.id === canalId) || null, pasta: $('[data-pasta]', m).value || '' });
+    m.onkeydown = e => { if (e.key === 'Escape') fim(null); if (e.key === 'Enter' && e.target.matches('input')) $('[data-s]', m).click(); };
+    document.body.appendChild(m); nome.focus(); nome.select(); });
+}
+async function criaRoteiroNovo() {
+  const PR = await pastasRot(), pastas = [...new Set([...PR.ordem, ...Object.values(PR.de)])].filter(Boolean);
+  const r = await janelaNovoRoteiro(pastas, pastaRot || '');
+  if (!r) return;
+  const P = novoPrep(r.nome); P.destino = r.destino; P.canal = r.canal; P.manter = Pub.temConteudo(P); // só fica guardado (e vai para o Publicações) se já tem título próprio
+  if (r.pasta) { try { const x = await Nuvem.acao({ acao: 'pastas', mover: { [P.id]: r.pasta } }); S.pastasR = x.pastas || S.pastasR; } catch { } }
+  await abrePrep(P); marcaSujo(); Pub.agenda(P, true); // o rascunho fica guardado e o cartão já nasce no Publicações, Sem data
+}
 function pedeTexto(titulo, rotulo, max = 40) {
   return new Promise(ok => { const m = h(`<div class="modal"><div class="caixa"><b>${esc(titulo)}</b><label>${esc(rotulo)}<input maxlength="${max}"></label><div class="bts"><button class="bt" data-c>Cancelar</button><button class="bt pri" data-s>OK</button></div></div></div>`);
     const i = $('input', m), fim = v => { m.remove(); ok(v); }; $('[data-c]', m).onclick = () => fim(null); $('[data-s]', m).onclick = () => fim(i.value.trim()); i.onkeydown = e => { if (e.key === 'Enter') fim(i.value.trim()); if (e.key === 'Escape') fim(null); };
@@ -886,7 +970,7 @@ async function apagaRoteiro(it, onde) {
     ${usos.length ? `<p class="aten-box">${ic('alerta', 15)} Já foi usado: <b>${esc(usos.map(u => DESTINOS[u] || u).join(', '))}</b>. Esses programas não vão mais achar o roteiro.</p>` : ''}`, 'Apagar', true);
   if (!ok) return;
   if (naNuvem) { try { await Nuvem.pede('/preparativos/arquivo?k=' + encodeURIComponent(`preparativos/${it.id}/`), { method: 'DELETE' }); } catch (e) { return aviso('Não apaguei: ' + e.message, 'erro', 6000); } }
-  await DB.del('rasc', it.id).catch(() => { }); await DB.op('aud', 'readwrite', s => s.delete(IDBKeyRange.bound(it.id + '/', it.id + '/\uffff'))).catch(() => { });
+  Pub.tira(it.id); await DB.del('rasc', it.id).catch(() => { }); await DB.op('aud', 'readwrite', s => s.delete(IDBKeyRange.bound(it.id + '/', it.id + '/\uffff'))).catch(() => { });
   if (S.pastasR?.de?.[it.id]) { try { const r = await Nuvem.acao({ acao: 'pastas', mover: { [it.id]: null } }); S.pastasR = r.pastas || S.pastasR; } catch { } }
   S.lista = null; aviso(`"${nome}" foi apagado.`, 'ok'); if (!S.P) pintaInicio(true);
 }
@@ -1802,7 +1886,7 @@ addEventListener('popstate', async () => {
   if (S.P && S.P.id === id) return;
   if (S.P && !await sairDoPrep(true)) { history.pushState(null, '', './?id=' + encodeURIComponent(S.P.id)); return; }
   if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { const r = await DB.get('rasc', id).catch(() => null); try { return abrePrep(r?.P && !r.base?.mod ? r.P : await Nuvem.abre(id), r?.P && !r.base?.mod ? r.base : undefined, true); } catch (e) { if (r?.P) return abrePrep(r.P, r.base, true); aviso(e.status === 404 ? 'Esse roteiro não existe mais (foi apagado).' : e.message, 'erro'); } }
-  trocaAba(['ideias', 'personagens'].includes(aba) ? aba : 'roteiros', true);
+  trocaAba(['ideias', 'personagens', 'publicacoes'].includes(aba) ? aba : 'roteiros', true);
 });
 $$('[data-aba]').forEach(b => b.onclick = async () => { if (S.P && !await sairDoPrep(true)) return; trocaAba(b.dataset.aba); });
 addEventListener('beforeunload', e => { if (mudouDeVerdade()) { e.preventDefault(); e.returnValue = ''; } });
@@ -1814,12 +1898,13 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
     return out; },
 }));
 (async () => {
-  { const IAB = { roteiros: 'doc', ideias: 'luz', personagens: 'pessoa' }; $$('[data-aba]').forEach(b => { if (!b.querySelector('svg')) b.insertAdjacentHTML('afterbegin', ic(IAB[b.dataset.aba] || 'doc', 16) + ' '); }); }
+  { const IAB = { roteiros: 'doc', ideias: 'luz', personagens: 'pessoa', publicacoes: 'upload' }; $$('[data-aba]').forEach(b => { if (!b.querySelector('svg')) b.insertAdjacentHTML('afterbegin', ic(IAB[b.dataset.aba] || 'doc', 16) + ' '); }); }
   try { S.eu = await window.EstudioLogin?.pronto; } catch { }
   // níveis de acesso: o /estudio-conta.js (defer) cria o EstudioPerm depois deste arquivo; espera ele antes de desenhar os botões
   if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));
   try { await window.EstudioPerm?.pronto; } catch { }
   const q = new URLSearchParams(location.search), id = q.get('id') || q.get('roteiro'), aba = q.get('aba');
+  if (aba === 'publicacoes') { q.delete('aba'); S.pubQ = q.toString(); return trocaAba('publicacoes', true); }
   if (aba === 'ideias') return trocaAba(aba, true); if (aba === 'personagens' || aba === 'cores') return trocaAba('personagens', true);
   if (id && /^[A-Za-z0-9_-]{2,40}$/.test(id)) { tela().innerHTML = giroBloco(); let msg = '';
     try { await abrePrep(await Nuvem.abre(id), undefined, true);
