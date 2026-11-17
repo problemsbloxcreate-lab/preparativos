@@ -128,17 +128,22 @@ const Pub = {
   // DIA ESCOLHIDO NO CALENDÁRIO (17/11/2026): roteiro criado a partir de um dia do calendário do Publicações já nasce com esse dia (publicaEm); lembrado até o cartão ser criado
   diaDe(id) { try { return +(JSON.parse(localStorage.getItem('ep-prep-pub-dia') || '{}')[id] || 0) || null; } catch { return null; } },
   diaPara(id, t) { try { const m = JSON.parse(localStorage.getItem('ep-prep-pub-dia') || '{}'); if (t) m[id] = t; else delete m[id]; localStorage.setItem('ep-prep-pub-dia', JSON.stringify(m)); } catch { } },
+  // RESPONSÁVEL (17/11/2026): pessoa da equipe escolhida ao criar o roteiro (código u…, nunca e-mail); lembrado até o cartão nascer no Publicações
+  respDe(id) { try { const r = JSON.parse(localStorage.getItem('ep-prep-pub-resp') || '{}')[id]; return /^u[0-9a-f]{16}$/.test(r || '') ? r : ''; } catch { return ''; } },
+  respPara(id, u) { try { const m = JSON.parse(localStorage.getItem('ep-prep-pub-resp') || '{}'); if (u) m[id] = u; else delete m[id]; localStorage.setItem('ep-prep-pub-resp', JSON.stringify(m)); } catch { } },
+  async equipe() { const r = await fetch('/mensagens?desde=' + Date.now() + '&pessoas=1', { credentials: 'same-origin', cache: 'no-store' }); if (!r.ok) return { eu: '', lista: [] }; const j = await r.json(); const us = [...new Set([j.eu, ...(j.pessoas || []).map(p => p.u)].filter(Boolean))];
+    return { eu: j.eu || '', lista: await Promise.all(us.map(async u => { let q = null; try { q = await window.EstudioConta?.quem?.(u); } catch { } return { u, nome: q?.nome || 'Alguém da equipe' }; })) }; },
   temConteudo: P => !!(P?.roteiro || '').trim() || (!!(P?.nome || '').trim() && (P.nome || '').trim() !== 'Roteiro novo'),
-  agenda(P, logo) { clearTimeout(this.t); if (!P || !(this.temConteudo(P) || this.diaDe(P.id)) || !this.ok()) return; this.t = setTimeout(() => this.sincroniza(P).catch(() => { }), logo ? 0 : 2500); },
+  agenda(P, logo) { clearTimeout(this.t); if (!P || !(this.temConteudo(P) || this.diaDe(P.id) || this.respDe(P.id)) || !this.ok()) return; this.t = setTimeout(() => this.sincroniza(P).catch(() => { }), logo ? 0 : 2500); },
   async sincroniza(P) {
     const id = this.id(P.id), nome = String(P.nome || 'Roteiro').slice(0, 100), canalId = P.canal?.id || '', m = this.lido(), ult = m[P.id] || null;
     if (ult && ult.t === nome && ult.c === canalId) return;
     const L = await Nuvem.pede('/publicacoes'), ant = (L.itens || []).find(x => x.id === id);
     if (!ant && ult) return; // a equipe tirou o cartão de lá: não volta sozinho
-    let item;
-    if (ant) { const { meu, por, editadoPor, editadoEm, ...base } = ant; item = { ...base, titulo: nome }; if (ult && ult.c !== canalId && P.canal) item.canal = { id: P.canal.id, nome: P.canal.nome }; }
-    else item = { id, concluido: true, titulo: nome, programa: 'preparativos', abrir: '/preparativos/?id=' + encodeURIComponent(P.id), formato: this.formato(P), canal: P.canal ? { id: P.canal.id, nome: P.canal.nome } : { id: '', nome: '' }, modo: 'naoListado', privacidade: 'unlisted', enviadoEm: Date.now(), publicaEm: this.diaDe(P.id) };
-    await Nuvem.json('/publicacoes', 'POST', { item }); m[P.id] = { t: nome, c: canalId }; this.grava(m); this.diaPara(P.id, null); this.velha();
+    let item; const resp = this.respDe(P.id);
+    if (ant) { const { meu, por, editadoPor, editadoEm, ...base } = ant; item = { ...base, titulo: nome, ...(resp && !ant.resp ? { resp } : {}) }; if (ult && ult.c !== canalId && P.canal) item.canal = { id: P.canal.id, nome: P.canal.nome }; }
+    else item = { id, concluido: true, titulo: nome, programa: 'preparativos', abrir: '/preparativos/?id=' + encodeURIComponent(P.id), formato: this.formato(P), canal: P.canal ? { id: P.canal.id, nome: P.canal.nome } : { id: '', nome: '' }, modo: 'naoListado', privacidade: 'unlisted', enviadoEm: Date.now(), publicaEm: this.diaDe(P.id), ...(resp ? { resp } : {}) };
+    await Nuvem.json('/publicacoes', 'POST', { item }); m[P.id] = { t: nome, c: canalId }; this.grava(m); this.diaPara(P.id, null); this.respPara(P.id, null); this.velha();
   },
   // UMA VEZ por navegador (17/11/2026): os roteiros que já estão na nuvem e têm título próprio ou falas ganham o cartão "Sem data". Não repete nem mexe no que já existe.
   async cartoesDosExistentes(lista) {
@@ -849,8 +854,8 @@ async function pubGravaData(s, t, info) {
   for (const x of alvos) { const novo = { ...limpa(x), publicaEm: t }; await Nuvem.json('/publicacoes', 'POST', { item: novo }); gravados.push(novo); }
   if (!info.it) { // o roteiro ainda não tinha cartão: nasce com o dia
     const cn = typeof s.canal === 'string' ? s.canal : s.canal?.nome, canal = PREP_CONFIG.canais.find(c => c.nome === cn || c.id === s.canal?.id) || null;
-    const novo = { id: Pub.id(s.id), concluido: true, titulo: String(s.nome || 'Roteiro').slice(0, 100), programa: 'preparativos', abrir: '/preparativos/?id=' + encodeURIComponent(s.id), formato: Pub.formato({ destino: s.destino, nome: s.nome }), canal: canal ? { id: canal.id, nome: canal.nome } : { id: '', nome: '' }, modo: 'naoListado', privacidade: 'unlisted', enviadoEm: Date.now(), publicaEm: t };
-    await Nuvem.json('/publicacoes', 'POST', { item: novo }); gravados.push(novo); const m = Pub.lido(); m[s.id] = { t: novo.titulo, c: canal?.id || '' }; Pub.grava(m);
+    const novo = { id: Pub.id(s.id), concluido: true, titulo: String(s.nome || 'Roteiro').slice(0, 100), programa: 'preparativos', abrir: '/preparativos/?id=' + encodeURIComponent(s.id), formato: Pub.formato({ destino: s.destino, nome: s.nome }), canal: canal ? { id: canal.id, nome: canal.nome } : { id: '', nome: '' }, modo: 'naoListado', privacidade: 'unlisted', enviadoEm: Date.now(), publicaEm: t, ...(Pub.respDe(s.id) ? { resp: Pub.respDe(s.id) } : {}) };
+    await Nuvem.json('/publicacoes', 'POST', { item: novo }); gravados.push(novo); const m = Pub.lido(); m[s.id] = { t: novo.titulo, c: canal?.id || '' }; Pub.grava(m); Pub.respPara(s.id, null);
   }
   try { const v = JSON.parse(localStorage.getItem(Pub.LSP) || 'null'); if (v) { for (const g of gravados) { const k = (v.itens || []).findIndex(y => y.id === g.id); if (k >= 0) v.itens[k] = { ...v.itens[k], publicaEm: t }; else (v.itens ||= []).unshift(g); } v.em = 0; localStorage.setItem(Pub.LSP, JSON.stringify(v)); } } catch { }
   return { n: gravados.length, fora };
@@ -889,17 +894,20 @@ function janelaNovoRoteiro(pastas, pastaIni, dia, nomeIni) {
       <label>Vai para<div class="seg nv-seg" data-dest>${dest.map(([k]) => `<button type="button" data-d="${k}" class="${k === destino ? 'on' : ''}">${progIc(k, 16)} ${esc(nomeDe(k))}</button>`).join('')}</div></label>
       <label>Canal do YouTube<select data-canal></select></label>
       <label>Pasta<select data-pasta><option value="">Fora de pastas</option>${pastas.map(g => `<option value="${esc(g)}"${g === pastaIni ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
+      <label>Responsável (opcional)<select data-resp><option value="">Ninguém</option></select></label>
       <label>Data no calendário (opcional)<input type="datetime-local" data-dia value="${dia ? paraInputDataHora(new Date(dia).setHours(12, 0, 0, 0)) : ''}"></label>
       <div class="nv-aviso" data-aviso>${ic('ajuda', 14)} <span>Ao criar, ele já aparece no Publicações em <b>${dia ? new Date(dia).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'Sem data'}</b>.</span></div>
       <div class="bts"><button class="bt" data-c>Cancelar</button><button class="bt pri" data-s>Criar roteiro</button></div></div></div>`);
     const pintaCanal = () => { $('[data-canal]', m).innerHTML = `<option value="">Escolher depois</option>` + PREP_CONFIG.canais.map(c => `<option value="${esc(c.id)}"${c.id === canalId ? ' selected' : ''}>${esc(c.nome)}</option>`).join(''); };
-    pintaCanal();
+    pintaCanal(); let respU = '';
+    Pub.equipe().then(q => { const sel = $('[data-resp]', m); if (!sel || !m.isConnected) return; if (!q.lista.length) { sel.closest('label').style.display = 'none'; return; } sel.innerHTML = '<option value="">Ninguém</option>' + q.lista.map(p => `<option value="${esc(p.u)}"${p.u === respU ? ' selected' : ''}>${esc(p.nome)}${p.u === q.eu ? ' (você)' : ''}</option>`).join(''); sel.value = respU; }).catch(() => { const sel = $('[data-resp]', m); if (sel) sel.closest('label').style.display = 'none'; });
+    $('[data-resp]', m).onchange = e => { respU = e.target.value; };
     $$('[data-d]', m).forEach(b => b.onclick = () => { destino = b.dataset.d; $$('[data-d]', m).forEach(x => x.classList.toggle('on', x === b)); if (!tocouCanal) { canalId = PREP_CONFIG.canalPadrao[destino] || ''; pintaCanal(); } });
     $('[data-canal]', m).onchange = e => { canalId = e.target.value; tocouCanal = true; };
     const fim = v => { m.remove(); ok(v); }, nome = $('[data-nome]', m), diaEl = $('[data-dia]', m);
     if (diaEl) diaEl.onchange = () => { $('[data-aviso] span', m).innerHTML = 'Ao criar, ele já aparece no Publicações em <b>' + (diaEl.value ? esc(fmtDataHora(new Date(diaEl.value).getTime())) : 'Sem data') + '</b>.'; };
     $('[data-c]', m).onclick = () => fim(null);
-    $('[data-s]', m).onclick = () => fim({ nome: nome.value.trim().slice(0, 80) || 'Roteiro novo', destino, canal: PREP_CONFIG.canais.find(c => c.id === canalId) || null, pasta: $('[data-pasta]', m).value || '', dia: diaEl && diaEl.value ? new Date(diaEl.value).getTime() : null });
+    $('[data-s]', m).onclick = () => fim({ nome: nome.value.trim().slice(0, 80) || 'Roteiro novo', destino, canal: PREP_CONFIG.canais.find(c => c.id === canalId) || null, pasta: $('[data-pasta]', m).value || '', resp: respU, dia: diaEl && diaEl.value ? new Date(diaEl.value).getTime() : null });
     m.onkeydown = e => { if (e.key === 'Escape') fim(null); if (e.key === 'Enter' && e.target.matches('input')) $('[data-s]', m).click(); };
     document.body.appendChild(m); nome.focus(); nome.select(); });
 }
@@ -907,9 +915,10 @@ async function criaRoteiroNovo(opts = {}) {
   const PR = await pastasRot(), pastas = [...new Set([...PR.ordem, ...Object.values(PR.de)])].filter(Boolean);
   const r = await janelaNovoRoteiro(pastas, pastaRot || '', opts.dia, opts.nome);
   if (!r) return;
-  const P = novoPrep(r.nome); P.destino = r.destino; P.canal = r.canal; P.manter = Pub.temConteudo(P) || !!r.dia; // só fica guardado (e vai para o Publicações) se já tem título próprio
+  const P = novoPrep(r.nome); P.destino = r.destino; P.canal = r.canal; P.manter = Pub.temConteudo(P) || !!r.dia || !!r.resp; // só fica guardado (e vai para o Publicações) se já tem título próprio
   if (r.pasta) { try { const x = await Nuvem.acao({ acao: 'pastas', mover: { [P.id]: r.pasta } }); S.pastasR = x.pastas || S.pastasR; } catch { } }
   if (r.dia) Pub.diaPara(P.id, r.dia);
+  if (r.resp) Pub.respPara(P.id, r.resp);
   await abrePrep(P); marcaSujo(); Pub.agenda(P, true); // o rascunho fica guardado e o cartão já nasce no Publicações, Sem data
 }
 function pedeTexto(titulo, rotulo, max = 40) {
