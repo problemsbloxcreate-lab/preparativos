@@ -310,8 +310,9 @@ html.cel body:not(.modo-doc){& .ep-card header{flex-wrap:wrap}& .ep-card header 
 
 html.cel body:not(.modo-doc) .nv-seg button{display:inline-flex;align-items:center;justify-content:center;gap:6px}html.cel body:not(.modo-doc) .nv-seg button svg{flex:none;width:16px;height:16px}
 
-/* ===================== POP-UP DO CANAL (17/11/2026) ===================== */
-html.cel body:not(.modo-doc){
+/* ===================== POP-UP DO CANAL (17/11/2026) =====================
+   vale também com o roteiro aberto (body.modo-doc): é de lá que a equipe escolhe o canal. Antes estava só fora do roteiro e aparecia sem estilo. */
+html.cel body{
   & .caixa.cn-pop{width:min(420px,100%)!important}
   & .cn-lista{display:grid;gap:var(--e2)}
   & .cn-op{display:flex;align-items:center;gap:var(--e3);height:52px;padding:0 var(--e3);border:1px solid var(--linha)!important;border-radius:var(--raio-controle)!important;background:var(--fundo-2)!important;color:var(--texto)!important;font:500 var(--t-corpo) var(--fonte);text-align:left;cursor:pointer;transition:border-color var(--rapido),background var(--rapido)}
@@ -339,3 +340,10 @@ html.cel body:not(.modo-doc){
 .epd-bt.epd-perigo{background:var(--perigo,#ff453a);color:#fff;font-weight:600}
 .epd-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:310;max-width:min(520px,92vw);padding:10px 14px;border-radius:10px;background:var(--elevado,#242428);color:var(--texto,#f5f5f7);border:1px solid var(--linha,rgba(255,255,255,.09));box-shadow:var(--sombra-2,0 10px 30px rgba(0,0,0,.45));font:400 14px var(--fonte,system-ui)}
 .epd-bt{border:1px solid var(--linha-forte,rgba(255,255,255,.16))!important}.epd-bt.epd-ok,.epd-bt.epd-perigo,.epd-bt.epd-cancela{border-color:transparent!important}
+
+/* ===================== LISTAS QUE ROLAM: LINHAS NÃO ENCOLHEM (17/11/2026) =====================
+   Contêiner flex em coluna com altura máxima + linhas com overflow:hidden = as linhas encolhiam e o texto saía cortado ao meio (aconteceu na lista de falas da guia Legendas).
+   Regra: toda linha de lista que rola tem flex:none. Vale também com o roteiro aberto (body.modo-doc), por isso sem :not(.modo-doc). */
+html.cel body :is(.lg-falas,.can-lista,.canais-l,.vf-lista,.epp-l,.lista-r)>*{flex:none}
+html.cel body .lg-falas{border-radius:var(--raio-controle);background:var(--fundo-2);border-color:var(--linha);padding:var(--e1)}
+html.cel body .lg-falas .lf{border-radius:var(--raio-p);padding:7px 10px;line-height:1.35}
