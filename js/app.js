@@ -443,11 +443,14 @@ function ajustaNome(nm) { if (!nm) return; medeNome = medeNome || document.creat
 let contaOrig = null;
 function modoDoc(on) {
   document.body.classList.toggle('modo-doc', !!on); let tema = 'escuro'; try { tema = localStorage.getItem('ep-prep-tema') || 'escuro'; } catch { }
+  /* (17/11/2026) o sol/lua do cabeçalho do programa manda também no roteiro aberto: antes só o menu Ver > Tema claro mudava o roteiro e ficava meio claro, meio escuro */
+  const global = document.documentElement.dataset.tema; if (global) tema = global === 'claro' ? 'claro' : 'escuro';
   document.body.classList.toggle('claro', !!on && tema === 'claro'); // escuro é o padrão (pedido da dona)
   const sp = document.querySelector('[data-estudio-conta]'); if (!sp) return;
   if (on) { if (!contaOrig) contaOrig = { pai: sp.parentNode, prox: sp.nextSibling }; const alvo = $('.dh-conta'); if (alvo && sp.parentNode !== alvo) alvo.appendChild(sp); }
   else if (contaOrig && sp.parentNode !== contaOrig.pai) { contaOrig.pai.insertBefore(sp, contaOrig.prox); }
 }
+new MutationObserver(() => { if (document.body.classList.contains('modo-doc')) document.body.classList.toggle('claro', document.documentElement.dataset.tema === 'claro'); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-tema'] });
 // menus do cabeçalho (Arquivo, Editar…): abre no clique; com um aberto, passar o mouse troca
 function menus(nav, def) {
   let aberto = null; const fecha = () => { aberto?.caixa.remove(); aberto?.bt.classList.remove('on'); aberto = null; };
@@ -564,7 +567,7 @@ function pintaPrep() {
       [`${ic('pessoa', 15)} Personagens`, '', async () => { if (await sairDoPrep()) trocaAba('personagens'); }]]],
     ['Editar', () => [[`${ic('desfazer', 15)} Desfazer`, 'Ctrl+Z', () => E()?.desfaz(), !E()], [`${ic('refazer', 15)} Refazer`, 'Ctrl+Y', () => E()?.refaz(), !E()], '-', ['Selecionar tudo', 'Ctrl+A', () => E()?.tudo(), !E()]]],
     ['Ver', () => [...guiasDe(P).map(([k, n, i]) => [`${ic(i, 15)} ${n}`, S.sub === k ? '✓' : '', () => irGuia(k)]), '-', ['Mostrar as guias do lado', document.body.classList.contains('sem-guias') ? '' : '✓', () => document.body.classList.toggle('sem-guias')],
-      ['Tema claro', document.body.classList.contains('claro') ? '✓' : '', () => { const c = document.body.classList.toggle('claro'); try { localStorage.setItem('ep-prep-tema', c ? 'claro' : 'escuro'); } catch { } }]]],
+      ['Tema claro', document.body.classList.contains('claro') ? '✓' : '', () => { const H = document.documentElement, c = H.dataset.tema !== 'claro'; H.dataset.tema = c ? 'claro' : 'escuro'; try { localStorage.setItem('ep-tema', H.dataset.tema); } catch { } }]]],
     ['Inserir', () => [[`${ic('titulo', 15)} Capítulo novo`, '', naFolha(e => e.novaLinha('# Capítulo', { espaco: true })), !edita], [`${ic('titulo', 15)} Parte nova`, '', naFolha(e => e.novaLinha(`## ${Roteiro.norm(P.nome)} parte ${P.partes.length + 1}`, { espaco: true })), !edita],
       ...Roteiro.personagens(P.partes).map(p => [`${ava(p.nome, coresDoRoteiro().get(p.chave), 'p')} Fala de ${esc(p.nome)}`, '', naFolha(e => e.novaLinha(p.nome + ': ')), !edita]),
       [`${ic('pessoa', 15)} Fala de um personagem novo…`, '', async () => { const n = (await pedeTexto('Personagem novo', 'Nome do personagem (como vai aparecer no roteiro)') || '').replace(/[:*#\[\]()]/g, '').trim().slice(0, 40); if (n) naFolha(e => e.novaLinha(n + ': '))(); }, !edita],
