@@ -825,12 +825,12 @@ function perguntaMuda(msg, antes, depois) {
     document.body.appendChild(m); $('[data-s]', m).focus(); });
 }
 /* ---------- NOVO ROTEIRO: nome, vai para, canal e pasta numa janela só (pedido da dona, 17/11/2026) ---------- */
-function janelaNovoRoteiro(pastas, pastaIni, dia) {
+function janelaNovoRoteiro(pastas, pastaIni, dia, nomeIni) {
   return new Promise(ok => {
     const dest = PREP_CONFIG.destinos, nomeDe = k => k === 'shorts' ? 'Shorts' : (dest.find(d => d[0] === k)?.[1] || k);
     let destino = 'animador', canalId = PREP_CONFIG.canalPadrao[destino] || '', tocouCanal = false;
     const m = h(`<div class="modal"><div class="caixa nv-rot"><b>Novo roteiro</b><p>Escolha o básico; o resto você muda depois.</p>
-      <label>Nome<input data-nome maxlength="80" value="Roteiro novo"></label>
+      <label>Nome<input data-nome maxlength="80" value="${esc(nomeIni || 'Roteiro novo')}"></label>
       <label>Vai para<div class="seg nv-seg" data-dest>${dest.map(([k]) => `<button type="button" data-d="${k}" class="${k === destino ? 'on' : ''}">${progIc(k, 16)} ${esc(nomeDe(k))}</button>`).join('')}</div></label>
       <label>Canal do YouTube<select data-canal></select></label>
       <label>Pasta<select data-pasta><option value="">Fora de pastas</option>${pastas.map(g => `<option value="${esc(g)}"${g === pastaIni ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
@@ -850,7 +850,7 @@ function janelaNovoRoteiro(pastas, pastaIni, dia) {
 }
 async function criaRoteiroNovo(opts = {}) {
   const PR = await pastasRot(), pastas = [...new Set([...PR.ordem, ...Object.values(PR.de)])].filter(Boolean);
-  const r = await janelaNovoRoteiro(pastas, pastaRot || '', opts.dia);
+  const r = await janelaNovoRoteiro(pastas, pastaRot || '', opts.dia, opts.nome);
   if (!r) return;
   const P = novoPrep(r.nome); P.destino = r.destino; P.canal = r.canal; P.manter = Pub.temConteudo(P) || !!r.dia; // só fica guardado (e vai para o Publicações) se já tem título próprio
   if (r.pasta) { try { const x = await Nuvem.acao({ acao: 'pastas', mover: { [P.id]: r.pasta } }); S.pastasR = x.pastas || S.pastasR; } catch { } }
@@ -2021,8 +2021,8 @@ addEventListener('popstate', async () => {
   trocaAba(['ideias', 'personagens', 'publicacoes'].includes(aba) ? aba : 'roteiros', true);
 });
 // pedido do calendário do Publicações (quadro desta mesma página): criar roteiro para um dia
-addEventListener('message', async e => { if (e.origin !== location.origin || e.data?.ep !== 'novo-roteiro') return; const dia = +e.data.dia; if (!(dia > 0)) return;
-  if (!pode('roteiro')) return aviso('Sua conta não pode criar roteiros.', 'erro'); if (S.P && !await sairDoPrep(true)) return; trocaAba('roteiros'); criaRoteiroNovo({ dia }); });
+addEventListener('message', async e => { if (e.origin !== location.origin || e.data?.ep !== 'novo-roteiro') return; const dia = +e.data.dia || 0, nome = typeof e.data.nome === 'string' ? e.data.nome.slice(0, 80) : ''; if (!(dia > 0) && !nome) return; /* "Criar Parte N" do Publicações manda o nome; o dia vem do calendário */
+  if (!pode('roteiro')) return aviso('Sua conta não pode criar roteiros.', 'erro'); if (S.P && !await sairDoPrep(true)) return; trocaAba('roteiros'); criaRoteiroNovo({ dia: dia || undefined, nome }); });
 $$('[data-aba]').forEach(b => b.onclick = async () => { if (S.P && !await sairDoPrep(true)) return; trocaAba(b.dataset.aba); });
 addEventListener('beforeunload', e => { if (mudouDeVerdade()) { e.preventDefault(); e.returnValue = ''; } });
 addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registrar?.({
