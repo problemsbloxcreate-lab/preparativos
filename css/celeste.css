@@ -346,4 +346,4 @@ html.cel body{
    Regra: toda linha de lista que rola tem flex:none. Vale também com o roteiro aberto (body.modo-doc), por isso sem :not(.modo-doc). */
 html.cel body :is(.lg-falas,.can-lista,.canais-l,.vf-lista,.epp-l,.lista-r)>*{flex:none}
 html.cel body .lg-falas{border-radius:var(--raio-controle);background:var(--fundo-2);border-color:var(--linha);padding:var(--e1)}
-html.cel body .lg-falas .lf{border-radius:var(--raio-p);padding:7px 10px;line-height:1.35}
+html.cel body .lg-falas .lf{border-radius:var(--raio-p);padding:7px 10px;line-height:1.35;color:var(--texto)}
