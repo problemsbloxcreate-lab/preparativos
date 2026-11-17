@@ -296,13 +296,31 @@ async function pintaInicio(novo) {
   const L = todos.filter(x => naOnde(x, filtroOnde) && (filtro === 'todos' || grupoDe2(x.it) === filtro));
   const pastaDe = x => PR.de[x.it.id] || '', pastas = [...new Set([...PR.ordem, ...Object.values(PR.de)])].filter(Boolean);
   if (pastaRot && !pastas.includes(pastaRot)) pastaRot = null;
-  const corpo = $('.rot-corpo', el), grade = arr => { const g = h('<div class="grade"></div>'); for (const x of arr) g.appendChild(liga(x)); return g; };
+  const corpo = $('.rot-corpo', el), grade = arr => { const g = h('<div class="grade"></div>'), grupos = new Map(), feitos = new Set();
+    for (const x of arr) { const e = episodioDe(x.it.nome, x.it.id); if (e) { const l = grupos.get(e.ep) || []; l.push({ x, e }); grupos.set(e.ep, l); } }
+    for (const x of arr) { const e = episodioDe(x.it.nome, x.it.id), gp = e && grupos.get(e.ep); if (gp && gp.length >= 2) { if (!feitos.has(e.ep)) { feitos.add(e.ep); g.appendChild(cartaoEp(e.ep, gp)); } } else g.appendChild(liga(x)); }
+    return g; };
+  // um cartão por episódio, com as partes dentro, aviso da parte que falta e ⋯ para separar
+  const cartaoEp = (ep, gp) => { const ps = gp.slice().sort((a, b) => a.e.parte - b.e.parte), maxP = Math.max(...ps.map(p => p.e.parte)), tem = new Set(ps.map(p => p.e.parte)), faltam = []; for (let i = 1; i <= maxP; i++) if (!tem.has(i)) faltam.push(i);
+    const sit = p => { const [n, g] = contaFalas(p.x.it); return sitAudio(p.x.it, n, g); }, cor = k => k === 'pronto' ? 'ok' : k === 'rascunho' ? 'ne' : 'av';
+    const c = h(`<div class="ep-card"><header><b>Episódio ${ep}</b><small>${ps.length} partes${faltam.length ? ` · <span class="ep-falta">falta a Parte ${faltam.join(', ')}</span>` : ''}</small><span class="esp"></span><button class="pb-mn" title="Opções do episódio" aria-label="Opções do episódio">${ic('mais3', 15)}</button></header>
+      <div class="ep-seg">${Array.from({ length: maxP }, (_, i) => { const p = ps.find(q => q.e.parte === i + 1); return p ? `<i class="${cor(sit(p).k)}"></i>` : '<i class="vz"></i>'; }).join('')}</div>
+      <div class="ep-partes">${Array.from({ length: maxP }, (_, i) => { const p = ps.find(q => q.e.parte === i + 1); if (!p) return `<div class="ep-pt vz"><span class="n">Parte ${i + 1}</span><span class="nome">ainda não existe</span></div>`; const S2 = sit(p);
+        return `<button class="ep-pt" data-id="${esc(p.x.it.id)}"><span class="n">Parte ${i + 1}</span><span class="nome">${esc(p.x.it.nome || 'Roteiro')}</span><span class="pil ${cor(S2.k)}">${esc(S2.rot)}</span></button>`; }).join('')}</div></div>`);
+    $$('.ep-pt[data-id]', c).forEach(b => { const p = ps.find(q => q.x.it.id === b.dataset.id); b.onclick = async () => { b.classList.add('carregando'); try { await p.x.abre(); } catch (e) { aviso(e.message, 'erro'); b.classList.remove('carregando'); } }; });
+    $('.pb-mn', c).onclick = e => { e.stopPropagation(); popMenu(e.currentTarget, ps.map(p => [`${ic('mais3', 14)} Separar "Parte ${p.e.parte}" deste episódio`, '', () => { EpManual.poe(p.x.it.id, null); pintaInicio(); }, !ed])); };
+    return c; };
   // AGRUPADO POR SITUAÇÃO (pedido da dona, 17/11/2026: lista bagunçada): Gravando, Pronto e Rascunho, nessa ordem, cada um com a contagem
-  const porSit = arr => { if (filtro !== 'todos') return grade(arr); const w = h('<div class="por-sit"></div>'); for (const k of ['gravando', 'pronto', 'rascunho']) { const D = arr.filter(x => grupoDe2(x.it) === k); if (!D.length) continue; w.appendChild(h(`<div class="grupo-sit"><span class="st st-${k}">${ic(ST_IC[k] || 'lapis', 12)} ${esc(STATUS[k] || k)}</span><small>${D.length}</small></div>`)); w.appendChild(grade(D)); } return w; };
+  const porSit = arr => { if (filtro !== 'todos') return grade(arr); const w = h('<div class="por-sit"></div>');
+    // um episódio (2 partes ou mais) fica inteiro no grupo da parte MENOS adiantada (rascunho < gravando < pronto)
+    const eps = new Map(); for (const x of arr) { const e = episodioDe(x.it.nome, x.it.id); if (e) { const l = eps.get(e.ep) || []; l.push(x); eps.set(e.ep, l); } }
+    const ordem = { rascunho: 0, gravando: 1, pronto: 2 }, grupoItem = x => { const e = episodioDe(x.it.nome, x.it.id), l = e && eps.get(e.ep); if (l && l.length >= 2) return l.map(y => grupoDe2(y.it)).sort((a, b) => (ordem[a] ?? 1) - (ordem[b] ?? 1))[0]; return grupoDe2(x.it); }; for (const k of ['gravando', 'pronto', 'rascunho']) { const D = arr.filter(x => grupoItem(x) === k); if (!D.length) continue; w.appendChild(h(`<div class="grupo-sit"><span class="st st-${k}">${ic(ST_IC[k] || 'lapis', 12)} ${esc(STATUS[k] || k)}</span><small>${D.length}</small></div>`)); w.appendChild(grade(D)); } return w; };
   const liga = x => { const c = cartao(x.it, x.onde); c.onclick = async () => { $$('.dh-menu.pop').forEach(y => y.remove()); c.classList.add('carregando'); c.insertAdjacentHTML('beforeend', `<span class="cartao-giro">${giro()}</span>`); try { await x.abre(); } catch (e) { aviso(e.message, 'erro'); c.classList.remove('carregando'); $('.cartao-giro', c)?.remove(); } };
     if (ed) arrastavel(c, x.it.nome || 'Roteiro', g => { if ((PR.de[x.it.id] || '') === (g || '')) return; mudaPastasRot({ mover: { [x.it.id]: g || null } }, g ? `"${x.it.nome || 'Roteiro'}" foi para ${g}.` : 'Saiu da pasta.'); });
     c.oncontextmenu = e => { if (!ed) return; e.preventDefault(); const atual = pastaDe(x);
       popMenu(e, [...(x.onde === 'nuvem' || x.onde === 'uso' ? [[`${ic('pc', 14)} Tirar da nuvem e manter neste computador…`, '', () => tiraDaNuvem(x.it.id)], '-'] : []),[`${ic('pasta', 14)} Mover para pasta…`, atual || '', async () => { const g = await escolhePasta(`Mover "${x.it.nome || 'Roteiro'}"`, pastas, atual); if (g != null) mudaPastasRot({ mover: { [x.it.id]: g || null } }, g ? `"${x.it.nome || 'Roteiro'}" foi para ${g}.` : 'Saiu da pasta.'); }], '-',
+        '-', ...(episodioDe(x.it.nome, x.it.id) ? [[`${ic('mais3', 14)} Separar deste episódio`, '', () => { EpManual.poe(x.it.id, null); pintaInicio(); }, !ed]] : []),
+        [`${ic('mais', 14)} Juntar ao episódio…`, '', async () => { const t = await pedeTexto('Juntar ao episódio', 'Número do episódio e da parte (ex.: 2 3 = Episódio 2, Parte 3)', 12); const m = /(\d+)\D+(\d+)/.exec(t || ''); if (!m) return; EpManual.poe(x.it.id, { ep: +m[1], parte: +m[2] }); pintaInicio(); }, !ed],
         [`${ic('lixo', 14)} Apagar roteiro…`, '', () => apagaRoteiro(x.it, x.onde)]]); };
     return c; };
   const alvo = (a, g) => { if (ed) a.dataset.solta = g || ''; };
@@ -350,6 +368,15 @@ function sitAudio(it, n, g) {
   if (st === 'pronto') return { k: 'faltam', grupo: 'gravando', rot: 'Texto pronto · faltam ' + falta + (falta === 1 ? ' fala' : ' falas'), rodape: it.destino ? 'grave as falas para mandar para ' + dest : '' };
   return { k: st, grupo: st, rot: STATUS[st] || 'Rascunho', rodape: it.destino ? (completo ? 'falas gravadas · marque como pronto para mandar para ' + dest : (n ? 'grave as falas' : 'escreva e grave as falas') + ' para mandar para ' + dest) : '' };
 }
+/* ---------- EPISÓDIOS EM PARTES (pedido da dona, 17/11/2026) ----------
+   Detecta pelo NOME, nunca pela pasta: "episódio/ep + número" e "parte/part/p + número" no mesmo nome = o mesmo episódio ("Episódio 2 - Parte 1", "EP2 Parte 3", "Ep2 P4"…).
+   Sem "parte" no nome não agrupa (Shorts da mesma pasta continuam soltos). A escolha manual vale mais: localStorage 'ep-episodios-manual' = { <id do roteiro>: null (separado) | { ep, parte } (juntado) }.
+   O mesmo vale no Publicações (mesma chave de memória, mesmo regex). */
+const semAc = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const RE_EP = /(?:^|[^a-z0-9])(?:episodio|epis|ep)\s*\.?\s*(\d{1,3})\b[^0-9]{0,15}?\b(?:parte|part|pt|p)\s*\.?\s*(\d{1,2})\b/;
+const EpManual = { le() { try { return JSON.parse(localStorage.getItem('ep-episodios-manual') || '{}') || {}; } catch { return {}; } }, poe(id, v) { const m = this.le(); if (v === undefined) delete m[id]; else m[id] = v; try { localStorage.setItem('ep-episodios-manual', JSON.stringify(m)); } catch { } } };
+const episodioDe = (nome, id) => { const m = id ? EpManual.le()[id] : undefined; if (m === null) return null; if (m && m.ep > 0) return { ep: +m.ep, parte: +m.parte || 0, manual: true }; const r = RE_EP.exec(semAc(nome)); return r ? { ep: +r[1], parte: +r[2] } : null; };
+const contaFalas = it => { const fs2 = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null; return [fs2 ? fs2.length : it.n || 0, fs2 ? fs2.filter(f => f.audio).length : it.g || 0]; };
 const grupoDe2 = it => { const fs2 = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null; return sitAudio(it, fs2 ? fs2.length : it.n || 0, fs2 ? fs2.filter(f => f.audio).length : it.g || 0).grupo; };
 // onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem' | 'uso' (um programa já usou)
 function cartao(it, onde) {
