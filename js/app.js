@@ -394,11 +394,18 @@ const EpManual = { le() { try { return JSON.parse(localStorage.getItem('ep-episo
 const episodioDe = (nome, id) => { const m = id ? EpManual.le()[id] : undefined; if (m === null) return null; if (m && m.ep > 0) return { ep: +m.ep, parte: +m.parte || 0, manual: true }; const r = RE_EP.exec(semAc(nome)); return r ? { ep: +r[1], parte: +r[2] } : null; };
 const contaFalas = it => { const fs2 = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null; return [fs2 ? fs2.length : it.n || 0, fs2 ? fs2.filter(f => f.audio).length : it.g || 0]; };
 const grupoDe2 = it => { const fs2 = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null; return sitAudio(it, fs2 ? fs2.length : it.n || 0, fs2 ? fs2.filter(f => f.audio).length : it.g || 0).grupo; };
+/* PERSONAGENS DO CARTÃO (pedido da dona, 17/11/2026): o cartão de um roteiro que não está aberto só tem o resumo guardado na nuvem (it.pers), e esse resumo pode estar velho
+   ou conter o nome de uma fala de vários ("Stick e Problems") que depois virou Stick + Problems. Aqui o resumo é limpo na hora de mostrar: nome com separador vira os nomes dele
+   quando todos já existem (no próprio resumo ou na lista de personagens da equipe) e repetidos (maiúscula, acento, espaço) viram um só. Roteiro aberto/na memória usa as falas de verdade. */
+const persDoCartao = l => { const ks = new Set((l || []).map(x => Roteiro.chave(x))), out = new Map();
+  for (const nm of l || []) { const partes = String(nm).split(Roteiro.SEP).filter(Boolean), usa = partes.length > 1 && partes.every(p => ks.has(Roteiro.chave(p)) || S.pers?.[Roteiro.chave(p)]) ? partes : [nm];
+    for (const p of usa) { const k = Roteiro.chave(p); if (k && !out.has(k)) out.set(k, p.trim()); } }
+  return [...out.values()]; };
 // onde: 'pc' (só neste computador) | 'mudou' (na nuvem, com mudanças só aqui) | 'nuvem' | 'uso' (um programa já usou)
 function cartao(it, onde) {
   const fs = Array.isArray(it.partes) ? it.partes.flatMap(p => p.falas || []) : null;
   const n = fs ? fs.length : it.n || 0, g = fs ? fs.filter(f => f.audio).length : it.g || 0, np = Array.isArray(it.partes) ? it.partes.length : it.partes || 0;
-  const pers = fs ? Roteiro.personagens(it.partes).map(p => p.nome) : it.pers || [], pct = n ? Math.round(g / n * 100) : 0, S2 = sitAudio(it, n, g), st = S2.k;
+  const pers = fs ? Roteiro.personagens(it.partes).map(p => p.nome) : persDoCartao(it.pers), pct = n ? Math.round(g / n * 100) : 0, S2 = sitAudio(it, n, g), st = S2.k;
   const uso = onde === 'uso' ? (it.uso || []) : [];
   const ONDE = { pc: `${ic('pc', 13)} Neste computador`, mudou: `${ic('nuvem', 13)} Na nuvem · termina de salvar ao abrir`, nuvem: `${ic('nuvem', 13)} Na nuvem`, uso: `${ic('video', 13)} Em uso` };
   const autor = it.autor || (it.quem?.a ? { id: it.quem.a.i, nome: it.quem.a.n } : null), eds = it.edicoes || (it.quem?.e || []).map(x => ({ id: x.i, nome: x.n }));

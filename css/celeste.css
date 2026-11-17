@@ -347,3 +347,7 @@ html.cel body{
 html.cel body :is(.lg-falas,.can-lista,.canais-l,.vf-lista,.epp-l,.lista-r)>*{flex:none}
 html.cel body .lg-falas{border-radius:var(--raio-controle);background:var(--fundo-2);border-color:var(--linha);padding:var(--e1)}
 html.cel body .lg-falas .lf{border-radius:var(--raio-p);padding:7px 10px;line-height:1.35;color:var(--texto)}
+
+/* Cancelar do pop-up do canal, também com o roteiro aberto e nos dois temas (17/11/2026): fundo avermelhado suave, texto vermelho; antes ficava marrom escuro no claro */
+html.cel body .modal .cn-rodape .bt.perigo{background:color-mix(in srgb,var(--perigo) 14%,transparent)!important;color:var(--perigo)!important;border:0!important}
+html.cel body .modal .cn-rodape .bt.perigo:hover{background:color-mix(in srgb,var(--perigo) 24%,transparent)!important}
