@@ -82,6 +82,9 @@ das outras rotas). Chaves na nuvem da equipe:
           "audio": "preparativos/prm3k9x2ab/aud/f…-m3k.webm",   // ou null (ainda sem áudio)
           "duracao": 1.42,                                       // segundos
           "regravar": true,                                       // opcional: o texto mudou depois da gravação
+          "fonte": { "audio": "preparativos/prm3k9x2ab/aud/inteiro-m3k.mp3", "ini": 12.34, "dur": 2.1, "de": "preparativos/prm3k9x2ab/aud/f…-m3l.wav" }, // opcional: corte automático (abaixo)
+          "auto": true,                                           // opcional: o áudio veio do corte automático
+          "aviso": ["pausa longa no meio da fala — confira a tomada"], // opcional: o que o corte automático pede para conferir
           "em": "2026-11-05T18:00:00.000Z" }                      // quando o áudio chegou
       ] }
   ],
@@ -95,6 +98,20 @@ das outras rotas). Chaves na nuvem da equipe:
   "mod": 1793901008021                   // versão (o servidor põe a cada gravação)
 }
 ```
+
+**CORTE AUTOMÁTICO ("Pôr o áudio inteiro", aba Falas; `js/inteiro.js` + motor comum `/estudio-edicao.js`):** a pessoa sobe um ou mais
+áudios inteiros (de um personagem ou de todos) e o programa acha cada fala (Whisper no navegador + alinhar + apara pela energia do arquivo
+ORIGINAL, sem limpar: começo na 1ª janela de 10 ms acima de −50 dBFS, fim na última acima de −45 dBFS, folgas 0,04 s antes e 0,07 s depois).
+Cada fala achada continua com o PRÓPRIO arquivo em `audio` (um WAV do trecho, com as folgas), como uma gravação comum: Shorts, Editor, dublagem
+e regravação seguem iguais. Além disso: `fonte` = de onde o trecho saiu — `audio` = o áudio inteiro (sobe UMA vez, `aud/inteiro-<t>.<ext>`),
+`ini` e `dur` em segundos (2 casas) dentro dele, `de` = a chave do trecho quando foi cortado. **`fonte` só vale enquanto `fonte.de === audio`**
+(regravou, editou ou aceitou dublagem = `audio` mudou e o programa usa o arquivo da fala como sempre). `auto: true` = veio do corte automático;
+`aviso` = lista de textos para conferir (ex.: "curto demais (palavra cortada?)", "silêncio no começo", "o reconhecedor não ouviu esta fala
+(cortei pelas pausas)", "palavra comprida demais: pode ter repetição — ouça", "pausa longa no meio da fala — confira a tomada"). Fala não
+achada fica sem áudio (o aviso aparece só na lista de conferência). Só a versão de "todos juntos" (`audio`) leva `fonte`; as versões de
+`audios[pessoa]` ficam só com o trecho. O **Animador** usa `fonte`: o clipe entra com o áudio inteiro e `ini`/`dur` (corte não destrutivo, dá
+para esticar a ponta); sem `fonte` válida, o arquivo da fala, igual a antes. Esses três campos vão no `prep.json` (salvar do roteiro); a ação
+`falas` da nuvem só grava `audio`/`duracao` e não apaga o áudio inteiro (ele não é o `audio` de nenhuma fala).
 
 **LEGENDA NO PROGRAMA DE DESTINO:** mostre só o `texto` da fala (nunca a `nota`), na cor do personagem. O **nome de quem fala só aparece
 se `legenda.mostrarNome === true`** (aí "Nome: texto"). `legenda.ativa === false` = sem legendas.

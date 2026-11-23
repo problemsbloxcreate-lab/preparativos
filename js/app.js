@@ -1143,6 +1143,9 @@ const Varios = {
       this.usa(P); P.partes = Roteiro.separa(P.roteiro || '', P.partes); marcaSujo(); S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } },
 };
 Cortes.aoAvisar(t => { if (t) aviso(t, 'info', 15000); }); // "convertendo o arquivo…"
+// script deste programa carregado só quando precisa (ex.: js/inteiro.js); devolve o objeto global que ele cria
+const carregaJs = (src, nome) => { const ja = () => window[nome] || null; if (ja()) return Promise.resolve(ja());
+  return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src + '?v=' + encodeURIComponent(document.querySelector('meta[name=versao]')?.content || Date.now()); s.onload = () => ja() ? ok(ja()) : no(new Error('Não consegui abrir essa parte do programa.')); s.onerror = () => no(new Error('Não consegui abrir essa parte do programa. Confira a internet.')); document.head.append(s); }); };
 const Falas = {
   quem: null, rec: null,
   async pinta(c) {
@@ -1156,7 +1159,7 @@ const Falas = {
     const aberto = k => { try { return localStorage.getItem('ep-prep-sec-' + k) === '1'; } catch { return false; } };
     c.innerHTML = `<div class="falas falas2">
       <div class="fl-topo"><div class="fl-prog"><b>Falas e gravação</b><span><b>${feitas}</b> de <b>${total}</b> falas gravadas</span><div class="barra"><i style="width:${total ? feitas / total * 100 : 0}%"></i></div></div>
-        ${pode('gravar') && ps.length ? `<div class="fl-acoes"><button class="bt pri" data-seq title="Grava as falas ${this.quem ? 'deste personagem' : 'do roteiro'} uma atrás da outra; Enter passa para a próxima">${ic('mic', 15)} Gravar em sequência</button><button class="bt" data-varias title="Um ou VÁRIOS arquivos (um por personagem): o Preparativos separa cada um nas falas sozinho">${ic('baixo', 15)} Subir áudio(s) com várias falas</button>${this._lote?.length ? `<button class="bt" data-lote title="Ver como ficou o último envio de vários áudios">${ic('ok', 15)} Ver o último envio</button>` : ''}</div>` : ''}</div>
+        ${pode('gravar') && ps.length ? `<div class="fl-acoes"><button class="bt pri" data-seq title="Grava as falas ${this.quem ? 'deste personagem' : 'do roteiro'} uma atrás da outra; Enter passa para a próxima">${ic('mic', 15)} Gravar em sequência</button><button class="bt" data-varias title="Um ou VÁRIOS arquivos (um por personagem): o Preparativos separa cada um nas falas sozinho">${ic('baixo', 15)} Subir áudio(s) com várias falas</button><button class="bt" data-inteiro title="Um áudio inteiro (de um personagem ou de todos): o programa ouve, acha cada fala sozinho e mostra a lista para conferir">${ic('upload', 15)} Pôr o áudio inteiro</button>${this._lote?.length ? `<button class="bt" data-lote title="Ver como ficou o último envio de vários áudios">${ic('ok', 15)} Ver o último envio</button>` : ''}</div>` : ''}</div>
       <div class="fl-quem" role="tablist" aria-label="Quem vai gravar">
         <button class="fl-q ${!this.quem ? 'on' : ''}" data-grava="" role="tab"><span class="fl-q-ic">${ic('pessoa', 15)}</span><span>Todos</span><small>${feitas}/${total}</small></button>
         ${ps.map(p => `<button class="fl-q ${this.quem === p.chave ? 'on' : ''}" data-grava="${esc(p.chave)}" role="tab" style="--c:${cs.get(p.chave)}">${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span><small>${p.g}/${p.n}</small><i class="fl-q-b" style="width:${p.n ? p.g / p.n * 100 : 0}%"></i></button>`).join('')}
@@ -1189,6 +1192,7 @@ const Falas = {
     this.pintaEnvio(locais);
     $('[data-seq]', c)?.addEventListener('click', () => this.emSequencia());
     $('[data-varias]', c)?.addEventListener('click', () => this.variasFalas());
+    $('[data-inteiro]', c)?.addEventListener('click', () => carregaJs('js/inteiro.js', 'Inteiro').then(I => I.abre()).catch(e => aviso(e.message, 'erro'))); // PÔR O ÁUDIO INTEIRO (js/inteiro.js)
     $('[data-lote]', c)?.addEventListener('click', () => this.mostraLote());
     $$('.fl-sec', c).forEach(d => d.ontoggle = () => { try { localStorage.setItem('ep-prep-sec-' + d.dataset.sec, d.open ? '1' : '0'); } catch { } });
     // gravação em sequência que não chegou a ser revisada (a aba fechou no meio): continua daqui
@@ -1327,7 +1331,7 @@ const Falas = {
     const dicaV = varios && !vz ? `<div class="dica-v">Gravação de todos juntos. ${local && pode('gravar') ? `<label class="de-quem">Esta gravação é de: <select data-move-de><option value="">Todos juntos</option>${f.personagens.map(p => `<option value="${esc(Roteiro.chave(p))}">${esc(p)}</option>`).join('')}</select></label>` : 'Cada personagem também tem a sua linha.'}</div>` : '';
     return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}" data-f="${esc(f.id)}" ${varios ? `data-vez="${esc(vz)}"` : ''} style="--c:${cor}"><span class="num">${n}</span>
       ${quemH}
-      <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}${juntoH}${dicaV}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
+      <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}${!vz && f.auto && f.fonte?.de && f.fonte.de === au && f.aviso?.length ? `<span class="st-auto">${f.aviso.map(a => `<span class="ai-av">${ic('alerta', 12)} ${esc(a)}</span>`).join('')}</span>` : ''}${juntoH}${dicaV}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
       <div class="bts">${local || au ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
       ${gravar ? `<button class="redondo gravar ${local || au ? 'de-novo' : 'sem-audio'}" data-gravar title="${local || au ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
       ${gravar ? `<button class="redondo subir" data-subir title="Enviar um arquivo de áudio já gravado (mp3, wav, mpeg, vídeo…)">${ic('upload', 16)}</button>` : ''}

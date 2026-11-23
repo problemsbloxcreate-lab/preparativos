@@ -93,7 +93,8 @@ const Roteiro = (() => {
 
   // o que a fala antiga leva para a nova: versões de cada um (fala de vários), cor própria na legenda e a dublagem aceita
   function guardaExtras(f, v) { if (v.audios && f.personagens) { const ks = new Set(f.personagens.map(chave)), a = {}; for (const [k, x] of Object.entries(v.audios)) if (ks.has(k)) a[k] = x; if (Object.keys(a).length) f.audios = a; }
-    if (v.cor) f.cor = v.cor; if (v.dub) f.dub = v.dub; }
+    if (v.cor) f.cor = v.cor; if (v.dub) f.dub = v.dub;
+    if (v.fonte) f.fonte = v.fonte; if (v.auto) f.auto = true; if (Array.isArray(v.aviso) && v.aviso.length) f.aviso = v.aviso; } // corte automático (Pôr o áudio inteiro): de onde saiu o áudio
   // liga as falas novas às antigas (ids e áudios)
   function casa(partes, anterior) {
     const velhas = (anterior || []).flatMap(p => (p.falas || []).map(f => ({ ...f, _p: chave(p.nome) })));
