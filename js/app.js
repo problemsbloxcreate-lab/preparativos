@@ -32,6 +32,9 @@ const IC = {
   cal: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
   desfazer: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', refazer: '<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>',
   titulo: '<path d="M6 4v16M18 4v16M6 12h12"/>', baixo: '<path d="M6 9l6 6 6-6"/>', ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 1-1 1.7M12 17v.5"/>', legenda: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 14h4M13 14h4M7 10h10"/>',
+  // Preparativos simples (23/11/2026): Ajustes, fechar, reticências, seta
+  ajustes: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  tres: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>', seta: '<path d="M9 6l6 6-6 6"/>',
 };
 // CARREGANDO: as bolinhas girando do Windows 10 (em tudo que carrega, pedido da dona)
 const giro = (txt = '') => `<span class="w10" role="progressbar" aria-label="${esc(txt || 'Carregando')}"><i></i><i></i><i></i><i></i><i></i></span>${txt ? `<span class="w10-t">${esc(txt)}</span>` : ''}`;
@@ -255,7 +258,7 @@ async function sairDoPrep(semHist) {
   // sem mudança de verdade: sai direto; roteiro novo e vazio nem fica como rascunho
   if (S.P && S.sujo && !mudouDeVerdade()) { clearTimeout(tGuarda); clearTimeout(tJunto); const id = S.P.id, novo = S.P.novo; S.sujo = false; if (novo || S.marco != null) await DB.del('rasc', id).catch(() => { }); }
   if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; AoVivo.sai(); AoVivo.atual = null; if (!semHist) history.pushState(null, '', S.aba && S.aba !== 'roteiros' ? './?aba=' + S.aba : './'); pinta(); return true; }
-function pinta() { Mic.paraTeste(); document.body.classList.toggle('aba-pub', !S.P && S.aba === 'publicacoes'); if (S.P) return pintaPrep(); modoDoc(false); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'publicacoes') return pintaPublicacoes(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
+function pinta() { Mic.paraTeste(); document.body.classList.toggle('aba-pub', !S.P && S.aba === 'publicacoes'); if (S.P) return pintaPrep(); modoDoc(false); Simples.sai(); Simples.fechaPaineis(); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'publicacoes') return pintaPublicacoes(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
 // bolinha com as iniciais do personagem, na cor dele; com foto, a foto (carrega sozinha quando a bolinha aparece)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
 // cor da letra sobre um fundo: fundo escuro → branca, fundo claro → quase preta (luminância relativa, WCAG)
@@ -436,7 +439,7 @@ const ETAPA_DICA = P => { const st = P.status || 'rascunho', d = DESTINOS[P.dest
 async function abrePrep(P, base, semHist) {
   // tem rascunho deste computador mais novo que o da nuvem?
   if (!base && !P.novo) { try { const r = await DB.get('rasc', P.id); if (r?.P && (+r.base?.mod || 0) === (+P.mod || 0) && r.em > (P.mod || 0)) { const usar = await pergunta('Continuar de onde parou?', 'Este computador tem mudanças neste roteiro que ainda não foram para a nuvem.', [['Abrir o da nuvem', false], ['Continuar daqui', true, 'pri']]); if (usar) { base = r.base; P = r.P; } else await DB.del('rasc', P.id); } } catch { } }
-  Varios.usa(P); try { P.partes = Roteiro.separa(P.roteiro || '', P.partes); } catch { } S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.marco = base ? null : assinatura(P); S.sub = pode('roteiro') || pode('organizar') ? (S.sub || 'roteiro') : 'falas'; S.ed = null;
+  Varios.usa(P); try { P.partes = Roteiro.separa(P.roteiro || '', P.partes); } catch { } S.P = P; S.base = base || { mod: P.mod || 0, roteiro: P.roteiro || '' }; S.sujo = !!base || !!P.novo; S.marco = base ? null : assinatura(P); S.sub = pode('roteiro') || pode('organizar') ? 'roteiro' : 'falas'; S.doc = false; Falas.quem = ''; S.ed = null; // Preparativos simples: sempre abre no passo 1 (ou 2, para quem só grava), no modo simples e com o filtro em "Todas"
   if (!S.pers) carregaPers().then(() => { if (S.P) { S.ed?.repinta(); pintaLado(); if (S.sub !== 'roteiro') pintaCorpo(); } }).catch(() => { S.pers = {}; });
   if (!S.nomeEu) window.EstudioLogin?.perfil?.().then(p => { S.nomeEu = String(p?.nome || '').split(' ')[0]; }).catch(() => { });
   { const u = './?id=' + encodeURIComponent(P.id); if (new URLSearchParams(location.search).get('id') !== P.id) history[semHist ? 'replaceState' : 'pushState'](null, '', u); } pintaPrep();
@@ -481,7 +484,13 @@ function menus(nav, def) {
 const GUIAS = [['roteiro', 'Roteiro', 'doc'], ['falas', 'Falas e gravação', 'mic'], ['legendas', 'Legendas', 'legenda']];
 // com destino = Animador aparece a guia do ELENCO: qual personagem do Ateliê é cada nome do roteiro (prep.animador.pers)
 const guiasDe = P => P?.destino === 'animador' ? [...GUIAS, ['elenco', 'Elenco no Animador', 'pessoa']] : GUIAS;
-function irGuia(k) { S.sub = k; if (k === 'falas') passaGravando(); marcaGuias(); pintaCorpo(); $('.dh-area')?.scrollTo({ top: 0 }); window.scrollTo({ top: 0 }); }
+// PREPARATIVOS SIMPLES (23/11/2026): as guias viraram 3 passos (S.sub = 'roteiro' → 'falas' → 'fim'); Legendas e Elenco moram no painel Ajustes.
+// S.doc = o roteiro aberto como documento (o editor de antes, com régua e menus), só no passo 1 ("Ver como documento").
+function irGuia(k) {
+  if (k === 'legendas' || k === 'elenco') return Simples.ajustes(k === 'legendas' ? 'legenda' : 'elenco');
+  if (k !== 'roteiro') S.doc = false;
+  if (k === 'falas' && S.sub !== 'falas') { Falas.quem = ''; passaGravando(); } // o filtro de personagem sempre abre em "Todas"
+  S.sub = k; if (S.doc) { marcaGuias(); pintaCorpo(); } else pintaPrep(); $('.dh-area')?.scrollTo({ top: 0 }); window.scrollTo({ top: 0 }); }
 // a etapa anda sozinha: abriu "Falas e gravação" num rascunho → Gravando (na nuvem, uma ação pequena; só neste computador, vai junto depois)
 async function passaGravando() { const P = S.P; if (!P || (P.status || 'rascunho') !== 'rascunho' || !pode('pronto')) return; P.status = 'gravando';
   if (P.mod && !P.novo && !S.sujo) { try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, status: 'gravando' }); if (r.mod) { P.mod = r.mod; S.base.mod = r.mod; } S.lista = null; } catch { marcaSujo(); } } else marcaSujo(); }
@@ -492,14 +501,16 @@ function marcaGuias() { const L = guiasDe(S.P).map(g => g[0]), i = L.indexOf(S.s
     if (!ultima) { b.disabled = false; b.classList.remove('feito'); b.innerHTML = `Próximo <span class="dg-seta-d">${ic('voltar', 15)}</span>`; b.title = 'Próxima guia'; b.onclick = () => irGuia(L[i + 1]); }
     else { b.disabled = !pode('pronto'); b.classList.toggle('feito', pronto); b.innerHTML = pronto ? `${ic('ok', 15)} Pronto` : `${ic('ok', 15)} Finalizar`;
       b.title = pronto ? `Já está pronto para o ${DESTINOS[S.P.destino] || 'programa'} usar. Clique para voltar a gravar.` : 'Marca como pronto: o roteiro fica disponível para o programa de destino (An, Sh ou Ed)';
-      b.onclick = async () => { if (pronto) { if (await pergunta('Voltar a gravar?', 'O roteiro deixa de aparecer como pronto no programa de destino até você finalizar de novo.', [['Cancelar', false], ['Voltar a gravar', true, 'pri']])) await S.mudaMarca?.('status', 'gravando'); }
-        else await S.mudaMarca?.('status', 'pronto'); marcaGuias(); }; } }
+      b.onclick = async () => { if (pronto) { if (await pergunta('Voltar a gravar?', 'O roteiro deixa de aparecer como pronto no programa de destino até você finalizar de novo.', [['Cancelar', false], ['Voltar a gravar', true, 'pri']])) await mudaMarca('status', 'gravando'); }
+        else await mudaMarca('status', 'pronto'); marcaGuias(); }; } }
   document.body.classList.toggle('sem-guias', S.sub !== 'roteiro'); }
 function baixaTexto() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([S.P.roteiro || ''], { type: 'text/plain;charset=utf-8' })); a.download = (S.P.nome || 'roteiro').replace(/[^\w\- ]+/g, '_') + '.txt'; a.click(); }
 function mostraComo() { const m = h(`<div class="modal"><div class="caixa larga">${COMO}<div class="bts"><button class="bt pri">Entendi</button></div></div></div>`); $('button', m).onclick = () => m.remove(); m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
 addEventListener('keydown', e => { if (!S.P || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return; e.preventDefault(); if (S.sujo) salvaPrep($('.prep [data-salva]')); else aviso('Já está salvo na nuvem.', 'ok', 1800); });
 
-function pintaPrep() {
+function pintaPrep() { if (S.doc && S.sub === 'roteiro') { Simples.sai(); return pintaPrepDoc(); } S.doc = false; return Simples.pinta(); }
+// o roteiro como DOCUMENTO (Mais opções › Ver como documento): régua, menus Arquivo/Editar/Ver/Inserir/Formatar/Ferramentas/Ajuda e Organizar
+function pintaPrepDoc() {
   // o botão da conta (nuvem, computador, casinha, foto) mora no cabeçalho do roteiro: volta para o lugar dele ANTES de redesenhar,
   // senão ele some junto com o cabeçalho velho (acontecia ao trocar o programa de destino ou a situação)
   { const sp = document.querySelector('[data-estudio-conta]'); if (sp && contaOrig && sp.parentNode !== contaOrig.pai) contaOrig.pai.insertBefore(sp, contaOrig.prox); }
@@ -512,21 +523,17 @@ function pintaPrep() {
         <nav class="dh-menus"></nav>
       </div>
       <span class="esp"></span>
-      <div class="quem-doc"><div class="aovivo-doc"></div><button class="dh-data" data-data-cal title="Dia deste roteiro no calendário do Publicações">${ic('cal', 14)}<span>—</span></button><button class="dh-hist" data-hist title="Quem criou e quem editou">${histBotao(P)}</button></div>
-      <div class="dh-vai"><span class="dv-l">vai para</span><div class="destinos" role="group" aria-label="Vai para">${PREP_CONFIG.destinos.map(([v, n]) => `<button data-destino="${v}" class="${P.destino === v ? 'on' : ''}" ${pp ? '' : 'disabled'} title="Vai para o ${esc(n)}">${progIc(v, 18)}</button>`).join('')}</div>
-      <button class="dh-canal${P.canal ? '' : ' sem'}" data-canal-yt ${pp ? '' : 'disabled'} title="Canal do YouTube em que o vídeo vai sair${P.canal ? ': ' + esc(P.canal.nome) : ''}">${ic('play', 13)}<span>${P.canal ? esc(P.canal.nome) : 'Escolher canal'}</span></button></div>
+      <div class="quem-doc"><div class="aovivo-doc"></div><button class="dh-hist" data-hist title="Quem criou e quem editou">${histBotao(P)}</button></div>
+      <div class="dh-vai"><button class="bt" data-ajustes title="Ajustes: elenco, legenda, canal e data">${ic('ajustes', 15)} Ajustes</button><button class="bt pri" data-simples title="Voltar à tela simples do roteiro (3 passos)">Voltar ao modo simples</button></div>
       <span class="enviar"></span>
       <span class="dh-conta"></span>
     </header>
-    <nav class="dh-guias" aria-label="Guias do roteiro"><button class="bt dg-ant" data-guia-ant title="Guia anterior">${ic('voltar', 15)} Anterior</button>
-      <div class="dg-passos">${guiasDe(P).map(([k, n, i], x) => `${x ? '<span class="dg-seta" aria-hidden="true">›</span>' : ''}<button data-sub="${k}" class="dg-p ${S.sub === k ? 'on' : ''}" title="${esc(n)}"><i>${x + 1}</i>${ic(i, 15)}<span>${n}</span></button>`).join('')}</div>
-      <button class="bt pri dg-prox" data-guia-prox title="Próxima guia">Próximo <span class="dg-seta-d">${ic('voltar', 15)}</span></button></nav>
     <div class="dh-barra"></div></div>
     <div class="dh-area">
       <aside class="guias"><div class="g-roteiro"></div></aside>
       <div class="corpo"></div>
     </div></section>`;
-  modoDoc(true); window.EstudioIcones?.aplicar?.(); AoVivo.paraTudo(); pintaDataCal(); $('.prep [data-data-cal]')?.addEventListener('click', () => marcaDataCalendario(S.P));
+  modoDoc(true); window.EstudioIcones?.aplicar?.(); AoVivo.paraTudo(); $('[data-ajustes]', el).onclick = () => Simples.ajustes(); $('[data-simples]', el).onclick = () => { S.doc = false; pintaPrep(); };
   // ao vivo: entra uma vez por roteiro (só quando ele está na nuvem: rascunho só deste computador ninguém mais vê)
   const pintaVivo = l => { const box = $('.prep .aovivo-doc'); if (!box) return; const g = (l || AoVivo.ultimos || []); AoVivo.ultimos = g; const outros = g.filter(x => !x.eu);
     box.innerHTML = g.length > 1 || outros.length ? g.slice(0, 5).map(x => pava(x, 'vivo' + (x.eu ? ' eu' : ''))).join('') + (g.length > 5 ? `<span class="mais">+${g.length - 5}</span>` : '') : ''; box.title = g.length ? 'Ao vivo agora: ' + g.map(x => x.n + (x.eu ? ' (você)' : '')).join(', ') : ''; };
@@ -541,33 +548,6 @@ function pintaPrep() {
   ajustaNome(nm); requestAnimationFrame(() => ajustaNome(nm)); document.fonts?.ready?.then(() => ajustaNome(nm));
   if (!S.ajNome) { S.ajNome = true; addEventListener('resize', () => { const n = $('.dh .nome'); if (n) ajustaNome(n); }); }
   nm.onkeydown = e => { if (e.key === 'Enter') { nm.blur(); S.ed?.foca(); } };
-  const mudaMarca = S.mudaMarca = async (campo, v) => {
-    if (campo === 'status' && v === P.status) return; const antes = P.status;
-    if (campo === 'status' && v === 'pronto') { // pronto = vai para um programa: precisa do destino e avisa o que falta gravar
-      if (!P.destino) { const d = await pergunta('Vai para qual programa?', 'Escolha onde este roteiro vai ser usado. Ele passa a aparecer lá como pronto.', [...PREP_CONFIG.destinos.map(([k, n]) => [n, k]), ['Cancelar', null]]); if (!d) return; P.destino = d; }
-      const falta = P.partes.reduce((s, p) => s + p.falas.filter(f => !f.audio).length, 0);
-      if (falta && !await pergunta('Ainda faltam gravações', `${falta} fala${falta === 1 ? ' está' : 's estão'} sem áudio. Marcar como pronto mesmo assim?`, [['Voltar', false], ['Marcar pronto', true, 'pri']])) return;
-    }
-    // Criar Shorts não tem canal padrão: ao marcar pronto, pergunta o canal
-    if (campo === 'status' && v === 'pronto' && !P.canal) { const pd = PREP_CONFIG.canais.find(c => c.id === PREP_CONFIG.canalPadrao[P.destino]); const c = pd || await escolheCanalYt(P); if (c === null) return; P.canal = c || null; }
-    P[campo] = v || null; if (campo === 'status') P.status = v || 'rascunho';
-    // escolher o destino põe o canal padrão dele (Animador → Turma do Problems, Editor → Problems), se ainda não tiver canal
-    if (campo === 'destino' && v && !P.canal && PREP_CONFIG.canalPadrao[v]) P.canal = PREP_CONFIG.canais.find(c => c.id === PREP_CONFIG.canalPadrao[v]) || null;
-    const dest = DESTINOS[P.destino] || P.destino, msg = campo === 'canal' ? (P.canal ? `Vai sair no canal ${P.canal.nome}.` : 'Sem canal escolhido.') : campo !== 'status' ? (P.destino ? `Vai para o ${dest}${P.canal ? ` · canal ${P.canal.nome}` : ''}.` : 'Sem destino.') : v === 'pronto' ? `Pronto! Já aparece para o ${dest} usar.` : v === 'gravando' ? 'Hora de gravar: cada pessoa escolhe o seu personagem e grava as falas dele.' : 'Voltou para rascunho: ainda está sendo escrito.';
-    if (campo === 'status' && v === 'gravando') S.sub = 'falas';
-    if (P.novo || S.sujo) {
-      if (campo === 'status' && (v === 'gravando' || v === 'pronto')) { // gravar e ir para o programa precisam da nuvem
-        if (!await pergunta(v === 'pronto' ? 'Mandar para a nuvem?' : 'Mandar para a nuvem para gravar?', v === 'pronto' ? `Para o ${dest} usar, o roteiro precisa estar na nuvem.` : 'Cada pessoa grava pelo próprio computador, então o roteiro precisa estar na nuvem.', [['Agora não', false], ['Mandar', true, 'pri']])) { P.status = antes; S.sub = S.sub === 'falas' && antes !== 'gravando' ? 'roteiro' : S.sub; return pintaPrep(); }
-        await salvaPrep(null, true); if (!S.sujo) aviso(msg + ' Já está na nuvem.', 'ok', 5500); return pintaPrep(); }
-      marcaSujo(); aviso(msg + ' (vai junto quando mandar para a nuvem)', 'info', 5500); return pintaPrep(); } // vai junto quando mandar para a nuvem
-    try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, destino: P.destino, canal: P.canal || null, status: P.status }); P.mod = r.mod || P.mod; S.base.mod = P.mod; aviso(msg, 'ok', 5500); S.lista = null; }
-    catch (e) { aviso(e.message, 'erro'); }
-    Pub.agenda(P);
-    pintaPrep();
-  };
-  $$('[data-destino]', el).forEach(b => b.onclick = () => mudaMarca('destino', P.destino === b.dataset.destino ? '' : b.dataset.destino));
-  $$('[data-status]', el).forEach(b => b.onclick = () => mudaMarca('status', b.dataset.status));
-  const bc = $('[data-canal-yt]', el); if (bc) bc.onclick = async () => { const c = await escolheCanalYt(P); if (c !== null && (c?.id || '') !== (P.canal?.id || '')) mudaMarca('canal', c); };
   $$('.dh-guias [data-sub]', el).forEach(b => b.onclick = () => irGuia(b.dataset.sub)); marcaGuias();
   const E = () => S.sub === 'roteiro' ? S.ed : null, edita = pode('roteiro');
   const naFolha = fn => () => { if (S.sub !== 'roteiro') irGuia('roteiro'); setTimeout(() => S.ed && fn(S.ed), 0); };
@@ -595,6 +575,33 @@ function pintaPrep() {
   ]);
   pintaBarraPrep(); pintaCorpo();
 }
+// DESTINO, CANAL E SITUAÇÃO do roteiro aberto (era de dentro do cabeçalho; 23/11/2026 saiu para o painel Ajustes e para o passo 3)
+async function mudaMarca(campo, v) {
+  const P = S.P; if (!P) return;
+    if (campo === 'status' && v === P.status) return; const antes = P.status;
+    if (campo === 'status' && v === 'pronto') { // pronto = vai para um programa: precisa do destino e avisa o que falta gravar
+      if (!P.destino) { const d = await pergunta('Vai para qual programa?', 'Escolha onde este roteiro vai ser usado. Ele passa a aparecer lá como pronto.', [...PREP_CONFIG.destinos.map(([k, n]) => [n, k]), ['Cancelar', null]]); if (!d) return; P.destino = d; }
+      const falta = P.partes.reduce((s, p) => s + p.falas.filter(f => !f.audio).length, 0);
+      if (falta && !await pergunta('Ainda faltam gravações', `${falta} fala${falta === 1 ? ' está' : 's estão'} sem áudio. Marcar como pronto mesmo assim?`, [['Voltar', false], ['Marcar pronto', true, 'pri']])) return;
+    }
+    // Criar Shorts não tem canal padrão: ao marcar pronto, pergunta o canal
+    if (campo === 'status' && v === 'pronto' && !P.canal) { const pd = PREP_CONFIG.canais.find(c => c.id === PREP_CONFIG.canalPadrao[P.destino]); const c = pd || await escolheCanalYt(P); if (c === null) return; P.canal = c || null; }
+    P[campo] = v || null; if (campo === 'status') P.status = v || 'rascunho';
+    // escolher o destino põe o canal padrão dele (Animador → Turma do Problems, Editor → Problems), se ainda não tiver canal
+    if (campo === 'destino' && v && !P.canal && PREP_CONFIG.canalPadrao[v]) P.canal = PREP_CONFIG.canais.find(c => c.id === PREP_CONFIG.canalPadrao[v]) || null;
+    const dest = DESTINOS[P.destino] || P.destino, msg = campo === 'canal' ? (P.canal ? `Vai sair no canal ${P.canal.nome}.` : 'Sem canal escolhido.') : campo !== 'status' ? (P.destino ? `Vai para o ${dest}${P.canal ? ` · canal ${P.canal.nome}` : ''}.` : 'Sem destino.') : v === 'pronto' ? `Pronto! Já aparece para o ${dest} usar.` : v === 'gravando' ? 'Hora de gravar: cada pessoa escolhe o seu personagem e grava as falas dele.' : 'Voltou para rascunho: ainda está sendo escrito.';
+    if (campo === 'status' && v === 'gravando') S.sub = 'falas';
+    if (P.novo || S.sujo) {
+      if (campo === 'status' && (v === 'gravando' || v === 'pronto')) { // gravar e ir para o programa precisam da nuvem
+        if (!await pergunta(v === 'pronto' ? 'Mandar para a nuvem?' : 'Mandar para a nuvem para gravar?', v === 'pronto' ? `Para o ${dest} usar, o roteiro precisa estar na nuvem.` : 'Cada pessoa grava pelo próprio computador, então o roteiro precisa estar na nuvem.', [['Agora não', false], ['Mandar', true, 'pri']])) { P.status = antes; S.sub = S.sub === 'falas' && antes !== 'gravando' ? 'roteiro' : S.sub; return pintaPrep(); }
+        await salvaPrep(null, true); if (!S.sujo) aviso(msg + ' Já está na nuvem.', 'ok', 5500); return pintaPrep(); }
+      marcaSujo(); aviso(msg + ' (vai junto quando mandar para a nuvem)', 'info', 5500); return pintaPrep(); } // vai junto quando mandar para a nuvem
+    try { const r = await Nuvem.acao({ acao: 'marca', id: P.id, destino: P.destino, canal: P.canal || null, status: P.status }); P.mod = r.mod || P.mod; S.base.mod = P.mod; aviso(msg, 'ok', 5500); S.lista = null; }
+    catch (e) { aviso(e.message, 'erro'); }
+    Pub.agenda(P);
+    pintaPrep();
+}
+S.mudaMarca = mudaMarca;
 function pintaBarraPrep() {
   const P = S.P, sv = $('.prep .salvar'), en = $('.prep .enviar'); if (!P || !sv) return;
   sv.innerHTML = P.novo || !P.mod ? `<span class="onde o-pc" title="Ainda não foi para a nuvem: só você vê">${ic('pc', 15)} Só neste computador</span>`
@@ -633,6 +640,7 @@ const ATALHOS = [['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Y ou Ctrl+Shift+Z'], 
 function mostraAtalhos() { const m = h(`<div class="modal"><div class="caixa larga"><b>Atalhos do teclado</b><table class="atalhos">${ATALHOS.map(([a, b]) => `<tr><td>${esc(a)}</td><td>${b.split(' · ').map(x => `<kbd>${esc(x)}</kbd>`).join(' ')}</td></tr>`).join('')}</table><div class="bts"><button class="bt pri" data-x>Fechar</button></div></div></div>`);
   const fim = () => m.remove(); $('[data-x]', m).onclick = fim; m.onclick = e => { if (e.target === m) fim(); }; m.onkeydown = e => { if (e.key === 'Escape') fim(); }; document.body.appendChild(m); $('[data-x]', m).focus(); }
 function pintaCorpo() {
+  if (!S.doc) return Simples.corpo(); // modo simples: o corpo é o do passo aberto
   const c = $('.prep .corpo'); if (!c) return; if (S.sub !== 'roteiro') S.ed = null; if (S.sub !== 'falas') Mic.paraTeste();
   const barra = $('.prep .dh-barra'), gr = $('.prep .g-roteiro'); if (gr) gr.innerHTML = '';
   c.className = 'corpo corpo-' + S.sub;
@@ -881,9 +889,9 @@ async function marcaDataCalendario(s) {
     document.body.appendChild(m); $('[data-t]', m).focus(); });
 }
 // botão "Data no calendário" do cabeçalho do roteiro aberto
-function pintaDataCal() { const b = $('.prep [data-data-cal]'); if (!b || !S.P) return; const sp = $('span', b);
+function pintaDataCal() { const b = $('[data-data-cal]'); if (!b || !S.P) return; const sp = $('span', b);
   try { const v = JSON.parse(localStorage.getItem(Pub.LSP) || 'null'), x = (v?.itens || []).find(y => y.id === Pub.id(S.P.id)); sp.textContent = x ? (x.publicaEm ? fmtDataHora(x.publicaEm) : 'Sem data') : '—'; } catch { sp.textContent = '—'; }
-  const id = S.P.id; if (Pub.ok()) pubInfoData(S.P).then(i => { if (S.P && S.P.id === id && $('.prep [data-data-cal] span')) $('.prep [data-data-cal] span').textContent = i.it ? (i.t ? fmtDataHora(i.t) + (i.eEp ? ' (episódio)' : '') : 'Sem data') : '—'; }).catch(() => { }); }
+  const id = S.P.id; if (Pub.ok()) pubInfoData(S.P).then(i => { if (S.P && S.P.id === id && $('[data-data-cal] span')) $('[data-data-cal] span').textContent = i.it ? (i.t ? fmtDataHora(i.t) + (i.eEp ? ' (episódio)' : '') : 'Sem data') : '—'; }).catch(() => { }); }
 /* ---------- NOVO ROTEIRO: nome, vai para, canal e pasta numa janela só (pedido da dona, 17/11/2026) ---------- */
 function janelaNovoRoteiro(pastas, pastaIni, dia, nomeIni) {
   return new Promise(ok => {
@@ -1149,29 +1157,47 @@ const carregaJs = (src, nome) => { const ja = () => window[nome] || null; if (ja
 const Falas = {
   quem: null, rec: null,
   async pinta(c) {
-    const P = S.P; Varios.confere(); const ps = Roteiro.personagens(P.partes), cs = coresDoRoteiro(); this.c = c;
-    try { this.quem = this.quem ?? localStorage.getItem('ep-prep-quem') ?? ''; } catch { this.quem = this.quem || ''; }
+    if (!c || !S.P) return; const P = S.P; Varios.confere(); const ps = Roteiro.personagens(P.partes), cs = coresDoRoteiro(); this.c = c;
+    // (23/11/2026) o filtro de personagem NÃO fica mais guardado: abre sempre em "Todas" (abrePrep e irGuia zeram this.quem)
+    this.quem = this.quem || '';
     if (this.quem && !ps.some(p => p.chave === this.quem)) this.quem = '';
     const locais = await this.locais(); this._loc = locais; let num = 0;
     const visiveis = P.partes.map(p => ({ ...p, falas: p.falas.flatMap(f => { const n = ++num; if (this.quem) return Roteiro.quem(f).includes(this.quem) ? [{ f, n }] : [];
       if (!this.varios(f)) return [{ f, n }]; return [...Roteiro.quem(f).map(k => ({ f: this.versao(f, k), n })), ...(f.audio || locais.has(f.id) ? [{ f: this.versao(f, ''), n }] : [])]; }) })).filter(p => p.falas.length);
     const vagas = P.partes.flatMap(p => p.falas).flatMap(f => this.varios(f) ? Roteiro.quem(f).map(k => !!(f.audios?.[k]?.audio || f.audio)) : [!!f.audio]), total = vagas.length, feitas = vagas.filter(Boolean).length; // cada personagem da fala de vários conta
-    const aberto = k => { try { return localStorage.getItem('ep-prep-sec-' + k) === '1'; } catch { return false; } };
-    c.innerHTML = `<div class="falas falas2">
-      <div class="fl-topo"><div class="fl-prog"><b>Falas e gravação</b><span><b>${feitas}</b> de <b>${total}</b> falas gravadas</span><div class="barra"><i style="width:${total ? feitas / total * 100 : 0}%"></i></div></div>
-        ${pode('gravar') && ps.length ? `<div class="fl-acoes"><button class="bt pri" data-seq title="Grava as falas ${this.quem ? 'deste personagem' : 'do roteiro'} uma atrás da outra; Enter passa para a próxima">${ic('mic', 15)} Gravar em sequência</button><button class="bt" data-varias title="Um ou VÁRIOS arquivos (um por personagem): o Preparativos separa cada um nas falas sozinho">${ic('baixo', 15)} Subir áudio(s) com várias falas</button><button class="bt" data-inteiro title="Um áudio inteiro (de um personagem ou de todos): o programa ouve, acha cada fala sozinho e mostra a lista para conferir">${ic('upload', 15)} Pôr o áudio inteiro</button>${this._lote?.length ? `<button class="bt" data-lote title="Ver como ficou o último envio de vários áudios">${ic('ok', 15)} Ver o último envio</button>` : ''}</div>` : ''}</div>
-      <div class="fl-quem" role="tablist" aria-label="Quem vai gravar">
-        <button class="fl-q ${!this.quem ? 'on' : ''}" data-grava="" role="tab"><span class="fl-q-ic">${ic('pessoa', 15)}</span><span>Todos</span><small>${feitas}/${total}</small></button>
-        ${ps.map(p => `<button class="fl-q ${this.quem === p.chave ? 'on' : ''}" data-grava="${esc(p.chave)}" role="tab" style="--c:${cs.get(p.chave)}">${ava(p.nome, cs.get(p.chave), 'p')}<span>${esc(p.nome)}</span><small>${p.g}/${p.n}</small><i class="fl-q-b" style="width:${p.n ? p.g / p.n * 100 : 0}%"></i></button>`).join('')}
-      </div>
-      ${pode('gravar') ? `<details class="fl-sec" data-sec="mic" ${aberto('mic') ? 'open' : ''}><summary>${ic('mic', 15)} Microfone <small>escolher, testar, filtros e volume</small></summary><div class="mic-painel"></div></details>` : ''}
-      ${pode('gravar') || pode('links') ? `<details class="fl-sec" data-sec="dub" ${aberto('dub') ? 'open' : ''}><summary>${ic('enviar', 15)} Links para dublar <small>para alguém de fora gravar</small><span class="fl-pend" hidden></span></summary><div class="dub-painel"></div></details>` : ''}
+    // PREPARATIVOS SIMPLES (23/11/2026): as falas em 3 grupos — "Ouça estas N falas" (aviso do corte automático ou texto mudado), sem áudio, e as boas (recolhidas)
+    const loc = f => locais.get(f.id + this.suf(f)), estado = f => { const vz = this.vez(f), au = this.audioDe(f), l = loc(f);
+      if (!vz && !l && au && ((f.auto && f.fonte?.de && f.fonte.de === au && f.aviso?.length) || f.regravar)) return 'aviso'; return l || au ? 'ok' : 'sem'; };
+    const itens = visiveis.flatMap(p => p.falas.map(x => ({ ...x, parte: p.nome, e: estado(x.f) }))), av = itens.filter(x => x.e === 'aviso'), sem = itens.filter(x => x.e === 'sem'), boas = itens.filter(x => x.e === 'ok');
+    const nLocais = [...locais.keys()].filter(id => this.acha(id)).length, comAudio = feitas > 0 || nLocais > 0, varias = P.partes.length > 1;
+    const lista = (L, certo) => { let pt = null; return L.map(x => { const h3 = varias && x.parte !== pt ? `<h3 class="ps-parte">${esc(x.parte)}</h3>` : ''; pt = x.parte; return h3 + this.linha(x.f, x.n, loc(x.f), cs, certo); }).join(''); };
+    const ab = this._ab || (this._ab = {}), aberto = k => ab[k] ? 'open' : '', grava = pode('gravar'), linkOk = grava || pode('links');
+    this._resumo = { total, feitas, aviso: av.length, sem: sem.length, locais: nLocais };
+    const outras = `${grava ? `<button class="bt" data-seq title="Grava as falas ${this.quem ? 'deste personagem' : 'do roteiro'} uma atrás da outra; Enter passa para a próxima">${ic('mic', 16)} Gravar com o microfone</button>` : ''}${linkOk ? `<button class="bt" data-dub>${ic('enviar', 16)} Mandar link para dublar<span class="ps-badge" hidden></span></button>` : ''}<button class="bt suave" data-mais-v>${ic('tres', 16)} Mais opções</button>`;
+    c.innerHTML = `<div class="falas falas2 ps-vozes">
+      <h1 class="ps-h1">Ponha as vozes</h1>
+      <p class="ps-sub">${comAudio ? 'Confira só o que tem aviso. O resto já está no lugar.' : 'Solte o áudio com todas as falas. O Preparativos acha cada fala sozinho e só avisa se alguma parecer errada.'}</p>
+      ${P.novo || S.sujo && !P.mod ? `<p class="aviso-linha">${ic('alerta', 15)} Mande o roteiro para a nuvem antes de enviar as gravações (elas ficam guardadas aqui enquanto isso).</p>` : ''}
       <div class="seq-pend"></div>
       <div class="env"></div>
-      ${P.novo || S.sujo && !P.mod ? `<p class="aviso-linha">${ic('alerta', 15)} Mande o roteiro para a nuvem antes de enviar as gravações (elas ficam guardadas aqui enquanto isso).</p>` : ''}
-      ${!ps.length ? '<div class="vazio">Ainda não há falas. Escreva o roteiro como <b>Nome: fala</b>.</div>' : ''}
-      ${visiveis.map(p => `<div class="parte"><h3>${esc(p.nome)}</h3>${p.falas.map(({ f, n }) => this.linha(f, n, locais.get(f.id + this.suf(f)), cs)).join('')}</div>`).join('')}</div>`;
-    $$('[data-grava]', c).forEach(b => b.onclick = () => { this.quem = b.dataset.grava; try { localStorage.setItem('ep-prep-quem', this.quem); } catch { } this.pinta(c); });
+      ${!ps.length ? '<div class="vazio">Ainda não há falas. Volte ao passo 1 e escreva o roteiro como <b>Nome: fala</b>.</div>'
+        : !comAudio ? `<div class="ps-solta" data-solta><span class="ps-solta-ic">${ic('upload', 26)}</span><h2>Solte aqui o áudio inteiro</h2>
+            <p>Pode ser um arquivo com todas as falas, um arquivo por personagem ou um arquivo por fala. Arraste para cá ou escolha no computador.</p>
+            ${grava ? `<button class="bt pri ps-grande" data-escolhe>${ic('upload', 16)} Escolher o áudio</button>` : '<p class="dica">Sua conta pode ouvir, mas não pôr áudio.</p>'}</div>
+          <div class="ps-outras" role="group" aria-label="Outras formas de pôr a voz">${outras}</div>`
+        : `<div class="ps-fita" data-solta><span class="ps-fita-ic ${feitas === total ? 'ok' : ''}">${ic(feitas === total ? 'ok' : 'mic', 18)}</span>
+            <div class="ps-fita-t"><b>${feitas} de ${total} falas com áudio</b><small>${av.length ? `${av.length} para ouvir` : sem.length ? `faltam ${sem.length}` : 'nenhum aviso pendente'}${nLocais ? ` · ${nLocais} só neste computador` : ''}</small></div>
+            <div class="ps-pils">${ps.map(p => `<span class="ps-pil">${ava(p.nome, cs.get(p.chave), 'p')} ${esc(p.nome)} ${p.g}/${p.n}</span>`).join('')}</div>
+            ${grava ? `<button class="bt suave" data-escolhe title="Solte ou escolha outro áudio (inteiro, um por personagem ou um por fala)">${ic('upload', 16)} Trocar o áudio</button>` : ''}
+            <button class="bt suave ps-pend-bt" data-dub hidden>${ic('alerta', 16)} <span class="ps-badge"></span></button>
+            <button class="bt suave" data-mais-v>${ic('tres', 16)} Mais opções</button></div>`}
+      ${ps.length > 1 && comAudio ? `<div class="seg ps-filtro" role="group" aria-label="Mostrar as falas de"><button data-grava="" class="${!this.quem ? 'on' : ''}">Todas</button>${ps.map(p => `<button data-grava="${esc(p.chave)}" class="${this.quem === p.chave ? 'on' : ''}">${esc(p.nome)} <small>${p.g}/${p.n}</small></button>`).join('')}</div>` : ''}
+      ${av.length ? `<div class="ps-grupo ps-avisos"><h2>${ic('alerta', 20)} ${av.length === 1 ? 'Ouça esta fala' : `Ouça estas ${av.length} falas`}</h2>${lista(av, true)}</div>` : ''}
+      ${sem.length ? (comAudio ? `<div class="ps-grupo"><h2>${ic('mic', 18)} ${sem.length === 1 ? '1 fala ainda sem áudio' : `${sem.length} falas ainda sem áudio`}</h2>${lista(sem)}</div>`
+        : `<details class="ps-mais" data-ab="sem" ${aberto('sem')}><summary>${ic('seta', 16)} Ver as ${sem.length} falas (gravar ou pôr o áudio de uma por vez)</summary>${lista(sem)}</details>`) : ''}
+      ${boas.length ? `<div class="ps-grupo"><div class="ps-ok-linha">${ic('ok', 20)} ${boas.length === 1 ? '1 fala sem aviso' : `${boas.length} falas sem aviso`}${!av.length && !sem.length ? ', tudo conferido' : ''}</div>
+        <details class="ps-mais" data-ab="ok" ${aberto('ok')}><summary>${ic('seta', 16)} Ver as falas sem aviso</summary>${lista(boas)}</details></div>` : ''}</div>`;
+    $$('[data-grava]', c).forEach(b => b.onclick = () => { this.quem = b.dataset.grava; this.pinta(c); }); // só nesta tela: não fica guardado
     $$('.fala', c).forEach(el => { const f0 = this.acha(el.dataset.f); if (!f0) return; const f = el.dataset.vez != null && this.varios(f0) ? this.versao(f0, el.dataset.vez) : f0;
       $('[data-gravar]', el)?.addEventListener('click', () => this.grava(f, el));
       $('[data-ouvir]', el)?.addEventListener('click', e => this.ouve(f, e.currentTarget));
@@ -1194,11 +1220,11 @@ const Falas = {
     $('[data-varias]', c)?.addEventListener('click', () => this.variasFalas());
     $('[data-inteiro]', c)?.addEventListener('click', () => carregaJs('js/inteiro.js', 'Inteiro').then(I => I.abre()).catch(e => aviso(e.message, 'erro'))); // PÔR O ÁUDIO INTEIRO (js/inteiro.js)
     $('[data-lote]', c)?.addEventListener('click', () => this.mostraLote());
-    $$('.fl-sec', c).forEach(d => d.ontoggle = () => { try { localStorage.setItem('ep-prep-sec-' + d.dataset.sec, d.open ? '1' : '0'); } catch { } });
+    $$('[data-ab]', c).forEach(d => d.ontoggle = () => { this._ab[d.dataset.ab] = d.open; });
+    Simples.ligaVozes(c); // quadro de soltar o áudio, "Está certo", link para dublar, Mais opções e o rodapé do passo 2
     // gravação em sequência que não chegou a ser revisada (a aba fechou no meio): continua daqui
     if (locais.has('_seq')) { const sq = locais.get('_seq'), bx = $('.seq-pend', c); bx.innerHTML = `<div class="faixa-env">${ic('alerta', 16)}<span>Há uma <b>gravação em sequência</b> que não foi revisada (${new Date(sq.em).toLocaleString('pt-BR')}).</span><span class="esp"></span><button class="bt pri" data-seq-rev>Revisar</button><button class="bt" data-seq-fora>Descartar</button></div>`;
       $('[data-seq-rev]', bx).onclick = () => this.revisaSeq(new Blob(sq.chunks, { type: sq.tipo || 'audio/webm' }), sq.trechos || []); $('[data-seq-fora]', bx).onclick = async () => { if (await pergunta('Descartar a gravação em sequência?', 'Ela ainda não foi separada nas falas.', [['Cancelar', false], ['Descartar', true, 'perigo']])) { await DB.del('aud', P.id + '/_seq'); this.pinta(c); } }; }
-    Mic.pinta($('.mic-painel', c)); Dub.pinta($('.dub-painel', c));
     // a onda das gravações deste computador (e das da nuvem que já foram ouvidas nesta aba)
     for (const el of $$('.fala', c)) { const f0 = this.acha(el.dataset.f); if (!f0) continue; const f = el.dataset.vez != null && this.varios(f0) ? this.versao(f0, el.dataset.vez) : f0; const l = locais.get(f.id + this.suf(f)), au = this.audioDe(f), cor = getComputedStyle(el).getPropertyValue('--c').trim() || '#4fe08f';
       const k = l ? `l:${this.chaveL(f)}:${l.em}` : au ? 'n:' + au : null; if (!k) continue;
@@ -1319,7 +1345,7 @@ const Falas = {
       aoSalvar: async ([x]) => { await DB.put('aud', KL, { blob: x.blob, duracao: x.duracao, em: Date.now() }); aviso('Áudio editado. Ele fica neste computador até você clicar em "Enviar agora".', 'ok', 5000); this.pinta(this.c); } }); }
     catch (e) { aviso(e.message, 'erro'); } },
   async locais() { const m = new Map(); try { for (const [k, v] of await DB.todos('aud')) if (String(k).startsWith(S.P.id + '/')) m.set(String(k).slice(S.P.id.length + 1), v); } catch { } return m; },
-  linha(f, n, local, cs) {
+  linha(f, n, local, cs, certo) { // certo = fala com aviso no passo 2: ganha o botão "Está certo" (tira o aviso)
     const vz = this.vez(f), varios = this.varios(f), au = this.audioDe(f), cor = varios ? (vz ? cs.get(vz) : '#9aa0ab') : cs.get(Roteiro.chave(f.personagem)), gravar = pode('gravar');
     const st = local ? `<span class="st aqui">${ic('alerta', 12)} gravada aqui · falta enviar · ${tempo(local.duracao)}</span>` : au ? `<span class="st nuvem">${f.regravar && !vz ? `<span class="aten">${ic('alerta', 12)} o texto mudou, regravar</span>` : `${ic('ok', 12)} na nuvem`} · ${tempo(this.durDe(f))}</span>` : '<span class="st sem">sem áudio</span>';
     const corP = p => cs.get(Roteiro.chave(p)) || corOuPadrao(p), nomes = f.personagens?.map((p, i, l) => `${i ? `<span class="nm-e">${i === l.length - 1 ? ' e ' : ', '}</span>` : ''}<b style="color:${corP(p)}" class="${vz && Roteiro.chave(p) !== vz ? 'nm-outro' : ''}">${esc(p)}</b>`).join('') || '';
@@ -1329,10 +1355,10 @@ const Falas = {
     const juntoH = outros.length ? `<div class="junto-de"><span>${ic('alerta', 13)} Esta fala é dita <b>ao mesmo tempo</b> que:</span>${outros.map(p => { const ko = Roteiro.chave(p), tem = f.audios?.[ko]?.audio || this._loc?.has(f.id + '@' + ko);
         return `<span class="jd-p" data-ko="${esc(ko)}" data-tem="${tem ? 1 : ''}">${ava(p, cs.get(ko) || corOuPadrao(p), 'p')}<b style="color:${cs.get(ko) || corOuPadrao(p)}">${esc(p)}</b>${tem ? `<button class="bt mini" data-ouve-outro="${esc(ko)}">${ic('play', 12)} Ouvir</button>${pode('gravar') ? `<button class="bt mini" data-grava-ouvindo="${esc(ko)}" title="Toca a gravação de ${esc(p)} enquanto você grava (use fone)">${ic('mic', 12)} Gravar ouvindo ${esc(p)}</button>` : ''}` : '<small>ainda não gravou</small>'}</span>`; }).join('')}${(local || au) && outros.some(p => f.audios?.[Roteiro.chave(p)]?.audio || this._loc?.has(f.id + '@' + Roteiro.chave(p))) ? `<button class="bt mini jd-juntos" data-ouve-juntos title="Toca a sua versão e a dos outros ao mesmo tempo">${ic('play', 12)} Ouvir juntos</button>` : ''}</div>` : '';
     const dicaV = varios && !vz ? `<div class="dica-v">Gravação de todos juntos. ${local && pode('gravar') ? `<label class="de-quem">Esta gravação é de: <select data-move-de><option value="">Todos juntos</option>${f.personagens.map(p => `<option value="${esc(Roteiro.chave(p))}">${esc(p)}</option>`).join('')}</select></label>` : 'Cada personagem também tem a sua linha.'}</div>` : '';
-    return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}" data-f="${esc(f.id)}" ${varios ? `data-vez="${esc(vz)}"` : ''} style="--c:${cor}"><span class="num">${n}</span>
+    return `<div class="fala ${local ? 'local' : au ? 'tem' : ''}${certo ? ' ps-aviso' : ''}" data-f="${esc(f.id)}" ${varios ? `data-vez="${esc(vz)}"` : ''} style="--c:${cor}"><span class="num">${n}</span>
       ${quemH}
       <div class="txt">${f.nota ? `<em>${esc(f.nota)}</em>` : ''}<p>${esc(f.texto)}</p>${st}${!vz && f.auto && f.fonte?.de && f.fonte.de === au && f.aviso?.length ? `<span class="st-auto">${f.aviso.map(a => `<span class="ai-av">${ic('alerta', 12)} ${esc(a)}</span>`).join('')}</span>` : ''}${juntoH}${dicaV}<div class="onda-box" hidden title="Clique ou arraste para ir a qualquer ponto"><canvas class="onda"></canvas><i class="onda-pos"></i><span class="onda-t"></span></div></div>
-      <div class="bts">${local || au ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}
+      <div class="bts">${local || au ? `<button class="redondo ouvir" data-ouvir title="Ouvir">${ic('play', 16)}</button>` : ''}${certo && (pode('gravar') || pode('roteiro')) ? `<button class="bt ps-certo" data-certo title="Ouvi e está certo: tira o aviso">${ic('ok', 15)} Está certo</button>` : ''}
       ${gravar ? `<button class="redondo gravar ${local || au ? 'de-novo' : 'sem-audio'}" data-gravar title="${local || au ? 'Regravar' : 'Gravar'}">${ic('mic', 18)}</button>` : ''}
       ${gravar ? `<button class="redondo subir" data-subir title="Enviar um arquivo de áudio já gravado (mp3, wav, mpeg, vídeo…)">${ic('upload', 16)}</button>` : ''}
       ${gravar && (local || au) ? `<button class="redondo" data-edita title="Editar o áudio: aparar, cortar trecho, volume, zoom">${ic('lapis', 15)}</button>` : ''}
@@ -1353,7 +1379,7 @@ const Falas = {
     if (this.rec) { const parar = this.rec.f === f; this.rec.parar(); if (parar) return; }
     let guia = null; if (ouvindo) { try { guia = await this.audioOutro(f, ouvindo); } catch (e) { return aviso(e.message, 'erro'); } aviso('Use fone de ouvido: assim o áudio do outro personagem não entra na sua gravação.', 'info', 5000); }
     Mic.paraTeste($('.mic-painel', this.c));
-    let m; try { m = await Mic.abre(); } catch { Mic.pinta($('.mic-painel', this.c)); return aviso('Não consegui usar o microfone. Veja o quadro "Microfone" lá em cima.', 'erro'); }
+    let m; try { m = await Mic.abre(); } catch { Mic.pinta($('.mic-painel', this.c)); return aviso('Não consegui usar o microfone. Veja em Mais opções › Escolher e testar o microfone.', 'erro'); }
     if (Mic.cfg().conta) await new Promise(ok => { const o = h('<div class="conta3"><b>3</b></div>'); document.body.append(o); let n = 3; const t = setInterval(() => { n--; if (n <= 0) { clearInterval(t); o.remove(); ok(); } else $('b', o).textContent = String(n); }, 700); }); // 3, 2, 1
     const tipo = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
     const mr = new MediaRecorder(m.dest.stream, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: Mic.kbps() }), pedacos = [], t0 = performance.now();
@@ -1476,12 +1502,10 @@ function escolheNoAtelie(L, atual, titulo, rotAuto = 'Automático (padrão do pe
 }
 async function pintaElenco(c) {
   const P = S.P, ps = Roteiro.personagens(P.partes), ed = pode('roteiro') || pode('organizar'), cs = coresDoRoteiro();
-  c.innerHTML = `<div class="elenco-an"><div class="explica">${ic('pessoa', 20)}<div><b>Quem é quem no Animador</b>
-    <p>Escolha qual personagem do Ateliê faz cada nome NESTE roteiro (fica salvo nele e dá para trocar depois). Em <b>Automático</b> vale o <b>padrão do personagem</b> (aba Personagens); sem padrão, o personagem do Ateliê com o mesmo nome. <b>Nenhum</b> = essa voz entra sem personagem na cena.</p></div></div>
-    <div class="el-lista">${giroBloco('Carregando os personagens do Ateliê')}</div>
-    <div class="el-pe"><button class="bt" data-at>${ic('atualizar', 15)} Buscar a lista do Ateliê de novo</button></div></div>`;
-  let L; try { [L] = await Promise.all([atelie(), carregaPers().catch(() => ({}))]); } catch (e) { $('.el-lista', c).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
-  $('[data-at]', c).onclick = async () => { sessionStorage.removeItem('ep-prep-atelie'); pintaElenco(c); };
+  // (23/11/2026) a lista do Ateliê é buscada de novo a cada vez que o Elenco abre (saiu o botão "Buscar a lista do Ateliê de novo" e o texto grande)
+  c.innerHTML = `<div class="elenco-an"><p class="dica el-dica">Cada nome usa o personagem do Ateliê com o mesmo nome. Só mexa se algum estiver errado.</p>
+    <div class="el-lista">${giroBloco('Carregando os personagens do Ateliê')}</div></div>`;
+  let L; try { [L] = await Promise.all([atelie(true).catch(() => atelie()), carregaPers().catch(() => ({}))]); } catch (e) { $('.el-lista', c).innerHTML = `<div class="vazio erro">${esc(e.message)}</div>`; return; }
   const porNome = new Map(L.map(x => [Roteiro.chave(x.nome), x])), mapa = () => (P.animador?.pers || {});
   const pinta = () => { const M = mapa();
     $('.el-lista', c).innerHTML = ps.length ? ps.map(p => { const v = M[p.chave], pad = S.pers?.[p.chave]?.atelie, mesmo = porNome.get(p.chave), sel = v === null ? '-' : v?.id || '';
@@ -1497,10 +1521,10 @@ async function pintaElenco(c) {
         <small class="el-quem">${quem}</small></div>`; }).join('') : '<div class="vazio">Ainda não há falas no roteiro.</div>';
     $$('select[data-k]', c).forEach(sl => sl.onchange = () => { const k = sl.dataset.k, v = sl.value, pers = { ...mapa() };
       if (v === '') delete pers[k]; else if (v === '-') pers[k] = null; else { const x = L.find(y => y.id === v); pers[k] = { id: v, nome: x?.nome || v }; }
-      P.animador = { ...(P.animador || {}), pers }; marcaSujo(); pinta(); });
+      P.animador = { ...(P.animador || {}), pers }; marcaSujo(); pinta(); Simples.resumoAjustes(); });
     $$('[data-esc]', c).forEach(b => b.onclick = async () => { const k = b.dataset.esc, p = ps.find(x => x.chave === k), r = await escolheNoAtelie(L, mapa()[k], `Quem faz ${p?.nome || k} no Animador?`); if (r === false) return;
       const pers = { ...mapa() }; if (r === undefined) delete pers[k]; else if (r === null) pers[k] = null; else pers[k] = { id: r.id, nome: r.nome };
-      P.animador = { ...(P.animador || {}), pers }; marcaSujo(); pinta(); });
+      P.animador = { ...(P.animador || {}), pers }; marcaSujo(); pinta(); Simples.resumoAjustes(); });
     $$('.el-esc [data-th]', c).forEach(el => { const x = L.find(y => y.id === el.dataset.th); if (x) thumbDe(x).then(t => { if (t) { el.style.backgroundImage = `url("${t}")`; el.classList.add('com-th'); } }); }); };
   pinta();
 }
