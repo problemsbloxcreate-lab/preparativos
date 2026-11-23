@@ -22,7 +22,7 @@ const Simples = {
   _R() { return typeof Roteiro !== 'undefined' ? Roteiro : require('./roteiro.js'); },
   // palavra em MAIÚSCULAS com 3+ letras = palavra em destaque (a MESMA regra do Ritmo do Animador: js/ritmo.js › caps). *assim* no roteiro é nota (como falar).
   limpaPal: w => String(w || '').replace(/^[^0-9A-Za-zÀ-ÿ]+|[^0-9A-Za-zÀ-ÿ]+$/g, ''),
-  caps(w) { const l = String(w).replace(/[^A-Za-zÀ-ÿ]/g, ''); return l.length >= 2 && /* 2+ letras: "MENOS EU" (23/11) */ l === l.toLocaleUpperCase('pt-BR') && l !== l.toLocaleLowerCase('pt-BR'); },
+  caps(w) { const l = String(w).replace(/[^A-Za-zÀ-ÿ]/g, ''); return l.length >= 3 && l === l.toLocaleUpperCase('pt-BR') && l !== l.toLocaleLowerCase('pt-BR'); },
   /* "Como o Preparativos entendeu": o que o texto vira, com o MESMO leitor do programa (Roteiro.classifica/separa).
      → { falas, partes, pers: [{ nome, chave, n }], destaques: [palavra], notas (falas com *nota*), semNome: [{ linha, texto }] (linha solta: NÃO vira fala),
          juntas: [{ linha, texto }] (linha sem NOME: colada embaixo de uma fala: vira continuação da fala de cima, como manda o formato) } */
