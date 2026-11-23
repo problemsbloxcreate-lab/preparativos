@@ -15,8 +15,7 @@ O Cérebro (`/cerebro/`) é a memória compartilhada da equipe e das IAs. Vale m
 - SEM nenhum indicativo de IA nas telas (pedido da dona): o botão é só "Organizar".
 - Nuvem no limite: rascunhos e áudios ficam no IndexedDB `ep-preparativos` até a pessoa mandar; nada de operações em massa.
 - O formato na nuvem (`preparativos/<id>/prep.json`) é um CONTRATO com o Animador, o Shorts e o Editor (README.md). Mudou? Atualize o README e o CLAUDE.md do site.
-- Conferir antes do push: `for f in js/*.js; do node --check "$f"; done; node js/roteiro.js; node js/simples.js`.
-- ROTEIRO ABERTO = PREPARATIVOS SIMPLES (23/11/2026, `js/simples.js` + `css/simples.css`): 3 passos (S.sub 'roteiro' → 'falas' → 'fim') com uma ação principal no rodapé; Legendas, Elenco, Canal e data no painel Ajustes (pela direita); o editor de documento antigo é Mais opções › Ver como documento (S.doc). "Montar no Animador" abre `/animador/?montar=<id>&ritmo=1`.
+- Conferir antes do push: `for f in js/*.js; do node --check "$f"; done; node js/roteiro.js`.
 - FORMATO DO ROTEIRO (para escrever ou ler um roteiro): README.md › "Como escrever o roteiro". Resumo: `## Parte`, `Nome: fala`,
   `*itálico*` = ação / como falar (vira nota, fora da legenda), linha inteira em itálico ou `[…]` = cena, `//` = comentário. O parser é
   `js/roteiro.js` (classifica/separa); a folha é `js/editor.js` (o texto é a fonte de verdade; a pintura nunca muda o texto).
