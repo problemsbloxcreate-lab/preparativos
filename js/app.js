@@ -363,6 +363,7 @@ async function pintaInicio(novo) {
     corpo.appendChild(top); corpo.appendChild(D.length ? grade(D) : h(`<div class="pb-vazia">${todos.some(x => pastaDe(x) === pastaRot) ? 'Nada nesta pasta com esses filtros.' : 'Pasta vazia. Volte e arraste roteiros para o cartão desta pasta (ou botão direito no roteiro › Mover para…).'}</div>`));
   } else {
     const fora = L.filter(x => !pastaDe(x) || !pastas.includes(pastaDe(x)));
+    if (window.Planilha && filtro === 'todos' && filtroOnde === 'tudo') corpo.appendChild(Planilha.secao(S.lista)); // CRONOGRAMA: os vídeos da planilha (23/11/2026)
     if (L.length > 6) { corpo.appendChild(h(`<h3 class="pb-h">Continuar de onde parou</h3>`)); corpo.appendChild(grade(L.slice(0, 4))); }
     if (pastas.length) { corpo.appendChild(h(`<h3 class="pb-h" title="Clique para abrir · arraste um roteiro para cima de uma pasta">Pastas <small>${pastas.length}</small></h3>`));
       const cards = h('<div class="pb-cards"></div>');
@@ -2134,6 +2135,9 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
      ("Simples is not defined"). Agora o próprio app.js garante o simples.js e o simples.css antes de desenhar qualquer tela. */
   if (!window.Simples) { if (!document.querySelector('link[href*="css/simples.css"]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/simples.css?v=' + Date.now(); document.head.appendChild(l); }
     try { await carregaJs('js/simples.js', 'Simples'); } catch (e) { tela().innerHTML = `<div class="vazio">Não consegui abrir o programa (${esc(e.message)}). Recarregue a página.</div>`; return; } }
+  // CRONOGRAMA (23/11/2026): a ligação com a planilha e o conversor do Google Docs (se não carregarem, o resto funciona igual)
+  if (!window.PrepDocs) await carregaJs('js/docs.js', 'PrepDocs').catch(() => { });
+  if (!window.Planilha) await carregaJs('js/planilha.js', 'Planilha').catch(() => { });
   try { await window.EstudioPerm?.pronto; } catch { }
   const q = new URLSearchParams(location.search), id = q.get('id') || q.get('roteiro'), aba = q.get('aba');
   if (aba === 'publicacoes') { q.delete('aba'); S.pubQ = q.toString(); return trocaAba('publicacoes', true); }

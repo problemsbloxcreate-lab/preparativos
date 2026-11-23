@@ -92,6 +92,7 @@ const Simples = {
     const nm = $('.nome', el); nm.oninput = () => { P.nome = nm.value.slice(0, 80); marcaSujo(); }; nm.onkeydown = e => { if (e.key === 'Enter') nm.blur(); };
     if (P.mod && !P.novo && AoVivo.atual !== P.id) { AoVivo.atual = P.id; AoVivo.ultimos = []; AoVivo.entra(P.id, l => this.vivo(l)); } else this.vivo();
     pintaBarraPrep(); this.corpo();
+    window.Planilha?.faixa(P); // roteiro ligado a uma pasta do Drive: data, status e responsável da planilha
   },
   vivo(l) { const box = $('.prep .aovivo-doc'); if (!box) return; const g = (l || AoVivo.ultimos || []); AoVivo.ultimos = g; const outros = g.filter(x => !x.eu);
     box.innerHTML = g.length > 1 || outros.length ? g.slice(0, 5).map(x => pava(x, 'vivo' + (x.eu ? ' eu' : ''))).join('') + (g.length > 5 ? `<span class="mais">+${g.length - 5}</span>` : '') : ''; box.title = g.length ? 'Ao vivo agora: ' + g.map(x => x.n + (x.eu ? ' (você)' : '')).join(', ') : ''; },
@@ -125,6 +126,7 @@ const Simples = {
     ta.oninput = () => { P.roteiro = ta.value; marcaSujo(); clearTimeout(t); t = setTimeout(() => { if (S.P !== P) return; P.partes = Roteiro.separa(P.roteiro, P.partes); Varios.confere(); this.entendi(); this.rodape(); this.marcaPassos(); }, 250); };
     $('[data-mais1]', c).onclick = e => { const bm = e.currentTarget; popMenu(bm, [
       [`${ic('doc', 15)} Ver como documento (régua e formatação)`, '', () => { S.doc = true; S.sub = 'roteiro'; pintaPrep(); }],
+      ...(P.drive?.pasta && window.Planilha ? [[`${ic('upload', 15)} Trazer o texto do Google Docs de novo`, '', () => Planilha.trazDeNovo(), !ed]] : []),
       [`${ic('organizar', 15)} Organizar o roteiro`, '', () => Organizar.roda(bm, this.textoComoEditor(ta)), !pode('organizar')],
       [`${ic('enviar', 15)} Baixar como arquivo .txt`, '', baixaTexto],
       '-', [`${ic('ajuda', 15)} Ver como escrever o roteiro`, '', mostraComo],
@@ -169,6 +171,7 @@ const Simples = {
       const d = this._dub; if (d && d.id === P.id && Date.now() - d.em < 60e3) poe(d.n);
       else Nuvem.acao({ acao: 'dublar', op: 'lista', id: P.id }).then(r => { this._dub = { id: P.id, em: Date.now(), n: (r.pend || []).length }; poe(this._dub.n); }).catch(() => { });
     }
+    window.Planilha?.caixaAudios(c); // os áudios da pasta do Drive, prontos para usar
     this.rodape();
   },
   // "Está certo": tira o aviso da fala (f.aviso do corte automático e f.regravar do texto mudado) e guarda no roteiro
