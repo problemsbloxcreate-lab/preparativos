@@ -258,7 +258,7 @@ async function sairDoPrep(semHist) {
   // sem mudança de verdade: sai direto; roteiro novo e vazio nem fica como rascunho
   if (S.P && S.sujo && !mudouDeVerdade()) { clearTimeout(tGuarda); clearTimeout(tJunto); const id = S.P.id, novo = S.P.novo; S.sujo = false; if (novo || S.marco != null) await DB.del('rasc', id).catch(() => { }); }
   if (S.sujo && !await pergunta('Sair sem mandar para a nuvem?', 'O que você mudou continua guardado neste computador e aparece aqui da próxima vez.', [['Ficar', false], ['Sair', true, 'pri']])) return false; S.P = null; S.sujo = false; S.ed = null; AoVivo.sai(); AoVivo.atual = null; if (!semHist) history.pushState(null, '', S.aba && S.aba !== 'roteiros' ? './?aba=' + S.aba : './'); pinta(); return true; }
-function pinta() { Mic.paraTeste(); document.body.classList.toggle('aba-pub', !S.P && S.aba === 'publicacoes'); if (S.P) return pintaPrep(); modoDoc(false); Simples.sai(); Simples.fechaPaineis(); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'publicacoes') return pintaPublicacoes(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
+function pinta() { if (!window.Simples) return; /* o boot carrega o simples.js e desenha depois (23/11) */ Mic.paraTeste(); document.body.classList.toggle('aba-pub', !S.P && S.aba === 'publicacoes'); if (S.P) return pintaPrep(); modoDoc(false); Simples.sai(); Simples.fechaPaineis(); AoVivo.sai(); AoVivo.paraTudo(); if (S.aba === 'publicacoes') return pintaPublicacoes(); if (S.aba === 'ideias') return Ideias.pinta(); if (S.aba === 'personagens' || S.aba === 'cores') return pintaPersonagens(); return pintaInicio(); }
 // bolinha com as iniciais do personagem, na cor dele; com foto, a foto (carrega sozinha quando a bolinha aparece)
 const iniciais = n => { const p = Roteiro.norm(n).split(' ').filter(Boolean); return ((p[0]?.[0] || '?') + (p.length > 1 ? p[1][0] : (p[0]?.[1] || ''))).toUpperCase(); };
 // cor da letra sobre um fundo: fundo escuro → branca, fundo claro → quase preta (luminância relativa, WCAG)
@@ -2129,6 +2129,11 @@ addEventListener('DOMContentLoaded', () => window.EstudioConta?.espaco?.registra
   try { S.eu = await window.EstudioLogin?.pronto; } catch { }
   // níveis de acesso: o /estudio-conta.js (defer) cria o EstudioPerm depois deste arquivo; espera ele antes de desenhar os botões
   if (document.readyState === 'loading') await new Promise(r => addEventListener('DOMContentLoaded', r, { once: true }));
+  /* SEGURANÇA DE PUBLICAÇÃO (23/11/2026): o GitHub guarda a PÁGINA (index.html) por até 10 min, mas os scripts chegam novos na hora.
+     Logo depois de publicar, a página velha (sem <script src="js/simples.js">) veio com este app.js novo e o Preparativos travou
+     ("Simples is not defined"). Agora o próprio app.js garante o simples.js e o simples.css antes de desenhar qualquer tela. */
+  if (!window.Simples) { if (!document.querySelector('link[href*="css/simples.css"]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/simples.css?v=' + Date.now(); document.head.appendChild(l); }
+    try { await carregaJs('js/simples.js', 'Simples'); } catch (e) { tela().innerHTML = `<div class="vazio">Não consegui abrir o programa (${esc(e.message)}). Recarregue a página.</div>`; return; } }
   try { await window.EstudioPerm?.pronto; } catch { }
   const q = new URLSearchParams(location.search), id = q.get('id') || q.get('roteiro'), aba = q.get('aba');
   if (aba === 'publicacoes') { q.delete('aba'); S.pubQ = q.toString(); return trocaAba('publicacoes', true); }
